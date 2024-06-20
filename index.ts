@@ -291,6 +291,8 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
                 }
 
                 ctx.drawImage(cell, Math.floor(u*cell.width), 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
+                ctx.fillStyle = new Color(0, 0, 0, 1 - 1/v.dot(d)).toStyle();
+                ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight*1.01)*0.5, stripWidth, stripHeight*1.01);
             }
         }
     }
