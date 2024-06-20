@@ -6,6 +6,42 @@ const FOV = Math.PI * 0.5;
 const SCREEN_WIDTH = 300;
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
+class Color {
+    constructor(r, g, b, a) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+    static red() {
+        return new Color(1, 0, 0, 1);
+    }
+    static green() {
+        return new Color(0, 1, 0, 1);
+    }
+    static blue() {
+        return new Color(0, 0, 1, 1);
+    }
+    static yellow() {
+        return new Color(1, 1, 0, 1);
+    }
+    static purple() {
+        return new Color(1, 0, 1, 1);
+    }
+    static cyan() {
+        return new Color(0, 1, 1, 1);
+    }
+    brightness(factor) {
+        return new Color(factor * this.r, factor * this.g, factor * this.b, this.a);
+    }
+    toStyle() {
+        return `rgba(`
+            + `${Math.floor(this.r * 255)}, `
+            + `${Math.floor(this.g * 255)}, `
+            + `${Math.floor(this.b * 255)}, `
+            + `${this.a})`;
+    }
+}
 class Vector2 {
     constructor(x, y) {
         this.x = x;
@@ -174,7 +210,7 @@ function renderMinimap(ctx, player, position, size, scene) {
         for (let x = 0; x < gridSize.x; ++x) {
             const color = scene[y][x];
             if (color !== null) {
-                ctx.fillStyle = color;
+                ctx.fillStyle = color.toStyle();
                 ctx.fillRect(x, y, 1, 1);
             }
         }
@@ -207,7 +243,7 @@ function renderScene(ctx, player, scene) {
                 const v = p.sub(player.position);
                 const d = Vector2.fromAngle(player.direction);
                 const stripHeight = ctx.canvas.height / v.dot(d);
-                ctx.fillStyle = color;
+                ctx.fillStyle = color.brightness(1 / v.dot(d)).toStyle();
                 ctx.fillRect(x * stripWidth, (ctx.canvas.height - stripHeight) * 0.5, stripWidth, stripHeight);
             }
         }
@@ -222,6 +258,15 @@ function renderGame(ctx, player, scene) {
     renderScene(ctx, player, scene);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
+const scene = [
+    [null, null, Color.cyan(), Color.purple(), null, null, null, null, null],
+    [null, null, null, Color.yellow(), null, null, null, null, null],
+    [null, Color.red(), Color.green(), Color.blue(), null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+    [null, null, null, null, null, null, null, null, null],
+];
 (() => {
     const game = document.getElementById("game");
     if (game === null)
@@ -232,15 +277,6 @@ function renderGame(ctx, player, scene) {
     const ctx = game.getContext("2d");
     if (ctx === null)
         throw new Error("2D context is not supported");
-    const scene = [
-        [null, null, "cyan", "purple", null, null, null, null, null],
-        [null, null, null, "yellow", null, null, null, null, null],
-        [null, "red", "green", "blue", null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-    ];
     const player = new Player(sceneSize(scene).mul(new Vector2(0.63, 0.63)), Math.PI * 1.25);
     let movingForward = false;
     let movingBackward = false;

@@ -6,6 +6,47 @@ const SCREEN_WIDTH = 300;
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 
+class Color {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+    constructor(r: number, g: number, b: number, a: number) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+    static red(): Color {
+        return new Color(1, 0, 0, 1);
+    }
+    static green(): Color {
+        return new Color(0, 1, 0, 1);
+    }
+    static blue(): Color {
+        return new Color(0, 0, 1, 1);
+    }
+    static yellow(): Color {
+        return new Color(1, 1, 0, 1);
+    }
+    static purple(): Color {
+        return new Color(1, 0, 1, 1);
+    }
+    static cyan(): Color {
+        return new Color(0, 1, 1, 1);
+    }
+    brightness(factor: number): Color {
+        return new Color(factor*this.r, factor*this.g, factor*this.b, this.a);
+    }
+    toStyle(): string {
+        return `rgba(`
+            +`${Math.floor(this.r*255)}, `
+            +`${Math.floor(this.g*255)}, `
+            +`${Math.floor(this.b*255)}, `
+            +`${this.a})`;
+    }
+}
+
 class Vector2 {
     x: number;
     y: number;
@@ -134,7 +175,7 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     return p3;
 }
 
-type Scene = Array<Array<string | null>>;
+type Scene = Array<Array<Color | null>>;
 
 function insideScene(scene: Scene, p: Vector2): boolean {
     const size = sceneSize(scene);
@@ -194,7 +235,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
         for (let x = 0; x < gridSize.x; ++x) {
             const color = scene[y][x];
             if (color !== null) {
-                ctx.fillStyle = color;
+                ctx.fillStyle = color.toStyle();
                 ctx.fillRect(x, y, 1, 1);
             }
         }
@@ -232,7 +273,7 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
                 const v = p.sub(player.position);
                 const d = Vector2.fromAngle(player.direction)
                 const stripHeight = ctx.canvas.height/v.dot(d);
-                ctx.fillStyle = color;
+                ctx.fillStyle = color.brightness(1/v.dot(d)).toStyle();
                 ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
             }
         }
@@ -250,6 +291,15 @@ function renderGame(ctx: CanvasRenderingContext2D, player: Player, scene: Scene)
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
 
+const scene = [
+    [null, null,  Color.cyan(), Color.purple(), null, null, null, null, null],
+    [null, null,   null, Color.yellow(), null, null, null, null, null],
+    [null, Color.red(), Color.green(), Color.blue(), null, null, null, null, null],
+    [null, null,   null,  null, null, null, null, null, null],
+    [null, null,   null,  null, null, null, null, null, null],
+    [null, null,   null,  null, null, null, null, null, null],
+    [null, null,   null,  null, null, null, null, null, null],
+];
 (() => {
     const game = document.getElementById("game") as (HTMLCanvasElement | null);
     if (game === null) throw new Error("No canvas with id `game` is found");
@@ -259,15 +309,6 @@ function renderGame(ctx: CanvasRenderingContext2D, player: Player, scene: Scene)
     const ctx = game.getContext("2d");
     if (ctx === null) throw new Error("2D context is not supported");
 
-    const scene = [
-        [null, null,  "cyan", "purple", null, null, null, null, null],
-        [null, null,   null, "yellow", null, null, null, null, null],
-        [null, "red", "green", "blue", null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
-    ];
     const player = new Player(
         sceneSize(scene).mul(new Vector2(0.63, 0.63)),
         Math.PI*1.25);
