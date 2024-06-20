@@ -270,7 +270,7 @@ function renderScene(ctx, player, scene) {
                 else {
                     u = t.x;
                 }
-                ctx.drawImage(cell, u * cell.width, 0, 1, cell.height, x * stripWidth, (ctx.canvas.height - stripHeight) * 0.5, stripWidth, stripHeight);
+                ctx.drawImage(cell, Math.floor(u * cell.width), 0, 1, cell.height, x * stripWidth, (ctx.canvas.height - stripHeight) * 0.5, stripWidth, stripHeight);
             }
         }
     }
@@ -304,6 +304,7 @@ function loadImageData(url) {
     const ctx = game.getContext("2d");
     if (ctx === null)
         throw new Error("2D context is not supported");
+    ctx.imageSmoothingEnabled = false;
     const tsodinPog = yield loadImageData("images/tsodinPog.png");
     const tsodinFlushed = yield loadImageData("images/tsodinFlushed.png");
     const tsodinZezin = yield loadImageData("images/tsodinZezin.png");

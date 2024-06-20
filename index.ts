@@ -290,7 +290,7 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
                     u = t.x;
                 }
 
-                ctx.drawImage(cell, u*cell.width, 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
+                ctx.drawImage(cell, Math.floor(u*cell.width), 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
             }
         }
     }
@@ -324,6 +324,7 @@ async function loadImageData(url: string): Promise<HTMLImageElement> {
     game.height = 9*factor;
     const ctx = game.getContext("2d");
     if (ctx === null) throw new Error("2D context is not supported");
+    ctx.imageSmoothingEnabled = false;
 
     const tsodinPog = await loadImageData("images/tsodinPog.png");
     const tsodinFlushed = await loadImageData("images/tsodinFlushed.png");
