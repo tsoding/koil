@@ -3,7 +3,7 @@
   <head>
     <title>Raycasting in TypeScript</title>
     <style>
-      #game {
+      .container {
           position: absolute;
           left: 50%;
           top: 50%;
@@ -13,7 +13,10 @@
   </head>
   <body>
     <img id="tsodinPog" style="display:none" src="./images/tsodinPog.png"/>
-    <canvas id="game"></canvas>
+    <div class="container">
+      <div>Controls: WASD</div>
+      <canvas id="game"></canvas>
+    </div>
     <script src="index.js"></script>
   </body>
 </html>
