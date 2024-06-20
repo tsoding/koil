@@ -5,11 +5,12 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "watch": "tsc -w"
+    "watch": "node watch.js"
   },
   "author": "Alexey Kutepov <reximkut@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "http-server": "^14.1.1",
     "typescript": "^5.4.5"
   }
 }

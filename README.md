@@ -12,3 +12,14 @@ No Web-server is required, just open index.html with a browser. You can also vis
 $ npm install
 $ npm run build
 ```
+
+This scripts just runs `tsc` once.
+
+## Watch mode
+
+```console
+$ npm install
+$ npm run watch
+```
+
+This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and tsc in watch mode to constantly recompile [index.ts](./index.ts). See [watch.js](./watch.js) for more details.
