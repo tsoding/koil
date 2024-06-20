@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.25;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -208,10 +217,13 @@ function renderMinimap(ctx, player, position, size, scene) {
     ctx.lineWidth = 0.1;
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
-            const color = scene[y][x];
-            if (color !== null) {
-                ctx.fillStyle = color.toStyle();
+            const cell = scene[y][x];
+            if (cell instanceof Color) {
+                ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
+            }
+            else if (cell instanceof HTMLImageElement) {
+                ctx.drawImage(cell, x, y, 1, 1);
             }
         }
     }
@@ -238,13 +250,27 @@ function renderScene(ctx, player, scene) {
         const p = castRay(scene, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
         const c = hittingCell(player.position, p);
         if (insideScene(scene, c)) {
-            const color = scene[c.y][c.x];
-            if (color !== null) {
+            const cell = scene[c.y][c.x];
+            if (cell instanceof Color) {
                 const v = p.sub(player.position);
                 const d = Vector2.fromAngle(player.direction);
                 const stripHeight = ctx.canvas.height / v.dot(d);
-                ctx.fillStyle = color.brightness(1 / v.dot(d)).toStyle();
+                ctx.fillStyle = cell.brightness(1 / v.dot(d)).toStyle();
                 ctx.fillRect(x * stripWidth, (ctx.canvas.height - stripHeight) * 0.5, stripWidth, stripHeight);
+            }
+            else if (cell instanceof HTMLImageElement) {
+                const v = p.sub(player.position);
+                const d = Vector2.fromAngle(player.direction);
+                const stripHeight = ctx.canvas.height / v.dot(d);
+                let u = 0;
+                const t = p.sub(c);
+                if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
+                    u = t.y;
+                }
+                else {
+                    u = t.x;
+                }
+                ctx.drawImage(cell, u * cell.width, 0, 1, cell.height, x * stripWidth, (ctx.canvas.height - stripHeight) * 0.5, stripWidth, stripHeight);
             }
         }
     }
@@ -258,16 +284,17 @@ function renderGame(ctx, player, scene) {
     renderScene(ctx, player, scene);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
-const scene = [
-    [null, null, Color.cyan(), Color.purple(), null, null, null, null, null],
-    [null, null, null, Color.yellow(), null, null, null, null, null],
-    [null, Color.red(), Color.green(), Color.blue(), null, null, null, null, null],
-    [null, null, null, null, null, null, null, null, null],
-    [null, null, null, null, null, null, null, null, null],
-    [null, null, null, null, null, null, null, null, null],
-    [null, null, null, null, null, null, null, null, null],
-];
-(() => {
+function loadImageData(url) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const image = new Image();
+        image.src = url;
+        return new Promise((resolve, reject) => {
+            image.onload = () => resolve(image);
+            image.onerror = reject;
+        });
+    });
+}
+(() => __awaiter(void 0, void 0, void 0, function* () {
     const game = document.getElementById("game");
     if (game === null)
         throw new Error("No canvas with id `game` is found");
@@ -277,6 +304,20 @@ const scene = [
     const ctx = game.getContext("2d");
     if (ctx === null)
         throw new Error("2D context is not supported");
+    const tsodinPog = yield loadImageData("images/tsodinPog.png");
+    const tsodinFlushed = yield loadImageData("images/tsodinFlushed.png");
+    const tsodinZezin = yield loadImageData("images/tsodinZezin.png");
+    const tsodinGasm = yield loadImageData("images/tsodinGasm.png");
+    const tf = yield loadImageData("images/tf.png");
+    const scene = [
+        [null, null, tsodinGasm, Color.purple(), null, null, null, null, null],
+        [null, null, null, tf, null, null, null, null, null],
+        [null, tsodinZezin, tsodinFlushed, tsodinPog, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null],
+        [null, null, tsodinPog, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null],
+    ];
     const player = new Player(sceneSize(scene).mul(new Vector2(0.63, 0.63)), Math.PI * 1.25);
     let movingForward = false;
     let movingBackward = false;
@@ -345,5 +386,5 @@ const scene = [
         prevTimestamp = timestamp;
         window.requestAnimationFrame(frame);
     });
-})();
+}))();
 //# sourceMappingURL=index.js.map
