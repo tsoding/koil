@@ -33,9 +33,12 @@ class Vector2 {
     length(): number {
         return Math.sqrt(this.x*this.x + this.y*this.y);
     }
+    sqrLength(): number {
+        return this.x*this.x + this.y*this.y;
+    }
     norm(): Vector2 {
         const l = this.length();
-        if (l == 0) return new Vector2(0, 0);
+        if (l === 0) return new Vector2(0, 0);
         return new Vector2(this.x/l, this.y/l);
     }
     scale(value: number): Vector2 {
@@ -44,8 +47,8 @@ class Vector2 {
     rot90(): Vector2 {
         return new Vector2(-this.y, this.x);
     }
-    distanceTo(that: Vector2): number {
-        return that.sub(this).length();
+    sqrDistanceTo(that: Vector2): number {
+        return that.sub(this).sqrLength();
     }
     lerp(that: Vector2, t: number): Vector2 {
         return that.sub(this).scale(t).add(this);
@@ -117,7 +120,7 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
             const y3 = snap(p2.y, d.y);
             const x3 = (y3 - c)/k;
             const p3t = new Vector2(x3, y3);
-            if (p2.distanceTo(p3t) < p2.distanceTo(p3)) {
+            if (p2.sqrDistanceTo(p3t) < p2.sqrDistanceTo(p3)) {
                 p3 = p3t;
             }
         }
@@ -138,9 +141,10 @@ function insideScene(scene: Scene, p: Vector2): boolean {
 }
 
 function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
-    for (;;) {
+    let start = p1;
+    while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE*FAR_CLIPPING_PLANE) {
         const c = hittingCell(p1, p2);
-        if (!insideScene(scene, c) || scene[c.y][c.x] !== null) break;
+        if (insideScene(scene, c) && scene[c.y][c.x] !== null) break;
         const p3 = rayStep(p1, p2);
         p1 = p2;
         p2 = p3;
