@@ -328,14 +328,14 @@ async function loadImageData(url: string): Promise<HTMLImageElement> {
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const tsodinPog = await loadImageData("images/tsodinPog.png");
-    const tsodinFlushed = await loadImageData("images/tsodinFlushed.png");
-    const tsodinZezin = await loadImageData("images/tsodinZezin.png");
-    const tsodinGasm = await loadImageData("images/tsodinGasm.png");
-    const tf = await loadImageData("images/tf.png");
+    const tsodinPog = await loadImageData("images/tsodinPog.png").catch(() => Color.purple());
+    const tsodinFlushed = await loadImageData("images/tsodinFlushed.png").catch(() => Color.purple());
+    const tsodinZezin = await loadImageData("images/tsodinZezin.png").catch(() => Color.purple());
+    const tsodinGasm = await loadImageData("images/tsodinGasm.png").catch(() => Color.purple());
+    const tf = await loadImageData("images/tf.png").catch(() => Color.purple());
 
     const scene: Scene = [
-        [null, null,  tsodinGasm, Color.purple(), null, null, null, null, null],
+        [null, null,  tsodinGasm, Color.red(), null, null, null, null, null],
         [null, null,   null, tf, null, null, null, null, null],
         [null, tsodinZezin, tsodinFlushed, tsodinPog, null, null, null, null, null],
         [null, null,   null,  null, null, null, null, null, null],
