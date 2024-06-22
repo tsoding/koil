@@ -1,0 +1,1 @@
+chrome "$($PSScriptRoot)\index.html"

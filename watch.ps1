@@ -1,0 +1,1 @@
+start-process node -argumentlist "node_modules/typescript/bin/tsc -b . -w"
