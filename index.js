@@ -307,18 +307,17 @@ function loadImageData(url) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const tsodinPog = yield loadImageData("images/tsodinPog.png").catch(() => Color.purple());
-    const tsodinFlushed = yield loadImageData("images/tsodinFlushed.png").catch(() => Color.purple());
-    const tsodinZezin = yield loadImageData("images/tsodinZezin.png").catch(() => Color.purple());
-    const tsodinGasm = yield loadImageData("images/tsodinGasm.png").catch(() => Color.purple());
-    const tf = yield loadImageData("images/tf.png").catch(() => Color.purple());
+    const wall1 = yield loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall1_color.png").catch(() => Color.purple());
+    const wall2 = yield loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall2_color.png").catch(() => Color.purple());
+    const wall3 = yield loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => Color.purple());
+    const wall4 = yield loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall4_color.png").catch(() => Color.purple());
     const scene = [
-        [null, null, tsodinGasm, Color.red(), null, null, null, null, null],
-        [null, null, null, tf, null, null, null, null, null],
-        [null, tsodinZezin, tsodinFlushed, tsodinPog, null, null, null, null, null],
+        [null, null, wall1, wall1, null, null, null, null, null],
+        [null, null, null, wall3, null, null, null, null, null],
+        [null, wall1, wall2, wall1, null, null, null, null, null],
         [null, null, null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null, null],
-        [null, null, tsodinPog, null, null, null, null, null, null],
+        [null, null, wall4, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null, null],
     ];
     const player = new Player(sceneSize(scene).mul(new Vector2(0.63, 0.63)), Math.PI * 1.25);
