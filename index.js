@@ -9,12 +9,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 const EPS = 1e-6;
-const NEAR_CLIPPING_PLANE = 0.25;
+const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI * 0.5;
 const SCREEN_WIDTH = 300;
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
+const PLAYER_SIZE = 0.5;
 class Color {
     constructor(r, g, b, a) {
         this.r = r;
@@ -58,6 +59,9 @@ class Vector2 {
     }
     static zero() {
         return new Vector2(0, 0);
+    }
+    static scalar(value) {
+        return new Vector2(value, value);
     }
     static fromAngle(angle) {
         return new Vector2(Math.cos(angle), Math.sin(angle));
@@ -200,6 +204,10 @@ class Scene {
         const fp = p.map(Math.floor);
         return this.cells[fp.y * this.width + fp.x];
     }
+    isWall(p) {
+        const c = this.getCell(p);
+        return c !== null && c !== undefined;
+    }
 }
 function castRay(scene, p1, p2) {
     let start = p1;
@@ -254,7 +262,8 @@ function renderMinimap(ctx, player, position, size, scene) {
         strokeLine(ctx, new Vector2(0, y), new Vector2(gridSize.x, y));
     }
     ctx.fillStyle = "magenta";
-    fillCircle(ctx, player.position, 0.2);
+    // fillCircle(ctx, player.position, 0.2);
+    ctx.fillRect(player.position.x - PLAYER_SIZE * 0.5, player.position.y - PLAYER_SIZE * 0.5, PLAYER_SIZE, PLAYER_SIZE);
     const [p1, p2] = player.fovRange();
     ctx.strokeStyle = "magenta";
     strokeLine(ctx, p1, p2);
@@ -312,6 +321,18 @@ function loadImageData(url) {
             image.onerror = reject;
         });
     });
+}
+function canPlayerGoThere(scene, newPosition) {
+    // TODO: try circle boundary instead of a box
+    const corner = newPosition.sub(Vector2.scalar(PLAYER_SIZE * 0.5));
+    for (let dx = 0; dx < 2; ++dx) {
+        for (let dy = 0; dy < 2; ++dy) {
+            if (scene.isWall(corner.add(new Vector2(dx, dy).scale(PLAYER_SIZE)))) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const game = document.getElementById("game");
@@ -398,8 +419,7 @@ function loadImageData(url) {
         }
         player.direction = player.direction + angularVelocity * deltaTime;
         const newPosition = player.position.add(velocity.scale(deltaTime));
-        const cell = scene.getCell(newPosition);
-        if (cell === null || cell === undefined) {
+        if (canPlayerGoThere(scene, newPosition)) {
             player.position = newPosition;
         }
         renderGame(ctx, player, scene);
