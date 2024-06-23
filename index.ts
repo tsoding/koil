@@ -98,6 +98,9 @@ class Vector2 {
     dot(that: Vector2): number {
         return this.x*that.x + this.y*that.y;
     }
+    map(f: (x: number) => number): Vector2 {
+        return new Vector2(f(this.x), f(this.y));
+    }
     array(): [number, number] {
         return [this.x, this.y];
     }
@@ -175,32 +178,49 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     return p3;
 }
 
-type Scene = Array<Array<Color | HTMLImageElement | null>>;
+type Cell = Color | HTMLImageElement | null;
 
-function insideScene(scene: Scene, p: Vector2): boolean {
-    const size = sceneSize(scene);
-    return 0 <= p.x && p.x < size.x && 0 <= p.y && p.y < size.y;
+class Scene {
+    cells: Array<Cell>;
+    width: number;
+    height: number;
+    constructor(cells: Array<Array<Cell>>) {
+        this.height = cells.length;
+        this.width = Number.MIN_VALUE;
+        for (let row of cells) {
+            this.width = Math.max(this.width, row.length);
+        }
+        this.cells = [];
+        for (let row of cells) {
+            this.cells = this.cells.concat(row);
+            for (let i = 0; i < this.width - row.length; ++i) {
+                this.cells.push(null);
+            }
+        }
+    }
+    size(): Vector2 {
+        return new Vector2(this.width, this.height);
+    }
+    contains(p: Vector2): boolean {
+        return 0 <= p.x && p.x < this.width && 0 <= p.y && p.y < this.height;
+    }
+    getCell(p: Vector2): Cell | undefined {
+        if (!this.contains(p)) return undefined
+        const fp = p.map(Math.floor);
+        return this.cells[fp.y*this.width + fp.x];
+    }
 }
 
 function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     let start = p1;
     while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE*FAR_CLIPPING_PLANE) {
         const c = hittingCell(p1, p2);
-        if (insideScene(scene, c) && scene[c.y][c.x] !== null) break;
+        if (scene.getCell(c) !== undefined && scene.getCell(c) !== null) break;
         const p3 = rayStep(p1, p2);
         p1 = p2;
         p2 = p3;
     }
     return p2;
-}
-
-function sceneSize(scene: Scene): Vector2 {
-    const y = scene.length;
-    let x = Number.MIN_VALUE;
-    for (let row of scene) {
-        x = Math.max(x, row.length);
-    }
-    return new Vector2(x, y);
 }
 
 class Player {
@@ -222,7 +242,7 @@ class Player {
 function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: Vector2, size: Vector2, scene: Scene) {
     ctx.save();
 
-    const gridSize = sceneSize(scene);
+    const gridSize = scene.size();
 
     ctx.translate(...position.array());
     ctx.scale(...size.div(gridSize).array());
@@ -233,7 +253,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     ctx.lineWidth = 0.1;
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
-            const cell = scene[y][x];
+            const cell = scene.getCell(new Vector2(x, y));
             if (cell instanceof Color) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
@@ -269,31 +289,29 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
     for (let x = 0; x < SCREEN_WIDTH; ++x) {
         const p = castRay(scene, player.position, r1.lerp(r2, x/SCREEN_WIDTH));
         const c = hittingCell(player.position, p);
-        if (insideScene(scene, c)) {
-            const cell = scene[c.y][c.x];
-            if (cell instanceof Color) {
-                const v = p.sub(player.position);
-                const d = Vector2.fromAngle(player.direction)
-                const stripHeight = ctx.canvas.height/v.dot(d);
-                ctx.fillStyle = cell.brightness(1/v.dot(d)).toStyle();
-                ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
-            } else if (cell instanceof HTMLImageElement) {
-                const v = p.sub(player.position);
-                const d = Vector2.fromAngle(player.direction)
-                const stripHeight = ctx.canvas.height/v.dot(d);
+        const cell = scene.getCell(c);
+        if (cell instanceof Color) {
+            const v = p.sub(player.position);
+            const d = Vector2.fromAngle(player.direction)
+            const stripHeight = ctx.canvas.height/v.dot(d);
+            ctx.fillStyle = cell.brightness(1/v.dot(d)).toStyle();
+            ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
+        } else if (cell instanceof HTMLImageElement) {
+            const v = p.sub(player.position);
+            const d = Vector2.fromAngle(player.direction)
+            const stripHeight = ctx.canvas.height/v.dot(d);
 
-                let u = 0;
-                const t = p.sub(c);
-                if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
-                    u = t.y;
-                } else {
-                    u = t.x;
-                }
-
-                ctx.drawImage(cell, Math.floor(u*cell.width), 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
-                ctx.fillStyle = new Color(0, 0, 0, 1 - 1/v.dot(d)).toStyle();
-                ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight*1.01)*0.5, stripWidth, stripHeight*1.01);
+            let u = 0;
+            const t = p.sub(c);
+            if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
+                u = t.y;
+            } else {
+                u = t.x;
             }
+
+            ctx.drawImage(cell, Math.floor(u*cell.width), 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
+            ctx.fillStyle = new Color(0, 0, 0, 1 - 1/v.dot(d)).toStyle();
+            ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight*1.01)*0.5, stripWidth, stripHeight*1.01);
         }
     }
 }
@@ -301,7 +319,7 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
 function renderGame(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
     const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
     const cellSize = ctx.canvas.width*0.03;
-    const minimapSize = sceneSize(scene).scale(cellSize);
+    const minimapSize = scene.size().scale(cellSize);
 
     ctx.fillStyle = "#181818";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
@@ -333,18 +351,18 @@ async function loadImageData(url: string): Promise<HTMLImageElement> {
     const wall3 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => Color.purple());
     const wall4 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall4_color.png").catch(() => Color.purple());
 
-    const scene: Scene = [
+    const scene: Scene = new Scene([
         [null, null,  wall1, wall1, null, null, null, null, null],
         [null, null,   null, wall3, null, null, null, null, null],
         [null, wall1, wall2, wall1, null, null, null, null, null],
         [null, null,   null,  null, null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
+        [null, null,   null],
         [null, null,   wall4,  null, null, null, null, null, null],
         [null, null,   null,  null, null, null, null, null, null],
-    ];
+    ]);
 
     const player = new Player(
-        sceneSize(scene).mul(new Vector2(0.63, 0.63)),
+        scene.size().mul(new Vector2(0.63, 0.63)),
         Math.PI*1.25);
     let movingForward = false;
     let movingBackward = false;
@@ -391,7 +409,11 @@ async function loadImageData(url: string): Promise<HTMLImageElement> {
             angularVelocity += Math.PI;
         }
         player.direction = player.direction + angularVelocity*deltaTime;
-        player.position = player.position.add(velocity.scale(deltaTime));
+        const newPosition = player.position.add(velocity.scale(deltaTime));
+        const cell = scene.getCell(newPosition)
+        if (cell === null || cell === undefined) {
+            player.position = newPosition;
+        }
         renderGame(ctx, player, scene)
         window.requestAnimationFrame(frame);
     }
