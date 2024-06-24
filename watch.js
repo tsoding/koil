@@ -3,24 +3,12 @@ const spawn = require('child_process').spawn;
 
 /**
  * 
- * @returns {boolean}
- */
-function isWindows() {
-    return require("os").platform() === "win32";
-}
-
-/**
- * @type {Parameters<typeof spawn>[2]}
- */
-const spawnOptions = isWindows() ? { "shell": true } : {};
-
-/**
- * 
  * @param {string} program 
  * @param {string[]} args 
  * @returns {ReturnType<typeof spawn>}
  */
 function cmd(program, args) {
+    const spawnOptions = { "shell": true };
     console.log('CMD:', program, args.flat(), spawnOptions);
     const p = spawn(program, args.flat(), spawnOptions); // NOTE: flattening the args array enables you to group related arguments for better self-documentation of the running command
     // @ts-ignore [stdout may be null?]
