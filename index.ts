@@ -436,9 +436,13 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
             angularVelocity += Math.PI;
         }
         player.direction = player.direction + angularVelocity*deltaTime;
-        const newPosition = player.position.add(velocity.scale(deltaTime));
-        if (canPlayerGoThere(scene, newPosition)) {
-            player.position = newPosition;
+        const nx = player.position.x + velocity.x*deltaTime;
+        if (canPlayerGoThere(scene, new Vector2(nx, player.position.y))) {
+            player.position.x = nx;
+        }
+        const ny = player.position.y + velocity.y*deltaTime;
+        if (canPlayerGoThere(scene, new Vector2(player.position.x, ny))) {
+            player.position.y = ny;
         }
         renderGame(ctx, player, scene)
         window.requestAnimationFrame(frame);
