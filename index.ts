@@ -61,7 +61,7 @@ class Vector2 {
     static scalar(value: number): Vector2 {
         return new Vector2(value, value);
     }
-    static fromAngle(angle: number): Vector2 {
+    static angle(angle: number): Vector2 {
         return new Vector2(Math.cos(angle), Math.sin(angle));
     }
     add(that: Vector2): Vector2 {
@@ -240,7 +240,7 @@ class Player {
     }
     fovRange(): [Vector2, Vector2] {
         const l = Math.tan(FOV*0.5)*NEAR_CLIPPING_PLANE;
-        const p = this.position.add(Vector2.fromAngle(this.direction).scale(NEAR_CLIPPING_PLANE));
+        const p = this.position.add(Vector2.angle(this.direction).scale(NEAR_CLIPPING_PLANE));
         const p1 = p.sub(p.sub(this.position).rot90().norm().scale(l));
         const p2 = p.add(p.sub(this.position).rot90().norm().scale(l));
         return [p1, p2];
@@ -303,13 +303,13 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
         const cell = scene.getCell(c);
         if (cell instanceof RGBA) {
             const v = p.sub(player.position);
-            const d = Vector2.fromAngle(player.direction)
+            const d = Vector2.angle(player.direction)
             const stripHeight = ctx.canvas.height/v.dot(d);
             ctx.fillStyle = cell.brightness(1/v.dot(d)).toStyle();
             ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
         } else if (cell instanceof HTMLImageElement) {
             const v = p.sub(player.position);
-            const d = Vector2.fromAngle(player.direction)
+            const d = Vector2.angle(player.direction)
             const stripHeight = ctx.canvas.height/v.dot(d);
 
             let u = 0;
@@ -421,10 +421,10 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
         let velocity = Vector2.zero();
         let angularVelocity = 0.0;
         if (movingForward) {
-            velocity = velocity.add(Vector2.fromAngle(player.direction).scale(PLAYER_SPEED))
+            velocity = velocity.add(Vector2.angle(player.direction).scale(PLAYER_SPEED))
         }
         if (movingBackward) {
-            velocity = velocity.sub(Vector2.fromAngle(player.direction).scale(PLAYER_SPEED))
+            velocity = velocity.sub(Vector2.angle(player.direction).scale(PLAYER_SPEED))
         }
         if (turningLeft) {
             angularVelocity -= Math.PI;
