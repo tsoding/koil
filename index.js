@@ -430,4 +430,5 @@ function canPlayerGoThere(scene, newPosition) {
         window.requestAnimationFrame(frame);
     });
 }))();
+// TODO: try lighting with normal maps that come with some of the assets
 //# sourceMappingURL=index.js.map

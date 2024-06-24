@@ -445,3 +445,4 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
         window.requestAnimationFrame(frame);
     });
 })()
+// TODO: try lighting with normal maps that come with some of the assets
