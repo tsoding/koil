@@ -326,10 +326,11 @@ function loadImageData(url) {
 }
 function canPlayerGoThere(scene, newPosition) {
     // TODO: try circle boundary instead of a box
-    const corner = newPosition.sub(Vector2.scalar(PLAYER_SIZE * 0.5));
-    for (let dx = 0; dx < 2; ++dx) {
-        for (let dy = 0; dy < 2; ++dy) {
-            if (scene.isWall(corner.add(new Vector2(dx, dy).scale(PLAYER_SIZE)))) {
+    const leftTopCorner = newPosition.sub(Vector2.scalar(PLAYER_SIZE * 0.5)).map(Math.floor);
+    const rightBottomCorner = newPosition.add(Vector2.scalar(PLAYER_SIZE * 0.5)).map(Math.floor);
+    for (let x = leftTopCorner.x; x <= rightBottomCorner.x; ++x) {
+        for (let y = leftTopCorner.y; y <= rightBottomCorner.y; ++y) {
+            if (scene.isWall(new Vector2(x, y))) {
                 return false;
             }
         }
