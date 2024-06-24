@@ -449,3 +449,5 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
     });
 })()
 // TODO: try lighting with normal maps that come with some of the assets
+// TODO: load assets asynchronously
+//   While a texture is loading, replace it with a color tile.
