@@ -334,6 +334,8 @@ function renderGame(ctx: CanvasRenderingContext2D, player: Player, scene: Scene)
 
     ctx.fillStyle = "#181818";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+    ctx.fillStyle = "hsl(220, 20%, 30%)";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height/2)
     renderScene(ctx, player, scene);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
