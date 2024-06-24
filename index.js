@@ -16,7 +16,7 @@ const SCREEN_WIDTH = 300;
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 const PLAYER_SIZE = 0.5;
-class Color {
+class RGBA {
     constructor(r, g, b, a) {
         this.r = r;
         this.g = g;
@@ -24,25 +24,25 @@ class Color {
         this.a = a;
     }
     static red() {
-        return new Color(1, 0, 0, 1);
+        return new RGBA(1, 0, 0, 1);
     }
     static green() {
-        return new Color(0, 1, 0, 1);
+        return new RGBA(0, 1, 0, 1);
     }
     static blue() {
-        return new Color(0, 0, 1, 1);
+        return new RGBA(0, 0, 1, 1);
     }
     static yellow() {
-        return new Color(1, 1, 0, 1);
+        return new RGBA(1, 1, 0, 1);
     }
     static purple() {
-        return new Color(1, 0, 1, 1);
+        return new RGBA(1, 0, 1, 1);
     }
     static cyan() {
-        return new Color(0, 1, 1, 1);
+        return new RGBA(0, 1, 1, 1);
     }
     brightness(factor) {
-        return new Color(factor * this.r, factor * this.g, factor * this.b, this.a);
+        return new RGBA(factor * this.r, factor * this.g, factor * this.b, this.a);
     }
     toStyle() {
         return `rgba(`
@@ -245,7 +245,7 @@ function renderMinimap(ctx, player, position, size, scene) {
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
             const cell = scene.getCell(new Vector2(x, y));
-            if (cell instanceof Color) {
+            if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
             }
@@ -278,7 +278,7 @@ function renderScene(ctx, player, scene) {
         const p = castRay(scene, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
         const c = hittingCell(player.position, p);
         const cell = scene.getCell(c);
-        if (cell instanceof Color) {
+        if (cell instanceof RGBA) {
             const v = p.sub(player.position);
             const d = Vector2.fromAngle(player.direction);
             const stripHeight = ctx.canvas.height / v.dot(d);
@@ -298,7 +298,7 @@ function renderScene(ctx, player, scene) {
                 u = t.x;
             }
             ctx.drawImage(cell, Math.floor(u * cell.width), 0, 1, cell.height, x * stripWidth, (ctx.canvas.height - stripHeight) * 0.5, stripWidth, stripHeight);
-            ctx.fillStyle = new Color(0, 0, 0, 1 - 1 / v.dot(d)).toStyle();
+            ctx.fillStyle = new RGBA(0, 0, 0, 1 - 1 / v.dot(d)).toStyle();
             ctx.fillRect(x * stripWidth, (ctx.canvas.height - stripHeight * 1.01) * 0.5, stripWidth, stripHeight * 1.01);
         }
     }

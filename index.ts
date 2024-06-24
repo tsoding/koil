@@ -7,7 +7,7 @@ const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 const PLAYER_SIZE = 0.5
 
-class Color {
+class RGBA {
     r: number;
     g: number;
     b: number;
@@ -18,26 +18,26 @@ class Color {
         this.b = b;
         this.a = a;
     }
-    static red(): Color {
-        return new Color(1, 0, 0, 1);
+    static red(): RGBA {
+        return new RGBA(1, 0, 0, 1);
     }
-    static green(): Color {
-        return new Color(0, 1, 0, 1);
+    static green(): RGBA {
+        return new RGBA(0, 1, 0, 1);
     }
-    static blue(): Color {
-        return new Color(0, 0, 1, 1);
+    static blue(): RGBA {
+        return new RGBA(0, 0, 1, 1);
     }
-    static yellow(): Color {
-        return new Color(1, 1, 0, 1);
+    static yellow(): RGBA {
+        return new RGBA(1, 1, 0, 1);
     }
-    static purple(): Color {
-        return new Color(1, 0, 1, 1);
+    static purple(): RGBA {
+        return new RGBA(1, 0, 1, 1);
     }
-    static cyan(): Color {
-        return new Color(0, 1, 1, 1);
+    static cyan(): RGBA {
+        return new RGBA(0, 1, 1, 1);
     }
-    brightness(factor: number): Color {
-        return new Color(factor*this.r, factor*this.g, factor*this.b, this.a);
+    brightness(factor: number): RGBA {
+        return new RGBA(factor*this.r, factor*this.g, factor*this.b, this.a);
     }
     toStyle(): string {
         return `rgba(`
@@ -182,7 +182,7 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     return p3;
 }
 
-type Cell = Color | HTMLImageElement | null;
+type Cell = RGBA | HTMLImageElement | null;
 
 class Scene {
     cells: Array<Cell>;
@@ -262,7 +262,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
             const cell = scene.getCell(new Vector2(x, y));
-            if (cell instanceof Color) {
+            if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
             } else if (cell instanceof HTMLImageElement) {
@@ -301,7 +301,7 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
         const p = castRay(scene, player.position, r1.lerp(r2, x/SCREEN_WIDTH));
         const c = hittingCell(player.position, p);
         const cell = scene.getCell(c);
-        if (cell instanceof Color) {
+        if (cell instanceof RGBA) {
             const v = p.sub(player.position);
             const d = Vector2.fromAngle(player.direction)
             const stripHeight = ctx.canvas.height/v.dot(d);
@@ -321,7 +321,7 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
             }
 
             ctx.drawImage(cell, Math.floor(u*cell.width), 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
-            ctx.fillStyle = new Color(0, 0, 0, 1 - 1/v.dot(d)).toStyle();
+            ctx.fillStyle = new RGBA(0, 0, 0, 1 - 1/v.dot(d)).toStyle();
             ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight*1.01)*0.5, stripWidth, stripHeight*1.01);
         }
     }
