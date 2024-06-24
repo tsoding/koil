@@ -2,7 +2,9 @@ const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI*0.5;
-const SCREEN_WIDTH = 300;
+const SCREEN_FACTOR = 20;
+const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
+const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 const PLAYER_SIZE = 0.5
@@ -295,7 +297,8 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
 }
 
 function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
-    const stripWidth = Math.ceil(ctx.canvas.width/SCREEN_WIDTH);
+    ctx.save();
+    ctx.scale(ctx.canvas.width/SCREEN_WIDTH, ctx.canvas.height/SCREEN_HEIGHT);
     const [r1, r2] = player.fovRange();
     for (let x = 0; x < SCREEN_WIDTH; ++x) {
         const p = castRay(scene, player.position, r1.lerp(r2, x/SCREEN_WIDTH));
@@ -304,13 +307,15 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
         if (cell instanceof RGBA) {
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction)
-            const stripHeight = ctx.canvas.height/v.dot(d);
+            const stripHeight = SCREEN_HEIGHT/v.dot(d);
             ctx.fillStyle = cell.brightness(1/v.dot(d)).toStyle();
-            ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
+            ctx.fillRect(
+                Math.floor(x), Math.floor((SCREEN_HEIGHT - stripHeight)*0.5),
+                Math.ceil(1), Math.ceil(stripHeight));
         } else if (cell instanceof HTMLImageElement) {
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction)
-            const stripHeight = ctx.canvas.height/v.dot(d);
+            const stripHeight = SCREEN_HEIGHT/v.dot(d);
 
             let u = 0;
             const t = p.sub(c);
@@ -320,11 +325,18 @@ function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
                 u = t.x;
             }
 
-            ctx.drawImage(cell, Math.floor(u*cell.width), 0, 1, cell.height, x*stripWidth, (ctx.canvas.height - stripHeight)*0.5, stripWidth, stripHeight);
+            ctx.drawImage(
+                cell,
+                Math.floor(u*cell.width), 0, 1, cell.height,
+                Math.floor(x), Math.floor((SCREEN_HEIGHT - stripHeight)*0.5),
+                Math.ceil(1), Math.ceil(stripHeight));
             ctx.fillStyle = new RGBA(0, 0, 0, 1 - 1/v.dot(d)).toStyle();
-            ctx.fillRect(x*stripWidth, (ctx.canvas.height - stripHeight*1.01)*0.5, stripWidth, stripHeight*1.01);
+            ctx.fillRect(
+                Math.floor(x), Math.floor((SCREEN_HEIGHT - stripHeight)*0.5),
+                Math.ceil(1), Math.ceil(stripHeight));
         }
     }
+    ctx.restore();
 }
 
 function renderGame(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
