@@ -370,10 +370,10 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const wall1 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall1_color.png").catch(() => Color.purple());
-    const wall2 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall2_color.png").catch(() => Color.purple());
-    const wall3 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => Color.purple());
-    const wall4 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall4_color.png").catch(() => Color.purple());
+    const wall1 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall1_color.png").catch(() => RGBA.purple());
+    const wall2 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall2_color.png").catch(() => RGBA.purple());
+    const wall3 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => RGBA.purple());
+    const wall4 = await loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall4_color.png").catch(() => RGBA.purple());
 
     const scene: Scene = new Scene([
         [null, null,  wall1, wall1, null, null, null, null, null],
