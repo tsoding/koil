@@ -296,7 +296,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     ctx.restore();
 }
 
-function renderScene(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
+function renderWalls(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
     ctx.save();
     ctx.scale(ctx.canvas.width/SCREEN_WIDTH, ctx.canvas.height/SCREEN_HEIGHT);
     const [r1, r2] = player.fovRange();
@@ -348,7 +348,7 @@ function renderGame(ctx: CanvasRenderingContext2D, player: Player, scene: Scene)
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height)
     ctx.fillStyle = "hsl(220, 20%, 30%)";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height/2)
-    renderScene(ctx, player, scene);
+    renderWalls(ctx, player, scene);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
 
