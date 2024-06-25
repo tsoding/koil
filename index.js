@@ -10,9 +10,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
-const FAR_CLIPPING_PLANE = 10.0;
+const FAR_CLIPPING_PLANE = 20.0;
 const FOV = Math.PI * 0.5;
-const SCREEN_FACTOR = 20;
+const SCREEN_FACTOR = 10;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 const PLAYER_STEP_LEN = 0.5;
@@ -181,8 +181,8 @@ function rayStep(p1, p2) {
 }
 class Scene {
     constructor(walls) {
-        this.color1 = RGBA.red();
-        this.color2 = RGBA.blue();
+        this.color1 = new RGBA(0.094, 0.094, 0.094, 1.0);
+        this.color2 = new RGBA(0.188, 0.188, 0.188, 1.0);
         this.height = walls.length;
         this.width = Number.MIN_VALUE;
         for (let row of walls) {
@@ -209,8 +209,8 @@ class Scene {
         return this.walls[fp.y * this.width + fp.x];
     }
     getFloor(p) {
-        const c = p.map(Math.floor);
-        if ((c.x + c.y) % 2 === 0) {
+        const t = p.map(Math.floor);
+        if ((t.x + t.y) % 2 == 0) {
             return this.color1;
         }
         else {
@@ -318,6 +318,33 @@ function renderWalls(ctx, player, scene) {
     }
     ctx.restore();
 }
+function renderFloor(ctx, player, scene) {
+    ctx.save();
+    ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
+    const pz = SCREEN_HEIGHT / 2;
+    const [p1, p2] = player.fovRange();
+    const bp = p1.sub(player.position).length();
+    for (let y = SCREEN_HEIGHT / 2; y < SCREEN_HEIGHT; ++y) {
+        const sz = SCREEN_HEIGHT - y - 1;
+        const ap = pz - sz;
+        const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
+        const t1 = player.position.add(p1.sub(player.position).norm().scale(b));
+        const t2 = player.position.add(p2.sub(player.position).norm().scale(b));
+        for (let x = 0; x < SCREEN_WIDTH; ++x) {
+            const t = t1.lerp(t2, x / SCREEN_WIDTH);
+            const tile = scene.getFloor(t);
+            if (tile instanceof RGBA) {
+                ctx.fillStyle = tile.toStyle();
+                ctx.fillRect(x, y, 1, 1);
+            }
+            else if (tile instanceof HTMLImageElement) {
+                const c = t.map((x) => x - Math.floor(x));
+                ctx.drawImage(tile, Math.floor(c.x * tile.width), Math.floor(c.y * tile.height), 1, 1, x, y, 1, 1);
+            }
+        }
+    }
+    ctx.restore();
+}
 function renderGame(ctx, player, scene) {
     const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
     const cellSize = ctx.canvas.width * 0.03;
@@ -326,6 +353,7 @@ function renderGame(ctx, player, scene) {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = "hsl(220, 20%, 30%)";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height / 2);
+    renderFloor(ctx, player, scene);
     renderWalls(ctx, player, scene);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
