@@ -190,7 +190,11 @@ class Scene {
     walls: Array<Tile>;
     width: number;
     height: number;
+    color1: RGBA;
+    color2: RGBA;
     constructor(walls: Array<Array<Tile>>) {
+        this.color1 = RGBA.red();
+        this.color2 = RGBA.blue();
         this.height = walls.length;
         this.width = Number.MIN_VALUE;
         for (let row of walls) {
@@ -214,6 +218,14 @@ class Scene {
         if (!this.contains(p)) return undefined;
         const fp = p.map(Math.floor);
         return this.walls[fp.y*this.width + fp.x];
+    }
+    getFloor(p: Vector2): Tile | undefined {
+        const c = p.map(Math.floor);
+        if ((c.x + c.y)%2 === 0) {
+            return this.color1;
+        } else {
+            return this.color2;
+        }
     }
     isWall(p: Vector2): boolean {
         const c = this.getWall(p);
