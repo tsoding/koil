@@ -180,17 +180,17 @@ function rayStep(p1, p2) {
     return p3;
 }
 class Scene {
-    constructor(cells) {
-        this.height = cells.length;
+    constructor(walls) {
+        this.height = walls.length;
         this.width = Number.MIN_VALUE;
-        for (let row of cells) {
+        for (let row of walls) {
             this.width = Math.max(this.width, row.length);
         }
-        this.cells = [];
-        for (let row of cells) {
-            this.cells = this.cells.concat(row);
+        this.walls = [];
+        for (let row of walls) {
+            this.walls = this.walls.concat(row);
             for (let i = 0; i < this.width - row.length; ++i) {
-                this.cells.push(null);
+                this.walls.push(null);
             }
         }
     }
@@ -200,14 +200,14 @@ class Scene {
     contains(p) {
         return 0 <= p.x && p.x < this.width && 0 <= p.y && p.y < this.height;
     }
-    getCell(p) {
+    getWall(p) {
         if (!this.contains(p))
             return undefined;
         const fp = p.map(Math.floor);
-        return this.cells[fp.y * this.width + fp.x];
+        return this.walls[fp.y * this.width + fp.x];
     }
     isWall(p) {
-        const c = this.getCell(p);
+        const c = this.getWall(p);
         return c !== null && c !== undefined;
     }
 }
@@ -215,7 +215,7 @@ function castRay(scene, p1, p2) {
     let start = p1;
     while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE * FAR_CLIPPING_PLANE) {
         const c = hittingCell(p1, p2);
-        if (scene.getCell(c) !== undefined && scene.getCell(c) !== null)
+        if (scene.isWall(c))
             break;
         const p3 = rayStep(p1, p2);
         p1 = p2;
@@ -246,7 +246,7 @@ function renderMinimap(ctx, player, position, size, scene) {
     ctx.lineWidth = 0.1;
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
-            const cell = scene.getCell(new Vector2(x, y));
+            const cell = scene.getWall(new Vector2(x, y));
             if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
@@ -273,14 +273,14 @@ function renderMinimap(ctx, player, position, size, scene) {
     strokeLine(ctx, player.position, p2);
     ctx.restore();
 }
-function renderScene(ctx, player, scene) {
+function renderWalls(ctx, player, scene) {
     ctx.save();
     ctx.scale(ctx.canvas.width / SCREEN_WIDTH, ctx.canvas.height / SCREEN_HEIGHT);
     const [r1, r2] = player.fovRange();
     for (let x = 0; x < SCREEN_WIDTH; ++x) {
         const p = castRay(scene, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
         const c = hittingCell(player.position, p);
-        const cell = scene.getCell(c);
+        const cell = scene.getWall(c);
         if (cell instanceof RGBA) {
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction);
@@ -315,7 +315,7 @@ function renderGame(ctx, player, scene) {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.fillStyle = "hsl(220, 20%, 30%)";
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height / 2);
-    renderScene(ctx, player, scene);
+    renderWalls(ctx, player, scene);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
 }
 function loadImageData(url) {
