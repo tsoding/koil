@@ -558,6 +558,11 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
         window.requestAnimationFrame(frame);
     });
 })()
-// TODO: try lighting with normal maps that come with some of the assets
-// TODO: load assets asynchronously
+// TODO: Try lighting with normal maps that come with some of the assets
+// TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.
+// TODO: Try to render the scene directly into some sort of ImageData pixel by pixel
+//   The idea is to not render individual pixels through Canvas
+//   Context draw calls, but rather first buffer them into some sort
+//   of array and then "blit" them onto the Canvas in a hope that it
+//   will just generally make the rendering faster.
