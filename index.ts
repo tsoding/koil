@@ -382,7 +382,7 @@ function renderCeiling(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
             const tile = scene.getCeiling(t);
             if (tile instanceof RGBA) {
-                ctx.fillStyle = tile.toStyle();
+                ctx.fillStyle = tile.brightness(1/Math.sqrt(player.position.sqrDistanceTo(t))).toStyle();
                 ctx.fillRect(x, sz, 1, 1);
             } else if (tile instanceof HTMLImageElement) {
                 const c = t.map((x) => x - Math.floor(x));
@@ -416,7 +416,7 @@ function renderFloor(ctx: CanvasRenderingContext2D, player: Player, scene: Scene
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
             const tile = scene.getFloor(t);
             if (tile instanceof RGBA) {
-                ctx.fillStyle = tile.toStyle();
+                ctx.fillStyle = tile.brightness(1/Math.sqrt(player.position.sqrDistanceTo(t))).toStyle();
                 ctx.fillRect(x, y, 1, 1);
             } else if (tile instanceof HTMLImageElement) {
                 const c = t.map((x) => x - Math.floor(x));

@@ -345,7 +345,7 @@ function renderCeiling(ctx, player, scene) {
             const t = t1.lerp(t2, x / SCREEN_WIDTH);
             const tile = scene.getCeiling(t);
             if (tile instanceof RGBA) {
-                ctx.fillStyle = tile.toStyle();
+                ctx.fillStyle = tile.brightness(1 / Math.sqrt(player.position.sqrDistanceTo(t))).toStyle();
                 ctx.fillRect(x, sz, 1, 1);
             }
             else if (tile instanceof HTMLImageElement) {
@@ -372,7 +372,7 @@ function renderFloor(ctx, player, scene) {
             const t = t1.lerp(t2, x / SCREEN_WIDTH);
             const tile = scene.getFloor(t);
             if (tile instanceof RGBA) {
-                ctx.fillStyle = tile.toStyle();
+                ctx.fillStyle = tile.brightness(1 / Math.sqrt(player.position.sqrDistanceTo(t))).toStyle();
                 ctx.fillRect(x, y, 1, 1);
             }
             else if (tile instanceof HTMLImageElement) {
