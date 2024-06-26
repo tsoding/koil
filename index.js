@@ -436,34 +436,6 @@ function loadImageData(url) {
         return ctx.getImageData(0, 0, image.width, image.height);
     });
 }
-function testBackCanvas(ctx) {
-    const w = 16;
-    const h = 9;
-    const backImageData = new ImageData(w, h);
-    const backCanvas = new OffscreenCanvas(w, h);
-    const backCtx = backCanvas.getContext("2d");
-    if (backCtx === null)
-        throw new Error("2D context is not supported");
-    backCtx.imageSmoothingEnabled = false;
-    for (let y = 0; y < h; ++y) {
-        for (let x = 0; x < w; ++x) {
-            if ((x + y) % 2 == 0) {
-                backImageData.data[(y * w + x) * 4 + 0] = 255; // red
-                backImageData.data[(y * w + x) * 4 + 1] = 0; // green
-                backImageData.data[(y * w + x) * 4 + 2] = 0; // blue
-                backImageData.data[(y * w + x) * 4 + 3] = 255; // alpha
-            }
-            else {
-                backImageData.data[(y * w + x) * 4 + 0] = 255; // red
-                backImageData.data[(y * w + x) * 4 + 1] = 255; // green
-                backImageData.data[(y * w + x) * 4 + 2] = 255; // blue
-                backImageData.data[(y * w + x) * 4 + 3] = 255; // alpha
-            }
-        }
-    }
-    backCtx.putImageData(backImageData, 0, 0);
-    ctx.drawImage(backCanvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
-}
 (() => __awaiter(void 0, void 0, void 0, function* () {
     const game = document.getElementById("game");
     if (game === null)
