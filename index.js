@@ -18,6 +18,7 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 const PLAYER_SIZE = 0.5;
+const FPS_SMOOTHING = 10;
 class RGBA {
     constructor(r, g, b, a) {
         this.r = r;
@@ -397,7 +398,7 @@ function renderFloorIntoImageData(imageData, player, scene) {
         }
     }
 }
-function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene) {
+function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene, fps) {
     const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
     const cellSize = ctx.canvas.width * 0.03;
     const minimapSize = scene.size().scale(cellSize);
@@ -410,7 +411,7 @@ function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player,
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
     ctx.font = "48px bold";
     ctx.fillStyle = "white";
-    ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);
+    ctx.fillText(`${Math.round(fps)}`, 100, 100);
 }
 function loadImage(url) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -533,9 +534,12 @@ function testBackCanvas(ctx) {
         }
     });
     let prevTimestamp = 0;
+    let fpsValues = [];
     const frame = (timestamp) => {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         prevTimestamp = timestamp;
+        fpsValues = [1 / deltaTime].concat(fpsValues).slice(0, FPS_SMOOTHING);
+        const fps = fpsValues.reduce((acc, v) => acc + v, -1) / fpsValues.length;
         let velocity = Vector2.zero();
         let angularVelocity = 0.0;
         if (movingForward) {
@@ -559,7 +563,7 @@ function testBackCanvas(ctx) {
         if (scene.canRectangleFitHere(new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
             player.position.y = ny;
         }
-        renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene);
+        renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene, fps);
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {
