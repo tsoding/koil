@@ -24,4 +24,4 @@ function cmd(program, args) {
 }
 
 cmd('tsc', ['-w'])
-cmd('http-server', ['-p', '6969', '-a', '127.0.0.1', '-s'])
+cmd('http-server', ['-p', '6969', '-a', '127.0.0.1', '-s', '-c-1'])
