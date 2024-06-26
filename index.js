@@ -331,6 +331,7 @@ function renderWallsToImageData(imageData, player, scene) {
         else if (cell instanceof ImageData) {
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction);
+            const k = v.dot(d);
             const stripHeight = SCREEN_HEIGHT / v.dot(d);
             let u = 0;
             const t = p.sub(c);
@@ -343,11 +344,11 @@ function renderWallsToImageData(imageData, player, scene) {
             for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
                 const tx = Math.floor(u * cell.width);
                 const ty = Math.floor(dy / Math.ceil(stripHeight) * cell.height);
+                const ti = (ty * cell.width + tx) * 4;
                 const y = Math.floor((SCREEN_HEIGHT - stripHeight) * 0.5) + dy;
-                imageData.data[(y * SCREEN_WIDTH + x) * 4 + 0] = cell.data[(ty * cell.width + tx) * 4 + 0] / v.dot(d);
-                imageData.data[(y * SCREEN_WIDTH + x) * 4 + 1] = cell.data[(ty * cell.width + tx) * 4 + 1] / v.dot(d);
-                imageData.data[(y * SCREEN_WIDTH + x) * 4 + 2] = cell.data[(ty * cell.width + tx) * 4 + 2] / v.dot(d);
-                imageData.data[(y * SCREEN_WIDTH + x) * 4 + 3] = cell.data[(ty * cell.width + tx) * 4 + 3];
+                const i = (y * SCREEN_WIDTH + x) * 4;
+                if (i > 0 && i < imageData.data.length - 5)
+                    imageData.data.set(cell.data.subarray(ti, ti + 4).map((v, i) => i < 3 ? v / k : v), i);
             }
         }
     }
@@ -411,7 +412,7 @@ function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player,
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
     ctx.font = "48px bold";
     ctx.fillStyle = "white";
-    ctx.fillText(`${Math.round(fps)}`, 100, 100);
+    ctx.fillText(`${Math.round(fps * 10) / 10}`, 100, 100);
 }
 function loadImage(url) {
     return __awaiter(this, void 0, void 0, function* () {
