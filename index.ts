@@ -197,8 +197,8 @@ class Scene {
     constructor(walls: Array<Array<Tile>>) {
         this.floor1 = new RGBA(0.094, 0.094, 0.094, 1.0);
         this.floor2 = new RGBA(0.188, 0.188, 0.188, 1.0);
-        this.ceiling1 = RGBA.red();
-        this.ceiling2 = RGBA.blue();
+        this.ceiling1 = new RGBA(0.094 + 0.05, 0.094, 0.094, 1.0);
+        this.ceiling2 = new RGBA(0.188 + 0.05, 0.188, 0.188, 1.0);
         this.height = walls.length;
         this.width = Number.MIN_VALUE;
         for (let row of walls) {
