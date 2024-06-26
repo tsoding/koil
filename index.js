@@ -339,10 +339,13 @@ function renderWallsToImageData(imageData, player, scene) {
             else {
                 u = t.x;
             }
-            for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
+            const y1 = Math.floor((SCREEN_HEIGHT - stripHeight) * 0.5);
+            const y2 = Math.floor(y1 + stripHeight);
+            const by1 = Math.max(0, y1);
+            const by2 = Math.min(SCREEN_HEIGHT - 1, y2);
+            for (let y = by1; y <= by2; ++y) {
                 const tx = Math.floor(u * cell.width);
-                const ty = Math.floor(dy / Math.ceil(stripHeight) * cell.height);
-                const y = Math.floor((SCREEN_HEIGHT - stripHeight) * 0.5) + dy;
+                const ty = Math.floor((y - y1) / Math.ceil(stripHeight) * cell.height);
                 imageData.data[(y * SCREEN_WIDTH + x) * 4 + 0] = cell.data[(ty * cell.width + tx) * 4 + 0] / v.dot(d);
                 imageData.data[(y * SCREEN_WIDTH + x) * 4 + 1] = cell.data[(ty * cell.width + tx) * 4 + 1] / v.dot(d);
                 imageData.data[(y * SCREEN_WIDTH + x) * 4 + 2] = cell.data[(ty * cell.width + tx) * 4 + 2] / v.dot(d);
