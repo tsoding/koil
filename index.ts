@@ -243,6 +243,20 @@ class Scene {
         const c = this.getWall(p);
         return c !== null && c !== undefined;
     }
+
+    canRectangleFitHere(position: Vector2, size: Vector2): boolean {
+        const halfSize = size.scale(0.5);
+        const leftTopCorner = position.sub(halfSize).map(Math.floor);
+        const rightBottomCorner = position.add(halfSize).map(Math.floor);
+        for (let x = leftTopCorner.x; x <= rightBottomCorner.x; ++x) {
+            for (let y = leftTopCorner.y; y <= rightBottomCorner.y; ++y) {
+                if (this.isWall(new Vector2(x, y))) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 }
 
 function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
@@ -455,20 +469,6 @@ async function loadImageData(url: string): Promise<HTMLImageElement> {
     });
 }
 
-function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
-    // TODO: try circle boundary instead of a box
-    const leftTopCorner = newPosition.sub(Vector2.scalar(PLAYER_SIZE*0.5)).map(Math.floor);
-    const rightBottomCorner = newPosition.add(Vector2.scalar(PLAYER_SIZE*0.5)).map(Math.floor);
-    for (let x = leftTopCorner.x; x <= rightBottomCorner.x; ++x) {
-        for (let y = leftTopCorner.y; y <= rightBottomCorner.y; ++y) {
-            if (scene.isWall(new Vector2(x, y))) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 (async () => {
     const game = document.getElementById("game") as (HTMLCanvasElement | null);
     if (game === null) throw new Error("No canvas with id `game` is found");
@@ -543,11 +543,11 @@ function canPlayerGoThere(scene: Scene, newPosition: Vector2): boolean {
         }
         player.direction = player.direction + angularVelocity*deltaTime;
         const nx = player.position.x + velocity.x*deltaTime;
-        if (canPlayerGoThere(scene, new Vector2(nx, player.position.y))) {
+        if (scene.canRectangleFitHere(new Vector2(nx, player.position.y), Vector2.scalar(PLAYER_SIZE))) {
             player.position.x = nx;
         }
         const ny = player.position.y + velocity.y*deltaTime;
-        if (canPlayerGoThere(scene, new Vector2(player.position.x, ny))) {
+        if (scene.canRectangleFitHere(new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
             player.position.y = ny;
         }
         renderGame(ctx, player, scene)
