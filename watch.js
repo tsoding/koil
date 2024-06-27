@@ -23,5 +23,5 @@ function cmd(program, args) {
     return p;
 }
 
-cmd('tsc', ['-w'])
-cmd('http-server', ['-p', '6969', '-a', '127.0.0.1', '-s', '-c-1'])
+cmd('npx', ['tsc', '-w'])
+cmd('npx', ['http-server', '-p', '6969', '-a', '127.0.0.1', '-s', '-c-1'])
