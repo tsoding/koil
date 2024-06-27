@@ -271,7 +271,7 @@ class Player {
         return [p1, p2];
     }
 }
-function renderMinimap(ctx, player, position, size, scene) {
+function renderMinimap(ctx, backCtx, player, position, size, scene) {
     ctx.save();
     const gridSize = scene.size();
     ctx.translate(...position.array());
@@ -287,7 +287,10 @@ function renderMinimap(ctx, player, position, size, scene) {
                 ctx.fillRect(x, y, 1, 1);
             }
             else if (cell instanceof ImageData) {
-                // TODO: Render ImageData tiles
+                backCtx.canvas.width = cell.width;
+                backCtx.canvas.height = cell.height;
+                backCtx.putImageData(cell, 0, 0);
+                ctx.drawImage(backCtx.canvas, x, y, 1, 1);
             }
         }
     }
@@ -404,13 +407,15 @@ function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player,
     const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
     const cellSize = ctx.canvas.width * 0.03;
     const minimapSize = scene.size().scale(cellSize);
-    backImageData.data.fill(255);
+    backImageData.data.fill(0);
+    backCtx.canvas.width = SCREEN_WIDTH;
+    backCtx.canvas.height = SCREEN_HEIGHT;
     renderFloorIntoImageData(backImageData, player, scene);
     renderCeilingIntoImageData(backImageData, player, scene);
     renderWallsToImageData(backImageData, player, scene);
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
-    renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
+    renderMinimap(ctx, backCtx, player, minimapPosition, minimapSize, scene);
     ctx.font = "48px bold";
     ctx.fillStyle = "white";
     ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);

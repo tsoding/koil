@@ -287,7 +287,7 @@ class Player {
     }
 }
 
-function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: Vector2, size: Vector2, scene: Scene) {
+function renderMinimap(ctx: CanvasRenderingContext2D, backCtx: OffscreenCanvasRenderingContext2D, player: Player, position: Vector2, size: Vector2, scene: Scene) {
     ctx.save();
 
     const gridSize = scene.size();
@@ -306,7 +306,10 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
             } else if (cell instanceof ImageData) {
-                // TODO: Render ImageData tiles
+                backCtx.canvas.width = cell.width;
+                backCtx.canvas.height = cell.height;
+                backCtx.putImageData(cell, 0, 0);
+                ctx.drawImage(backCtx.canvas, x, y, 1, 1);
             }
         }
     }
@@ -438,14 +441,16 @@ function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: Offscre
     const cellSize = ctx.canvas.width*0.03;
     const minimapSize = scene.size().scale(cellSize);
 
-    backImageData.data.fill(255);
+    backImageData.data.fill(0);
+    backCtx.canvas.width = SCREEN_WIDTH;
+    backCtx.canvas.height = SCREEN_HEIGHT;
     renderFloorIntoImageData(backImageData, player, scene);
     renderCeilingIntoImageData(backImageData, player, scene);
     renderWallsToImageData(backImageData, player, scene);
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
 
-    renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
+    renderMinimap(ctx, backCtx, player, minimapPosition, minimapSize, scene);
 
     ctx.font = "48px bold"
     ctx.fillStyle = "white"
