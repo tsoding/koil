@@ -420,6 +420,73 @@ function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player,
     ctx.fillStyle = "white";
     ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);
 }
+function drawRectDiv(container, color, x, y, width, height) {
+    const div = document.createElement('div');
+    div.style.backgroundColor = color;
+    div.style.width = `${width}px`;
+    div.style.height = `${height}px`;
+    div.style.position = 'absolute';
+    div.style.top = `${window.innerHeight / 2 - SCREEN_HEIGHT / 2 + y}px`;
+    div.style.left = `${window.innerWidth / 2 - SCREEN_WIDTH / 2 + x}px`;
+    div.style.transform = "translate(-50%, -50%)";
+    container.appendChild(div);
+}
+function renderFloorIntoDivs(container, player, scene) {
+    const pz = SCREEN_HEIGHT / 2;
+    const [p1, p2] = player.fovRange();
+    const bp = p1.sub(player.position).length();
+    for (let y = SCREEN_HEIGHT / 2; y < SCREEN_HEIGHT; ++y) {
+        const sz = SCREEN_HEIGHT - y - 1;
+        const ap = pz - sz;
+        const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
+        const t1 = player.position.add(p1.sub(player.position).norm().scale(b));
+        const t2 = player.position.add(p2.sub(player.position).norm().scale(b));
+        for (let x = 0; x < SCREEN_WIDTH; ++x) {
+            const t = t1.lerp(t2, x / SCREEN_WIDTH);
+            const tile = scene.getFloor(t);
+            if (tile instanceof RGBA) {
+                const color = tile.brightness(1 / Math.sqrt(player.position.sqrDistanceTo(t)));
+                // drawRectDiv(container, color.toStyle(), x, y, SCREEN_WIDTH, 2);
+            }
+        }
+    }
+}
+function renderWallsToDivs(imageData, player, scene, container) {
+    const [r1, r2] = player.fovRange();
+    for (let x = 0; x < SCREEN_WIDTH; ++x) {
+        const p = castRay(scene, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
+        const c = hittingCell(player.position, p);
+        const cell = scene.getWall(c);
+        if (cell instanceof RGBA) {
+            const v = p.sub(player.position);
+            const d = Vector2.angle(player.direction);
+            const stripHeight = SCREEN_HEIGHT / v.dot(d);
+            const color = cell.brightness(1 / v.dot(d));
+            drawRectDiv(container, color.toStyle(), x, 0, 1, stripHeight);
+            // for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
+            //     const y = Math.floor((SCREEN_HEIGHT - stripHeight)*0.5) + dy;
+            //     imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
+            //     imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = color.g*255;
+            //     imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = color.b*255;
+            //     imageData.data[(y*SCREEN_WIDTH + x)*4 + 3] = color.a*255;
+            // }
+        }
+    }
+}
+const container = document.createElement("div");
+container.style.position = "relative";
+container.style.width = "100%";
+container.style.height = "100%";
+document.body.appendChild(container);
+function renderGameIntoDivs(ctx, backCtx, backImageData, deltaTime, player, scene) {
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+    drawRectDiv(container, 'gray', SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, SCREEN_WIDTH, SCREEN_HEIGHT);
+    // drawRectDiv(container,'white', SCREEN_WIDTH/2, , SCREEN_WIDTH, SCREEN_HEIGHT/2);
+    renderFloorIntoDivs(container, player, scene);
+    renderWallsToDivs(backImageData, player, scene, container);
+}
 function loadImage(url) {
     return __awaiter(this, void 0, void 0, function* () {
         const image = new Image();
@@ -463,12 +530,12 @@ function loadImageData(url) {
     const wall3 = yield loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => RGBA.purple());
     const wall4 = yield loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall4_color.png").catch(() => RGBA.purple());
     const scene = new Scene([
-        [null, null, wall1, wall1, null, null, null, null, null],
-        [null, null, null, wall3, null, null, null, null, null],
-        [null, wall1, wall2, wall1, null, null, null, null, null],
+        [null, null, RGBA.yellow(), RGBA.yellow(), null, null, null, null, null],
+        [null, null, null, RGBA.cyan(), null, null, null, null, null],
+        [null, RGBA.yellow(), RGBA.red(), RGBA.yellow(), null, null, null, null, null],
         [null, null, null, null, null, null, null, null, null],
         [null, null, null],
-        [null, null, wall4, null, null, null, null, null, null],
+        [null, null, RGBA.green(), null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null, null],
     ]);
     const player = new Player(scene.size().mul(new Vector2(0.63, 0.63)), Math.PI * 1.25);
@@ -539,7 +606,8 @@ function loadImageData(url) {
         if (scene.canRectangleFitHere(new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
             player.position.y = ny;
         }
-        renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene);
+        // renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene);
+        renderGameIntoDivs(ctx, backCtx, backImageData, deltaTime, player, scene);
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {
