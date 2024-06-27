@@ -211,8 +211,7 @@ class Scene {
         return this.walls[fp.y * this.width + fp.x];
     }
     getFloor(p) {
-        const t = p.map(Math.floor);
-        if ((t.x + t.y) % 2 == 0) {
+        if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
             return this.floor1;
         }
         else {
@@ -220,8 +219,7 @@ class Scene {
         }
     }
     getCeiling(p) {
-        const t = p.map(Math.floor);
-        if ((t.x + t.y) % 2 == 0) {
+        if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
             return this.ceiling1;
         }
         else {
@@ -354,7 +352,7 @@ function renderWallsToImageData(imageData, player, scene) {
                 imageData.data[destP + 0] = cell.data[cellP + 0] * fog;
                 imageData.data[destP + 1] = cell.data[cellP + 1] * fog;
                 imageData.data[destP + 2] = cell.data[cellP + 2] * fog;
-            // imageData.data[destP + 3] = cell.data[cellP + 3] * fog;
+                // imageData.data[destP + 3] = cell.data[cellP + 3] * fog;
             }
         }
     }

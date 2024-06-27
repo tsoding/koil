@@ -224,16 +224,14 @@ class Scene {
         return this.walls[fp.y*this.width + fp.x];
     }
     getFloor(p: Vector2): Tile | undefined {
-        const t = p.map(Math.floor);
-        if ((t.x + t.y)%2 == 0) {
+        if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
             return this.floor1;
         } else {
             return this.floor2;
         }
     }
     getCeiling(p: Vector2): Tile | undefined {
-        const t = p.map(Math.floor);
-        if ((t.x + t.y)%2 == 0) {
+        if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
             return this.ceiling1;
         } else {
             return this.ceiling2;
