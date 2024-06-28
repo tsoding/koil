@@ -2,7 +2,7 @@ const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 20.0;
 const FOV = Math.PI*0.5;
-const SCREEN_FACTOR = 30;
+const SCREEN_FACTOR = 50;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 const PLAYER_STEP_LEN = 0.5;
@@ -195,8 +195,8 @@ class Scene {
     ceiling1: RGBA;
     ceiling2: RGBA;
     constructor(walls: Array<Array<Tile>>) {
-        this.floor1 = new RGBA(0.094, 0.094, 0.094, 1.0);
-        this.floor2 = new RGBA(0.188, 0.188, 0.188, 1.0);
+        this.floor1 = new RGBA(0.094, 0.094 + 0.05, 0.094 + 0.05, 1.0);
+        this.floor2 = new RGBA(0.188, 0.188 + 0.05, 0.188 + 0.05, 1.0);
         this.ceiling1 = new RGBA(0.094 + 0.05, 0.094, 0.094, 1.0);
         this.ceiling2 = new RGBA(0.188 + 0.05, 0.188, 0.188, 1.0);
         this.height = walls.length;
@@ -344,7 +344,7 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction)
             const stripHeight = SCREEN_HEIGHT/v.dot(d);
-            const color = cell.brightness(1/v.dot(d));
+            const color = cell.brightness(v.dot(d));
             for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
                 const y = Math.floor((SCREEN_HEIGHT - stripHeight)*0.5) + dy;
                 imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
@@ -372,9 +372,9 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
             for (let y = by1; y <= by2; ++y) {
                 const tx = Math.floor(u*cell.width);
                 const ty = Math.floor((y - y1)/Math.ceil(stripHeight)*cell.height);
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d);
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d);
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d);
+                imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d)*2;
+                imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d)*2;
+                imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d)*2;
                 imageData.data[(y*SCREEN_WIDTH + x)*4 + 3] = cell.data[(ty*cell.width + tx)*4 + 3];
             }
         }
@@ -397,7 +397,7 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
             const tile = scene.getCeiling(t);
             if (tile instanceof RGBA) {
-                const color = tile.brightness(1/Math.sqrt(player.position.sqrDistanceTo(t)));
+                const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
                 imageData.data[(sz*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
                 imageData.data[(sz*SCREEN_WIDTH + x)*4 + 1] = color.g*255;
                 imageData.data[(sz*SCREEN_WIDTH + x)*4 + 2] = color.b*255;
@@ -423,7 +423,7 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
             const tile = scene.getFloor(t);
             if (tile instanceof RGBA) {
-                const color = tile.brightness(1/Math.sqrt(player.position.sqrDistanceTo(t)));
+                const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
                 imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
                 imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = color.g*255;
                 imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = color.b*255;
@@ -486,7 +486,8 @@ async function loadImageData(url: string): Promise<ImageData> {
     if (backCtx === null) throw new Error("2D context is not supported");
     backCtx.imageSmoothingEnabled = false;
 
-    const [wall1, wall2, wall3, wall4] = await Promise.all([
+    const [typescript, wall1, wall2, wall3, wall4] = await Promise.all([
+        loadImageData("assets/images/Typescript_logo_2020.png").catch(() => RGBA.purple()),
         loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall1_color.png").catch(() => RGBA.purple()),
         loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall2_color.png").catch(() => RGBA.purple()),
         loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => RGBA.purple()),
@@ -494,12 +495,12 @@ async function loadImageData(url: string): Promise<ImageData> {
     ]);
 
     const scene: Scene = new Scene([
-        [null, null,  wall1, wall1, null, null, null, null, null],
-        [null, null,   null, wall3, null, null, null, null, null],
-        [null, wall1, wall2, wall1, null, null, null, null, null],
+        [null, null,  typescript, null, null, null, null, null, null],
+        [null, null,   null, null, null, null, null, null, null],
+        [null, null, null, null, null, null, null, null, null],
         [null, null,   null,  null, null, null, null, null, null],
         [null, null,   null],
-        [null, null,   wall4,  null, null, null, null, null, null],
+        [null, null,   null,  null, null, null, null, null, null],
         [null, null,   null,  null, null, null, null, null, null],
     ]);
 
