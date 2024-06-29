@@ -224,16 +224,14 @@ class Scene {
         return this.walls[fp.y*this.width + fp.x];
     }
     getFloor(p: Vector2): Tile | undefined {
-        const t = p.map(Math.floor);
-        if ((t.x + t.y)%2 == 0) {
+        if ((Math.floor(p.x) + Math.floor(p.y))%2 == 0) {
             return this.floor1;
         } else {
             return this.floor2;
         }
     }
     getCeiling(p: Vector2): Tile | undefined {
-        const t = p.map(Math.floor);
-        if ((t.x + t.y)%2 == 0) {
+        if ((Math.floor(p.x) + Math.floor(p.y))%2 == 0) {
             return this.ceiling1;
         } else {
             return this.ceiling2;
@@ -347,10 +345,11 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
             const color = cell.brightness(v.dot(d));
             for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
                 const y = Math.floor((SCREEN_HEIGHT - stripHeight)*0.5) + dy;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = color.g*255;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = color.b*255;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 3] = color.a*255;
+                const destP = (y*SCREEN_WIDTH + x)*4;
+                imageData.data[destP + 0] = color.r*255;
+                imageData.data[destP + 1] = color.g*255;
+                imageData.data[destP + 2] = color.b*255;
+                imageData.data[destP + 3] = color.a*255;
             }
         } else if (cell instanceof ImageData) {
             const v = p.sub(player.position);
@@ -372,10 +371,11 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
             for (let y = by1; y <= by2; ++y) {
                 const tx = Math.floor(u*cell.width);
                 const ty = Math.floor((y - y1)/Math.ceil(stripHeight)*cell.height);
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d)*2;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d)*2;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d)*2;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 3] = cell.data[(ty*cell.width + tx)*4 + 3];
+                const destP = (y*SCREEN_WIDTH + x)*4;
+                imageData.data[destP + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d)*2;
+                imageData.data[destP + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d)*2;
+                imageData.data[destP + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d)*2;
+                imageData.data[destP + 3] = cell.data[(ty*cell.width + tx)*4 + 3];
             }
         }
     }
@@ -398,10 +398,11 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
             const tile = scene.getCeiling(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                imageData.data[(sz*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
-                imageData.data[(sz*SCREEN_WIDTH + x)*4 + 1] = color.g*255;
-                imageData.data[(sz*SCREEN_WIDTH + x)*4 + 2] = color.b*255;
-                imageData.data[(sz*SCREEN_WIDTH + x)*4 + 3] = color.a*255;
+                const destP = (sz*SCREEN_WIDTH + x)*4;
+                imageData.data[destP + 0] = color.r*255;
+                imageData.data[destP + 1] = color.g*255;
+                imageData.data[destP + 2] = color.b*255;
+                imageData.data[destP + 3] = color.a*255;
             }
         }
     }
@@ -424,10 +425,11 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
             const tile = scene.getFloor(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 0] = color.r*255;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 1] = color.g*255;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 2] = color.b*255;
-                imageData.data[(y*SCREEN_WIDTH + x)*4 + 3] = color.a*255;
+                const destP = (y*SCREEN_WIDTH + x)*4; 
+                imageData.data[destP + 0] = color.r*255;
+                imageData.data[destP + 1] = color.g*255;
+                imageData.data[destP + 2] = color.b*255;
+                imageData.data[destP + 3] = color.a*255;
             }
         }
     }
