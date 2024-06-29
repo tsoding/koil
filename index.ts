@@ -517,20 +517,28 @@ async function loadImageData(url: string): Promise<ImageData> {
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
             switch (e.code) {
-                case 'KeyW': movingForward  = true; break;
-                case 'KeyS': movingBackward = true; break;
-                case 'KeyA': turningLeft    = true; break;
-                case 'KeyD': turningRight   = true; break;
+                case 'KeyW':       movingForward  = true; break;
+                case 'KeyS':       movingBackward = true; break;
+                case 'KeyA':       turningLeft    = true; break;
+                case 'KeyD':       turningRight   = true; break;
+                case 'ArrowUp':    movingForward  = true; break;
+                case 'ArrowDown':  movingBackward = true; break;
+                case 'ArrowLeft':  turningLeft    = true; break;
+                case 'ArrowRight': turningRight   = true; break;
             }
         }
     });
     window.addEventListener("keyup", (e) => {
         if (!e.repeat) {
             switch (e.code) {
-                case 'KeyW': movingForward  = false; break;
-                case 'KeyS': movingBackward = false; break;
-                case 'KeyA': turningLeft    = false; break;
-                case 'KeyD': turningRight   = false; break;
+                case 'KeyW':       movingForward  = false; break;
+                case 'KeyS':       movingBackward = false; break;
+                case 'KeyA':       turningLeft    = false; break;
+                case 'KeyD':       turningRight   = false; break;
+                case 'ArrowUp':    movingForward  = false; break;
+                case 'ArrowDown':  movingBackward = false; break;
+                case 'ArrowLeft':  turningLeft    = false; break;
+                case 'ArrowRight': turningRight   = false; break;
             }
         }
     });
