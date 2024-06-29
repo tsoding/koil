@@ -465,13 +465,15 @@ function loadImageData(url) {
     const scene = new Scene([
         [null, null, typescript, null, null, null, null, null, null],
         [null, null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
+        [null, wall1, wall2, wall3, wall4, null, null, null, null],
+        [null, null, null, null, wall1, null, null, null, null],
+        [null, null, null, null, wall1],
+        [null, null, null, null, wall1, null, null, null, null],
+        [null, null, null, null, wall2, null, null, null, null],
+        [null, null, null, null, wall4],
+        [null, wall1, wall1, wall1, wall1]
     ]);
-    const player = new Player(scene.size().mul(new Vector2(0.63, 0.63)), Math.PI * 1.25);
+    const player = new Player(scene.size().mul(new Vector2(0, 0)), Math.PI * 1.25);
     let movingForward = false;
     let movingBackward = false;
     let turningLeft = false;
@@ -491,6 +493,18 @@ function loadImageData(url) {
                 case 'KeyD':
                     turningRight = true;
                     break;
+                case 'ArrowUp':
+                    movingForward = true;
+                    break;
+                case 'ArrowDown':
+                    movingBackward = true;
+                    break;
+                case 'ArrowLeft':
+                    turningLeft = true;
+                    break;
+                case 'ArrowRight':
+                    turningRight = true;
+                    break;
             }
         }
     });
@@ -507,6 +521,18 @@ function loadImageData(url) {
                     turningLeft = false;
                     break;
                 case 'KeyD':
+                    turningRight = false;
+                    break;
+                case 'ArrowUp':
+                    movingForward = false;
+                    break;
+                case 'ArrowDown':
+                    movingBackward = false;
+                    break;
+                case 'ArrowLeft':
+                    turningLeft = false;
+                    break;
+                case 'ArrowRight':
                     turningRight = false;
                     break;
             }
