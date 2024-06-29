@@ -491,6 +491,18 @@ function loadImageData(url) {
                 case 'KeyD':
                     turningRight = true;
                     break;
+                case 'ArrowUp':
+                    movingForward = true;
+                    break;
+                case 'ArrowDown':
+                    movingBackward = true;
+                    break;
+                case 'ArrowLeft':
+                    turningLeft = true;
+                    break;
+                case 'ArrowRight':
+                    turningRight = true;
+                    break;
             }
         }
     });
@@ -507,6 +519,18 @@ function loadImageData(url) {
                     turningLeft = false;
                     break;
                 case 'KeyD':
+                    turningRight = false;
+                    break;
+                case 'ArrowUp':
+                    movingForward = false;
+                    break;
+                case 'ArrowDown':
+                    movingBackward = false;
+                    break;
+                case 'ArrowLeft':
+                    turningLeft = false;
+                    break;
+                case 'ArrowRight':
                     turningRight = false;
                     break;
             }
