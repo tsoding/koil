@@ -2,7 +2,7 @@ const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 20.0;
 const FOV = Math.PI*0.5;
-const SCREEN_FACTOR = 50;
+const SCREEN_FACTOR = 51;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 const PLAYER_STEP_LEN = 0.5;
@@ -385,7 +385,7 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
     const pz = SCREEN_HEIGHT/2;
     const [p1, p2] = player.fovRange();
     const bp = p1.sub(player.position).length();
-    for (let y = SCREEN_HEIGHT/2; y < SCREEN_HEIGHT; ++y) {
+    for (let y = Math.floor(SCREEN_HEIGHT/2); y < SCREEN_HEIGHT; ++y) {
         const sz = SCREEN_HEIGHT - y - 1;
 
         const ap = pz - sz;
@@ -412,7 +412,7 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
     const pz = SCREEN_HEIGHT/2;
     const [p1, p2] = player.fovRange();
     const bp = p1.sub(player.position).length();
-    for (let y = SCREEN_HEIGHT/2; y < SCREEN_HEIGHT; ++y) {
+    for (let y = Math.floor(SCREEN_HEIGHT/2); y < SCREEN_HEIGHT; ++y) {
         const sz = SCREEN_HEIGHT - y - 1;
 
         const ap = pz - sz;
