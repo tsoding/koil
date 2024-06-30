@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 20.0;
@@ -19,6 +10,10 @@ const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 const PLAYER_SIZE = 0.5;
 class RGBA {
+    r;
+    g;
+    b;
+    a;
     constructor(r, g, b, a) {
         this.r = r;
         this.g = g;
@@ -55,6 +50,8 @@ class RGBA {
     }
 }
 class Vector2 {
+    x;
+    y;
     constructor(x, y) {
         this.x = x;
         this.y = y;
@@ -180,6 +177,13 @@ function rayStep(p1, p2) {
     return p3;
 }
 class Scene {
+    walls;
+    width;
+    height;
+    floor1;
+    floor2;
+    ceiling1;
+    ceiling2;
     constructor(walls) {
         this.floor1 = new RGBA(0.094, 0.094 + 0.05, 0.094 + 0.05, 1.0);
         this.floor2 = new RGBA(0.188, 0.188 + 0.05, 0.188 + 0.05, 1.0);
@@ -257,6 +261,8 @@ function castRay(scene, p1, p2) {
     return p2;
 }
 class Player {
+    position;
+    direction;
     constructor(position, direction) {
         this.position = position;
         this.direction = direction;
@@ -417,28 +423,24 @@ function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player,
     ctx.fillStyle = "white";
     ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);
 }
-function loadImage(url) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const image = new Image();
-        image.src = url;
-        return new Promise((resolve, reject) => {
-            image.onload = () => resolve(image);
-            image.onerror = reject;
-        });
+async function loadImage(url) {
+    const image = new Image();
+    image.src = url;
+    return new Promise((resolve, reject) => {
+        image.onload = () => resolve(image);
+        image.onerror = reject;
     });
 }
-function loadImageData(url) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const image = yield loadImage(url);
-        const canvas = new OffscreenCanvas(image.width, image.height);
-        const ctx = canvas.getContext("2d");
-        if (ctx === null)
-            throw new Error("2d canvas is not supported");
-        ctx.drawImage(image, 0, 0);
-        return ctx.getImageData(0, 0, image.width, image.height);
-    });
+async function loadImageData(url) {
+    const image = await loadImage(url);
+    const canvas = new OffscreenCanvas(image.width, image.height);
+    const ctx = canvas.getContext("2d");
+    if (ctx === null)
+        throw new Error("2d canvas is not supported");
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, image.width, image.height);
 }
-(() => __awaiter(void 0, void 0, void 0, function* () {
+(async () => {
     const game = document.getElementById("game");
     if (game === null)
         throw new Error("No canvas with id `game` is found");
@@ -455,7 +457,7 @@ function loadImageData(url) {
     if (backCtx === null)
         throw new Error("2D context is not supported");
     backCtx.imageSmoothingEnabled = false;
-    const [typescript, wall1, wall2, wall3, wall4] = yield Promise.all([
+    const [typescript, wall1, wall2, wall3, wall4] = await Promise.all([
         loadImageData("assets/images/Typescript_logo_2020.png").catch(() => RGBA.purple()),
         loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall1_color.png").catch(() => RGBA.purple()),
         loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall2_color.png").catch(() => RGBA.purple()),
@@ -546,7 +548,7 @@ function loadImageData(url) {
         prevTimestamp = timestamp;
         window.requestAnimationFrame(frame);
     });
-}))();
+})();
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.
