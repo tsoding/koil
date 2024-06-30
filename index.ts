@@ -9,44 +9,29 @@ const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
 const PLAYER_SIZE = 0.5
 
-class RGBA {
-    r: number;
-    g: number;
-    b: number;
-    a: number;
+class RGBA implements ImageData {
+    readonly data: Uint8ClampedArray;
+    readonly width:  number = 1;
+    readonly height: number = 1;
+    readonly colorSpace: PredefinedColorSpace = 'srgb';
+
     constructor(r: number, g: number, b: number, a: number) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
+        this.data = new Uint8ClampedArray([r*255, g*255, b*255, a*255].map(Math.floor));
     }
-    static red(): RGBA {
-        return new RGBA(1, 0, 0, 1);
-    }
-    static green(): RGBA {
-        return new RGBA(0, 1, 0, 1);
-    }
-    static blue(): RGBA {
-        return new RGBA(0, 0, 1, 1);
-    }
-    static yellow(): RGBA {
-        return new RGBA(1, 1, 0, 1);
-    }
-    static purple(): RGBA {
-        return new RGBA(1, 0, 1, 1);
-    }
-    static cyan(): RGBA {
-        return new RGBA(0, 1, 1, 1);
-    }
-    brightness(factor: number): RGBA {
-        return new RGBA(factor*this.r, factor*this.g, factor*this.b, this.a);
-    }
+    static red    = () => new RGBA(1, 0, 0, 1);
+    static green  = () => new RGBA(0, 1, 0, 1);
+    static blue   = () => new RGBA(0, 0, 1, 1);
+    static yellow = () => new RGBA(1, 1, 0, 1);
+    static purple = () => new RGBA(1, 0, 1, 1);
+    static cyan   = () => new RGBA(0, 1, 1, 1);
+
+    // TODO might not be necessary
     toStyle(): string {
         return `rgba(`
-            +`${Math.floor(this.r*255)}, `
-            +`${Math.floor(this.g*255)}, `
-            +`${Math.floor(this.b*255)}, `
-            +`${this.a})`;
+            +`${this.data[0]}, `
+            +`${this.data[1]}, `
+            +`${this.data[2]}, `
+            +`${Math.floor(this.data[3]/255)})`;
     }
 }
 
@@ -184,7 +169,7 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     return p3;
 }
 
-type Tile = RGBA | ImageData | null;
+type Tile = ImageData | null;
 
 class Scene {
     walls: Array<Tile>;
@@ -338,45 +323,31 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
         const p = castRay(scene, player.position, r1.lerp(r2, x/SCREEN_WIDTH));
         const c = hittingCell(player.position, p);
         const cell = scene.getWall(c);
-        if (cell instanceof RGBA) {
-            const v = p.sub(player.position);
-            const d = Vector2.angle(player.direction)
-            const stripHeight = SCREEN_HEIGHT/v.dot(d);
-            const color = cell.brightness(v.dot(d));
-            for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
-                const y = Math.floor((SCREEN_HEIGHT - stripHeight)*0.5) + dy;
-                const destP = (y*SCREEN_WIDTH + x)*4;
-                imageData.data[destP + 0] = color.r*255;
-                imageData.data[destP + 1] = color.g*255;
-                imageData.data[destP + 2] = color.b*255;
-                imageData.data[destP + 3] = color.a*255;
-            }
-        } else if (cell instanceof ImageData) {
-            const v = p.sub(player.position);
-            const d = Vector2.angle(player.direction)
-            const stripHeight = SCREEN_HEIGHT/v.dot(d);
+        if(!cell) continue;
+        const v = p.sub(player.position);
+        const d = Vector2.angle(player.direction)
+        const stripHeight = SCREEN_HEIGHT/v.dot(d);
 
-            let u = 0;
-            const t = p.sub(c);
-            if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
-                u = t.y;
-            } else {
-                u = t.x;
-            }
+        let u = 0;
+        const t = p.sub(c);
+        if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
+            u = t.y;
+        } else {
+            u = t.x;
+        }
 
-            const y1 = Math.floor((SCREEN_HEIGHT - stripHeight)*0.5);
-            const y2 = Math.floor(y1 + stripHeight);
-            const by1 = Math.max(0, y1);
-            const by2 = Math.min(SCREEN_HEIGHT-1, y2);
-            for (let y = by1; y <= by2; ++y) {
-                const tx = Math.floor(u*cell.width);
-                const ty = Math.floor((y - y1)/Math.ceil(stripHeight)*cell.height);
-                const destP = (y*SCREEN_WIDTH + x)*4;
-                imageData.data[destP + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d)*2;
-                imageData.data[destP + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d)*2;
-                imageData.data[destP + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d)*2;
-                imageData.data[destP + 3] = cell.data[(ty*cell.width + tx)*4 + 3];
-            }
+        const y1 = Math.floor((SCREEN_HEIGHT - stripHeight)*0.5);
+        const y2 = Math.floor(y1 + stripHeight);
+        const by1 = Math.max(0, y1);
+        const by2 = Math.min(SCREEN_HEIGHT-1, y2);
+        for (let y = by1; y <= by2; ++y) {
+            const tx = Math.floor(u*cell.width);
+            const ty = Math.floor((y - y1)/Math.ceil(stripHeight)*cell.height);
+            const destP = (y*SCREEN_WIDTH + x)*4;
+            imageData.data[destP + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d)*2;
+            imageData.data[destP + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d)*2;
+            imageData.data[destP + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d)*2;
+            imageData.data[destP + 3] = cell.data[(ty*cell.width + tx)*4 + 3];
         }
     }
 }
@@ -396,14 +367,13 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
         for (let x = 0; x < SCREEN_WIDTH; ++x) {
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
             const tile = scene.getCeiling(t);
-            if (tile instanceof RGBA) {
-                const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                const destP = (sz*SCREEN_WIDTH + x)*4;
-                imageData.data[destP + 0] = color.r*255;
-                imageData.data[destP + 1] = color.g*255;
-                imageData.data[destP + 2] = color.b*255;
-                imageData.data[destP + 3] = color.a*255;
-            }
+            if(!tile) continue;
+            const brightness = Math.sqrt(player.position.sqrDistanceTo(t));
+            const destP = (sz*SCREEN_WIDTH + x)*4;
+            imageData.data[destP + 0] = tile.data[0]*brightness;
+            imageData.data[destP + 1] = tile.data[1]*brightness;
+            imageData.data[destP + 2] = tile.data[2]*brightness;
+            imageData.data[destP + 3] = tile.data[3]*brightness;
         }
     }
 }
@@ -423,14 +393,13 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
         for (let x = 0; x < SCREEN_WIDTH; ++x) {
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
             const tile = scene.getFloor(t);
-            if (tile instanceof RGBA) {
-                const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                const destP = (y*SCREEN_WIDTH + x)*4; 
-                imageData.data[destP + 0] = color.r*255;
-                imageData.data[destP + 1] = color.g*255;
-                imageData.data[destP + 2] = color.b*255;
-                imageData.data[destP + 3] = color.a*255;
-            }
+            if(!tile) continue;
+            const brightness = Math.sqrt(player.position.sqrDistanceTo(t));
+            const destP = (y*SCREEN_WIDTH + x)*4; 
+            imageData.data[destP + 0] = tile.data[0]*brightness;
+            imageData.data[destP + 1] = tile.data[1]*brightness;
+            imageData.data[destP + 2] = tile.data[2]*brightness;
+            imageData.data[destP + 3] = tile.data[3]*brightness;
         }
     }
 }
