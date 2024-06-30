@@ -573,3 +573,14 @@ async function loadImageData(url: string): Promise<ImageData> {
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.
+
+const isDev = window.location.hostname === "localhost";
+if (isDev) {
+    const ws = new WebSocket("ws://localhost:6970");
+
+    ws.addEventListener("message", (event) => {
+      if (event.data === "reload") {
+        window.location.reload();
+      }
+    });
+}
