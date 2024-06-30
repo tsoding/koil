@@ -381,6 +381,8 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
     }
 }
 
+// original render ceiling function for reference
+/*
 function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene: Scene) {
     const pz = SCREEN_HEIGHT/2;
     const [p1, p2] = player.fovRange();
@@ -407,8 +409,9 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
         }
     }
 }
+*/
 
-function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: Scene) {
+function renderFloorAndCeilingIntoImageData(imageData: ImageData, player: Player, scene: Scene) {
     const pz = SCREEN_HEIGHT/2;
     const [p1, p2] = player.fovRange();
     const bp = p1.sub(player.position).length();
@@ -422,14 +425,24 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
 
         for (let x = 0; x < SCREEN_WIDTH; ++x) {
             const t = t1.lerp(t2, x/SCREEN_WIDTH);
-            const tile = scene.getFloor(t);
-            if (tile instanceof RGBA) {
-                const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
+            const floorTile = scene.getFloor(t);
+            if (floorTile instanceof RGBA) {
+                const color = floorTile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
                 const destP = (y*SCREEN_WIDTH + x)*4; 
                 imageData.data[destP + 0] = color.r*255;
                 imageData.data[destP + 1] = color.g*255;
                 imageData.data[destP + 2] = color.b*255;
                 imageData.data[destP + 3] = color.a*255;
+            }
+            const ceilingTile = scene.getCeiling(t);
+            if (ceilingTile instanceof RGBA) {
+                const color = ceilingTile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
+                const destP = (sz*SCREEN_WIDTH + x)*4;
+                imageData.data[destP + 0] = color.r*255;
+                imageData.data[destP + 1] = color.g*255;
+                imageData.data[destP + 2] = color.b*255;
+                imageData.data[destP + 3] = color.a*255;
+
             }
         }
     }
@@ -441,8 +454,7 @@ function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: Offscre
     const minimapSize = scene.size().scale(cellSize);
 
     backImageData.data.fill(255);
-    renderFloorIntoImageData(backImageData, player, scene);
-    renderCeilingIntoImageData(backImageData, player, scene);
+    renderFloorAndCeilingIntoImageData(backImageData, player, scene);
     renderWallsToImageData(backImageData, player, scene);
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
