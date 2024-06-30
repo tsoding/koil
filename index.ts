@@ -285,6 +285,25 @@ class Player {
     }
 }
 
+
+function resizeImageData(source: ImageData, width: number, height: number) {
+    const dest = new ImageData(Math.floor(width), Math.floor(height));
+    let destPos = 0
+
+    const ratio = new Vector2(source.width / dest.width, source.height / dest.height);
+    for (let y = 0; y < dest.height; y++) {
+        for (let x = 0; x < dest.width; x++) {
+            const srcX = Math.floor(x * ratio.x);
+            const srcY = Math.floor(y * ratio.y);
+
+            const srcPos = ((srcY * source.width) + srcX) * 4;
+            dest.data.set(source.data.slice(srcPos, srcPos + 4), destPos);
+            destPos+=4;
+        }
+    }
+    return dest;
+}
+
 function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: Vector2, size: Vector2, scene: Scene) {
     ctx.save();
 
@@ -297,6 +316,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     ctx.fillRect(0, 0, ...gridSize.array());
 
     ctx.lineWidth = 0.1;
+    const cellWidth = new Vector2(size.x / gridSize.x, size.y / gridSize.y);
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
             const cell = scene.getWall(new Vector2(x, y));
@@ -304,7 +324,9 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
             } else if (cell instanceof ImageData) {
-                // TODO: Render ImageData tiles
+                ctx.putImageData(resizeImageData(cell, cellWidth.x, cellWidth.y), 
+                    cellWidth.x * x + position.x, 
+                    cellWidth.y * y + position.y);
             }
         }
     }
