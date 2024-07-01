@@ -283,12 +283,20 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
 export interface Player {
     position: Vector2;
     direction: number;
+    movingForward: boolean;
+    movingBackward: boolean;
+    turningLeft: boolean;
+    turningRight: boolean;
 }
 
 export function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
         direction: direction,
+        movingForward: false,
+        movingBackward: false,
+        turningLeft: false,
+        turningRight: false,
     }
 }
 
@@ -450,6 +458,30 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
 }
 
 export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: OffscreenCanvasRenderingContext2D, backImageData: ImageData, deltaTime: number, player: Player, scene: Scene) {
+    let velocity = Vector2.zero();
+    let angularVelocity = 0.0;
+    if (player.movingForward) {
+        velocity = velocity.add(Vector2.angle(player.direction).scale(PLAYER_SPEED))
+    }
+    if (player.movingBackward) {
+        velocity = velocity.sub(Vector2.angle(player.direction).scale(PLAYER_SPEED))
+    }
+    if (player.turningLeft) {
+        angularVelocity -= Math.PI;
+    }
+    if (player.turningRight) {
+        angularVelocity += Math.PI;
+    }
+    player.direction = player.direction + angularVelocity*deltaTime;
+    const nx = player.position.x + velocity.x*deltaTime;
+    if (sceneCanRectangleFitHere(scene, new Vector2(nx, player.position.y), Vector2.scalar(PLAYER_SIZE))) {
+        player.position.x = nx;
+    }
+    const ny = player.position.y + velocity.y*deltaTime;
+    if (sceneCanRectangleFitHere(scene, new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
+        player.position.y = ny;
+    }
+
     const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
     const cellSize = ctx.canvas.width*0.03;
     const minimapSize = sceneSize(scene).scale(cellSize);
@@ -467,4 +499,3 @@ export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: 
     ctx.fillStyle = "white"
     ctx.fillText(`${Math.floor(1/deltaTime)}`, 100, 100);
 }
-

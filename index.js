@@ -67,24 +67,20 @@ async function loadImageData(url) {
     if (backCtx === null)
         throw new Error("2D context is not supported");
     backCtx.imageSmoothingEnabled = false;
-    let movingForward = false;
-    let movingBackward = false;
-    let turningLeft = false;
-    let turningRight = false;
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
             switch (e.code) {
                 case 'KeyW':
-                    movingForward = true;
+                    player.movingForward = true;
                     break;
                 case 'KeyS':
-                    movingBackward = true;
+                    player.movingBackward = true;
                     break;
                 case 'KeyA':
-                    turningLeft = true;
+                    player.turningLeft = true;
                     break;
                 case 'KeyD':
-                    turningRight = true;
+                    player.turningRight = true;
                     break;
             }
         }
@@ -93,16 +89,16 @@ async function loadImageData(url) {
         if (!e.repeat) {
             switch (e.code) {
                 case 'KeyW':
-                    movingForward = false;
+                    player.movingForward = false;
                     break;
                 case 'KeyS':
-                    movingBackward = false;
+                    player.movingBackward = false;
                     break;
                 case 'KeyA':
-                    turningLeft = false;
+                    player.turningLeft = false;
                     break;
                 case 'KeyD':
-                    turningRight = false;
+                    player.turningRight = false;
                     break;
             }
         }
@@ -111,29 +107,6 @@ async function loadImageData(url) {
     const frame = (timestamp) => {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         prevTimestamp = timestamp;
-        let velocity = game.Vector2.zero();
-        let angularVelocity = 0.0;
-        if (movingForward) {
-            velocity = velocity.add(game.Vector2.angle(player.direction).scale(game.PLAYER_SPEED));
-        }
-        if (movingBackward) {
-            velocity = velocity.sub(game.Vector2.angle(player.direction).scale(game.PLAYER_SPEED));
-        }
-        if (turningLeft) {
-            angularVelocity -= Math.PI;
-        }
-        if (turningRight) {
-            angularVelocity += Math.PI;
-        }
-        player.direction = player.direction + angularVelocity * deltaTime;
-        const nx = player.position.x + velocity.x * deltaTime;
-        if (game.sceneCanRectangleFitHere(scene, new game.Vector2(nx, player.position.y), game.Vector2.scalar(game.PLAYER_SIZE))) {
-            player.position.x = nx;
-        }
-        const ny = player.position.y + velocity.y * deltaTime;
-        if (game.sceneCanRectangleFitHere(scene, new game.Vector2(player.position.x, ny), game.Vector2.scalar(game.PLAYER_SIZE))) {
-            player.position.y = ny;
-        }
         game.renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene);
         window.requestAnimationFrame(frame);
     };

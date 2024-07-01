@@ -261,6 +261,10 @@ export function createPlayer(position, direction) {
     return {
         position: position,
         direction: direction,
+        movingForward: false,
+        movingBackward: false,
+        turningLeft: false,
+        turningRight: false,
     };
 }
 function playerFovRange(player) {
@@ -403,6 +407,29 @@ function renderFloorIntoImageData(imageData, player, scene) {
     }
 }
 export function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene) {
+    let velocity = Vector2.zero();
+    let angularVelocity = 0.0;
+    if (player.movingForward) {
+        velocity = velocity.add(Vector2.angle(player.direction).scale(PLAYER_SPEED));
+    }
+    if (player.movingBackward) {
+        velocity = velocity.sub(Vector2.angle(player.direction).scale(PLAYER_SPEED));
+    }
+    if (player.turningLeft) {
+        angularVelocity -= Math.PI;
+    }
+    if (player.turningRight) {
+        angularVelocity += Math.PI;
+    }
+    player.direction = player.direction + angularVelocity * deltaTime;
+    const nx = player.position.x + velocity.x * deltaTime;
+    if (sceneCanRectangleFitHere(scene, new Vector2(nx, player.position.y), Vector2.scalar(PLAYER_SIZE))) {
+        player.position.x = nx;
+    }
+    const ny = player.position.y + velocity.y * deltaTime;
+    if (sceneCanRectangleFitHere(scene, new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
+        player.position.y = ny;
+    }
     const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
     const cellSize = ctx.canvas.width * 0.03;
     const minimapSize = sceneSize(scene).scale(cellSize);
