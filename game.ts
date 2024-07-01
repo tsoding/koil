@@ -120,7 +120,9 @@ export class Vector2 {
         return this;
     }
     sqrDistanceTo(that: Vector2): number {
-        return that.clone().sub_(this).sqrLength();
+        const dx = that.x - this.x;
+        const dy = that.y - this.y;
+        return dx*dx + dy*dy;
     }
     lerp_(that: Vector2, t: number): this {
         this.x += (that.x - this.x)*t;
