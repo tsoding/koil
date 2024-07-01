@@ -1,4 +1,7 @@
 "use strict";
+const SCREEN_FACTOR = 30;
+const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
+const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 async function loadImage(url) {
     const image = new Image();
     image.src = url;
@@ -58,8 +61,8 @@ async function loadImageData(url) {
             }
         });
     }
-    const backImageData = new ImageData(game.SCREEN_WIDTH, game.SCREEN_HEIGHT);
-    const backCanvas = new OffscreenCanvas(game.SCREEN_WIDTH, game.SCREEN_HEIGHT);
+    const backImageData = new ImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
+    const backCanvas = new OffscreenCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null)
         throw new Error("2D context is not supported");

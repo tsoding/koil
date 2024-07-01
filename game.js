@@ -14,9 +14,6 @@ export const EPS = 1e-6;
 export const NEAR_CLIPPING_PLANE = 0.1;
 export const FAR_CLIPPING_PLANE = 20.0;
 export const FOV = Math.PI * 0.5;
-export const SCREEN_FACTOR = 30;
-export const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
-export const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 export const PLAYER_STEP_LEN = 0.5;
 export const PLAYER_SPEED = 2;
 export const PLAYER_SIZE = 0.5;
@@ -182,7 +179,7 @@ function rayStep(p1, p2) {
     }
     return p3;
 }
-const SCENE_FLOOR1 = new RGBA(0.188, 0.188, 0.188, 1.0);
+const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.05, 0.094 + 0.05, 1.0);
 const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.05, 0.188 + 0.05, 1.0);
 const SCENE_CEILING1 = new RGBA(0.094 + 0.05, 0.094, 0.094, 1.0);
 const SCENE_CEILING2 = new RGBA(0.188 + 0.05, 0.188, 0.188, 1.0);
@@ -311,18 +308,18 @@ function renderMinimap(ctx, player, position, size, scene) {
 }
 function renderWallsToImageData(imageData, player, scene) {
     const [r1, r2] = playerFovRange(player);
-    for (let x = 0; x < SCREEN_WIDTH; ++x) {
-        const p = castRay(scene, player.position, r1.lerp(r2, x / SCREEN_WIDTH));
+    for (let x = 0; x < imageData.width; ++x) {
+        const p = castRay(scene, player.position, r1.lerp(r2, x / imageData.width));
         const c = hittingCell(player.position, p);
         const cell = sceneGetWall(scene, c);
         if (cell instanceof RGBA) {
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction);
-            const stripHeight = SCREEN_HEIGHT / v.dot(d);
+            const stripHeight = imageData.height / v.dot(d);
             const color = cell.brightness(v.dot(d));
             for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
-                const y = Math.floor((SCREEN_HEIGHT - stripHeight) * 0.5) + dy;
-                const destP = (y * SCREEN_WIDTH + x) * 4;
+                const y = Math.floor((imageData.height - stripHeight) * 0.5) + dy;
+                const destP = (y * imageData.width + x) * 4;
                 imageData.data[destP + 0] = color.r * 255;
                 imageData.data[destP + 1] = color.g * 255;
                 imageData.data[destP + 2] = color.b * 255;
@@ -332,7 +329,7 @@ function renderWallsToImageData(imageData, player, scene) {
         else if (cell instanceof ImageData) {
             const v = p.sub(player.position);
             const d = Vector2.angle(player.direction);
-            const stripHeight = SCREEN_HEIGHT / v.dot(d);
+            const stripHeight = imageData.height / v.dot(d);
             let u = 0;
             const t = p.sub(c);
             if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
@@ -341,14 +338,14 @@ function renderWallsToImageData(imageData, player, scene) {
             else {
                 u = t.x;
             }
-            const y1 = Math.floor((SCREEN_HEIGHT - stripHeight) * 0.5);
+            const y1 = Math.floor((imageData.height - stripHeight) * 0.5);
             const y2 = Math.floor(y1 + stripHeight);
             const by1 = Math.max(0, y1);
-            const by2 = Math.min(SCREEN_HEIGHT - 1, y2);
+            const by2 = Math.min(imageData.height - 1, y2);
             for (let y = by1; y <= by2; ++y) {
                 const tx = Math.floor(u * cell.width);
                 const ty = Math.floor((y - y1) / Math.ceil(stripHeight) * cell.height);
-                const destP = (y * SCREEN_WIDTH + x) * 4;
+                const destP = (y * imageData.width + x) * 4;
                 imageData.data[destP + 0] = cell.data[(ty * cell.width + tx) * 4 + 0] / v.dot(d) * 2;
                 imageData.data[destP + 1] = cell.data[(ty * cell.width + tx) * 4 + 1] / v.dot(d) * 2;
                 imageData.data[destP + 2] = cell.data[(ty * cell.width + tx) * 4 + 2] / v.dot(d) * 2;
@@ -358,21 +355,21 @@ function renderWallsToImageData(imageData, player, scene) {
     }
 }
 function renderCeilingIntoImageData(imageData, player, scene) {
-    const pz = SCREEN_HEIGHT / 2;
+    const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.sub(player.position).length();
-    for (let y = Math.floor(SCREEN_HEIGHT / 2); y < SCREEN_HEIGHT; ++y) {
-        const sz = SCREEN_HEIGHT - y - 1;
+    for (let y = Math.floor(imageData.height / 2); y < imageData.height; ++y) {
+        const sz = imageData.height - y - 1;
         const ap = pz - sz;
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
         const t1 = player.position.add(p1.sub(player.position).norm().scale(b));
         const t2 = player.position.add(p2.sub(player.position).norm().scale(b));
-        for (let x = 0; x < SCREEN_WIDTH; ++x) {
-            const t = t1.lerp(t2, x / SCREEN_WIDTH);
+        for (let x = 0; x < imageData.width; ++x) {
+            const t = t1.lerp(t2, x / imageData.width);
             const tile = sceneGetCeiling(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                const destP = (sz * SCREEN_WIDTH + x) * 4;
+                const destP = (sz * imageData.width + x) * 4;
                 imageData.data[destP + 0] = color.r * 255;
                 imageData.data[destP + 1] = color.g * 255;
                 imageData.data[destP + 2] = color.b * 255;
@@ -382,21 +379,21 @@ function renderCeilingIntoImageData(imageData, player, scene) {
     }
 }
 function renderFloorIntoImageData(imageData, player, scene) {
-    const pz = SCREEN_HEIGHT / 2;
+    const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.sub(player.position).length();
-    for (let y = Math.floor(SCREEN_HEIGHT / 2); y < SCREEN_HEIGHT; ++y) {
-        const sz = SCREEN_HEIGHT - y - 1;
+    for (let y = Math.floor(imageData.height / 2); y < imageData.height; ++y) {
+        const sz = imageData.height - y - 1;
         const ap = pz - sz;
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
         const t1 = player.position.add(p1.sub(player.position).norm().scale(b));
         const t2 = player.position.add(p2.sub(player.position).norm().scale(b));
-        for (let x = 0; x < SCREEN_WIDTH; ++x) {
-            const t = t1.lerp(t2, x / SCREEN_WIDTH);
+        for (let x = 0; x < imageData.width; ++x) {
+            const t = t1.lerp(t2, x / imageData.width);
             const tile = sceneGetFloor(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                const destP = (y * SCREEN_WIDTH + x) * 4;
+                const destP = (y * imageData.width + x) * 4;
                 imageData.data[destP + 0] = color.r * 255;
                 imageData.data[destP + 1] = color.g * 255;
                 imageData.data[destP + 2] = color.b * 255;
