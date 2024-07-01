@@ -125,11 +125,6 @@ export class Vector2 {
 function canvasSize(ctx) {
     return new Vector2(ctx.canvas.width, ctx.canvas.height);
 }
-function fillCircle(ctx, center, radius) {
-    ctx.beginPath();
-    ctx.arc(...center.array(), radius, 0, 2 * Math.PI);
-    ctx.fill();
-}
 function strokeLine(ctx, p1, p2) {
     ctx.beginPath();
     ctx.moveTo(...p1.array());
@@ -306,7 +301,6 @@ function renderMinimap(ctx, player, position, size, scene) {
         strokeLine(ctx, new Vector2(0, y), new Vector2(gridSize.x, y));
     }
     ctx.fillStyle = "magenta";
-    // fillCircle(ctx, player.position, 0.2);
     ctx.fillRect(player.position.x - PLAYER_SIZE * 0.5, player.position.y - PLAYER_SIZE * 0.5, PLAYER_SIZE, PLAYER_SIZE);
     const [p1, p2] = playerFovRange(player);
     ctx.strokeStyle = "magenta";

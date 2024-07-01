@@ -128,12 +128,6 @@ function canvasSize(ctx: CanvasRenderingContext2D): Vector2 {
     return new Vector2(ctx.canvas.width, ctx.canvas.height);
 }
 
-function fillCircle(ctx: CanvasRenderingContext2D, center: Vector2, radius: number) {
-    ctx.beginPath();
-    ctx.arc(...center.array(), radius, 0, 2*Math.PI);
-    ctx.fill();
-}
-
 function strokeLine(ctx: CanvasRenderingContext2D, p1: Vector2, p2: Vector2) {
     ctx.beginPath();
     ctx.moveTo(...p1.array());
@@ -342,7 +336,6 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     }
 
     ctx.fillStyle = "magenta";
-    // fillCircle(ctx, player.position, 0.2);
     ctx.fillRect(player.position.x - PLAYER_SIZE*0.5,
                  player.position.y - PLAYER_SIZE*0.5,
                  PLAYER_SIZE, PLAYER_SIZE);
