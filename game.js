@@ -251,11 +251,12 @@ function sceneIsWall(scene, p) {
     return c !== null && c !== undefined;
 }
 export function sceneCanRectangleFitHere(scene, position, size) {
-    const halfSize = size.clone().scale_(0.5);
-    const leftTopCorner = position.clone().sub_(halfSize).clone().map_(Math.floor);
-    const rightBottomCorner = position.clone().add_(halfSize).clone().map_(Math.floor);
-    for (let x = leftTopCorner.x; x <= rightBottomCorner.x; ++x) {
-        for (let y = leftTopCorner.y; y <= rightBottomCorner.y; ++y) {
+    const x1 = Math.floor(position.x - size.x * 0.5);
+    const x2 = Math.floor(position.x + size.x * 0.5);
+    const y1 = Math.floor(position.y - size.y * 0.5);
+    const y2 = Math.floor(position.y + size.y * 0.5);
+    for (let x = x1; x <= x2; ++x) {
+        for (let y = y1; y <= y2; ++y) {
             if (sceneIsWall(scene, new Vector2(x, y))) {
                 return false;
             }
