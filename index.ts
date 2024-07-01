@@ -144,7 +144,7 @@ function hittingCell(p1: Vector2, p2: Vector2): Vector2 {
 function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     // y = k*x + c
     // x = (y - c)/k
-    // 
+    //
     // p1 = (x1, y1)
     // p2 = (x2, y2)
     //
@@ -349,7 +349,6 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
                 imageData.data[destP + 0] = color.r*255;
                 imageData.data[destP + 1] = color.g*255;
                 imageData.data[destP + 2] = color.b*255;
-                imageData.data[destP + 3] = color.a*255;
             }
         } else if (cell instanceof ImageData) {
             const v = p.sub(player.position);
@@ -368,14 +367,16 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
             const y2 = Math.floor(y1 + stripHeight);
             const by1 = Math.max(0, y1);
             const by2 = Math.min(SCREEN_HEIGHT-1, y2);
+            const sh = (1/Math.ceil(stripHeight))*cell.height;
+            const tx = Math.floor(u*cell.width);
+            const shadow = 1/v.dot(d)*2;
             for (let y = by1; y <= by2; ++y) {
-                const tx = Math.floor(u*cell.width);
-                const ty = Math.floor((y - y1)/Math.ceil(stripHeight)*cell.height);
+                const ty = Math.floor((y - y1)*sh);
+                const index = (ty*cell.width + tx)*4;
                 const destP = (y*SCREEN_WIDTH + x)*4;
-                imageData.data[destP + 0] = cell.data[(ty*cell.width + tx)*4 + 0]/v.dot(d)*2;
-                imageData.data[destP + 1] = cell.data[(ty*cell.width + tx)*4 + 1]/v.dot(d)*2;
-                imageData.data[destP + 2] = cell.data[(ty*cell.width + tx)*4 + 2]/v.dot(d)*2;
-                imageData.data[destP + 3] = cell.data[(ty*cell.width + tx)*4 + 3];
+                imageData.data[destP + 0] = cell.data[index + 0]*shadow;
+                imageData.data[destP + 1] = cell.data[index + 1]*shadow;
+                imageData.data[destP + 2] = cell.data[index + 2]*shadow;
             }
         }
     }
@@ -402,7 +403,6 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
                 imageData.data[destP + 0] = color.r*255;
                 imageData.data[destP + 1] = color.g*255;
                 imageData.data[destP + 2] = color.b*255;
-                imageData.data[destP + 3] = color.a*255;
             }
         }
     }
@@ -425,11 +425,10 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: S
             const tile = scene.getFloor(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
-                const destP = (y*SCREEN_WIDTH + x)*4; 
+                const destP = (y*SCREEN_WIDTH + x)*4;
                 imageData.data[destP + 0] = color.r*255;
                 imageData.data[destP + 1] = color.g*255;
                 imageData.data[destP + 2] = color.b*255;
-                imageData.data[destP + 3] = color.a*255;
             }
         }
     }
@@ -440,10 +439,22 @@ function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: Offscre
     const cellSize = ctx.canvas.width*0.03;
     const minimapSize = scene.size().scale(cellSize);
 
+    let now =0
+
     backImageData.data.fill(255);
+
+    now = performance.now()
     renderFloorIntoImageData(backImageData, player, scene);
+    let floor=performance.now() - now;
+
+    now = performance.now()
     renderCeilingIntoImageData(backImageData, player, scene);
+    let ceiling=performance.now() - now;
+
+    now = performance.now()
     renderWallsToImageData(backImageData, player, scene);
+    let walls=performance.now() - now;
+
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
 
@@ -451,7 +462,9 @@ function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: Offscre
 
     ctx.font = "48px bold"
     ctx.fillStyle = "white"
-    ctx.fillText(`${Math.floor(1/deltaTime)}`, 100, 100);
+    ctx.fillText(`Floor ${Math.floor(floor)}`, 50, 50);
+    ctx.fillText(`Ceiling ${Math.floor(ceiling)}`, 50, 100);
+    ctx.fillText(`Walls ${Math.floor(walls)}`, 50, 150);
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
