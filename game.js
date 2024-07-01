@@ -228,8 +228,7 @@ function sceneContains(scene, p) {
 function sceneGetTile(scene, p) {
     if (!sceneContains(scene, p))
         return undefined;
-    const fp = p.clone().map_(Math.floor);
-    return scene.walls[fp.y * scene.width + fp.x];
+    return scene.walls[Math.floor(p.y) * scene.width + Math.floor(p.x)];
 }
 function sceneGetFloor(p) {
     if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {

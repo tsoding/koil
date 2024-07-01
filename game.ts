@@ -248,8 +248,7 @@ function sceneContains(scene: Scene, p: Vector2): boolean {
 
 function sceneGetTile(scene: Scene, p: Vector2): Tile | undefined {
     if (!sceneContains(scene, p)) return undefined;
-    const fp = p.clone().map_(Math.floor);
-    return scene.walls[fp.y*scene.width + fp.x];
+    return scene.walls[Math.floor(p.y)*scene.width + Math.floor(p.x)];
 }
 
 function sceneGetFloor(p: Vector2): Tile | undefined {
