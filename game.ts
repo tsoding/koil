@@ -157,9 +157,10 @@ function snap(x: number, dx: number): number {
 }
 
 function hittingCell(p1: Vector2, p2: Vector2): Vector2 {
-    const d = p2.clone().sub_(p1);
-    return new Vector2(Math.floor(p2.x + Math.sign(d.x)*EPS),
-                       Math.floor(p2.y + Math.sign(d.y)*EPS));
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    return new Vector2(Math.floor(p2.x + Math.sign(dx)*EPS),
+                       Math.floor(p2.y + Math.sign(dy)*EPS));
 }
 
 function rayStep(p1: Vector2, p2: Vector2): Vector2 {
