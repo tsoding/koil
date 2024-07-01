@@ -50,7 +50,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     ]);
 
     const player = game.createPlayer(
-        game.sceneSize(scene).mul(new game.Vector2(0.63, 0.63)),
+        game.sceneSize(scene).clone().mul_(new game.Vector2(0.63, 0.63)),
         Math.PI*1.25);
 
     const isDev = window.location.hostname === "localhost";

@@ -75,49 +75,65 @@ export class Vector2 {
     static angle(angle: number): Vector2 {
         return new Vector2(Math.cos(angle), Math.sin(angle));
     }
-    add(that: Vector2): Vector2 {
-        return new Vector2(this.x + that.x, this.y + that.y);
+    clone(): Vector2 {
+        return new Vector2(this.x, this.y)
     }
-    sub(that: Vector2): Vector2 {
-        return new Vector2(this.x - that.x, this.y - that.y);
+    add_(that: Vector2): this {
+        this.x += that.x;
+        this.y += that.y;
+        return this;
     }
-    div(that: Vector2): Vector2 {
-        return new Vector2(this.x/that.x, this.y/that.y);
+    sub_(that: Vector2): this {
+        this.x -= that.x;
+        this.y -= that.y;
+        return this;
     }
-    mul(that: Vector2): Vector2 {
-        return new Vector2(this.x*that.x, this.y*that.y);
+    div_(that: Vector2): this {
+        this.x /= that.x;
+        this.y /= that.y;
+        return this;
     }
-    length(): number {
-        return Math.sqrt(this.x*this.x + this.y*this.y);
+    mul_(that: Vector2): this {
+        this.x *= that.x;
+        this.y *= that.y;
+        return this;
     }
     sqrLength(): number {
         return this.x*this.x + this.y*this.y;
     }
-    norm(): Vector2 {
+    length(): number {
+        return Math.sqrt(this.sqrLength());
+    }
+    scale_(value: number): this {
+        this.x *= value;
+        this.y *= value;
+        return this;
+    }
+    norm_(): this {
         const l = this.length();
-        if (l === 0) return new Vector2(0, 0);
-        return new Vector2(this.x/l, this.y/l);
+        return l === 0 ? this : this.scale_(1/l);
     }
-    scale(value: number): Vector2 {
-        return new Vector2(this.x*value, this.y*value);
-    }
-    rot90(): Vector2 {
-        return new Vector2(-this.y, this.x);
+    rot90_(): this {
+        const oldX = this.x;
+        this.x = -this.y;
+        this.y = oldX;
+        return this;
     }
     sqrDistanceTo(that: Vector2): number {
-        return that.sub(this).sqrLength();
+        return that.clone().sub_(this).sqrLength();
     }
-    lerp(that: Vector2, t: number): Vector2 {
-        return that.sub(this).scale(t).add(this);
+    lerp_(that: Vector2, t: number): this {
+        this.x += (that.x - this.x)*t;
+        this.y += (that.y - this.y)*t;
+        return this;
     }
     dot(that: Vector2): number {
         return this.x*that.x + this.y*that.y;
     }
-    map(f: (x: number) => number): Vector2 {
-        return new Vector2(f(this.x), f(this.y));
-    }
-    array(): [number, number] {
-        return [this.x, this.y];
+    map_(f: (x: number) => number): this {
+        this.x = f(this.x);
+        this.y = f(this.y);
+        return this;
     }
 }
 
@@ -127,8 +143,8 @@ function canvasSize(ctx: CanvasRenderingContext2D): Vector2 {
 
 function strokeLine(ctx: CanvasRenderingContext2D, p1: Vector2, p2: Vector2) {
     ctx.beginPath();
-    ctx.moveTo(...p1.array());
-    ctx.lineTo(...p2.array());
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
 }
 
@@ -139,7 +155,7 @@ function snap(x: number, dx: number): number {
 }
 
 function hittingCell(p1: Vector2, p2: Vector2): Vector2 {
-    const d = p2.sub(p1);
+    const d = p2.clone().sub_(p1);
     return new Vector2(Math.floor(p2.x + Math.sign(d.x)*EPS),
                        Math.floor(p2.y + Math.sign(d.y)*EPS));
 }
@@ -159,7 +175,7 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     // c = y1 - k*x1
     // k = dy/dx
     let p3 = p2;
-    const d = p2.sub(p1);
+    const d = p2.clone().sub_(p1);
     if (d.x !== 0) {
         const k = d.y/d.x;
         const c = p1.y - k*p1.x;
@@ -228,7 +244,7 @@ function sceneContains(scene: Scene, p: Vector2): boolean {
 
 function sceneGetWall(scene: Scene, p: Vector2): Tile | undefined {
     if (!sceneContains(scene, p)) return undefined;
-    const fp = p.map(Math.floor);
+    const fp = p.clone().map_(Math.floor);
     return scene.walls[fp.y*scene.width + fp.x];
 }
 
@@ -254,9 +270,9 @@ function sceneIsWall(scene: Scene, p: Vector2): boolean {
 }
 
 export function sceneCanRectangleFitHere(scene: Scene, position: Vector2, size: Vector2): boolean {
-    const halfSize = size.scale(0.5);
-    const leftTopCorner = position.sub(halfSize).map(Math.floor);
-    const rightBottomCorner = position.add(halfSize).map(Math.floor);
+    const halfSize = size.clone().scale_(0.5);
+    const leftTopCorner = position.clone().sub_(halfSize).clone().map_(Math.floor);
+    const rightBottomCorner = position.clone().add_(halfSize).clone().map_(Math.floor);
     for (let x = leftTopCorner.x; x <= rightBottomCorner.x; ++x) {
         for (let y = leftTopCorner.y; y <= rightBottomCorner.y; ++y) {
             if (sceneIsWall(scene, new Vector2(x, y))) {
@@ -302,9 +318,9 @@ export function createPlayer(position: Vector2, direction: number): Player {
 
 function playerFovRange(player: Player): [Vector2, Vector2] {
     const l = Math.tan(FOV*0.5)*NEAR_CLIPPING_PLANE;
-    const p = player.position.add(Vector2.angle(player.direction).scale(NEAR_CLIPPING_PLANE));
-    const p1 = p.sub(p.sub(player.position).rot90().norm().scale(l));
-    const p2 = p.add(p.sub(player.position).rot90().norm().scale(l));
+    const p = player.position.clone().add_(Vector2.angle(player.direction).clone().scale_(NEAR_CLIPPING_PLANE));
+    const p1 = p.clone().sub_(p.clone().sub_(player.position).clone().rot90_().clone().norm_().clone().scale_(l));
+    const p2 = p.clone().add_(p.clone().sub_(player.position).clone().rot90_().clone().norm_().clone().scale_(l));
     return [p1, p2];
 }
 
@@ -313,11 +329,11 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
 
     const gridSize = sceneSize(scene);
 
-    ctx.translate(...position.array());
-    ctx.scale(...size.div(gridSize).array());
+    ctx.translate(position.x, position.y);
+    ctx.scale(size.x/gridSize.x, size.y/gridSize.y);
 
     ctx.fillStyle = "#181818";
-    ctx.fillRect(0, 0, ...gridSize.array());
+    ctx.fillRect(0, 0, gridSize.x, gridSize.y);
 
     ctx.lineWidth = 0.1;
     for (let y = 0; y < gridSize.y; ++y) {
@@ -357,11 +373,11 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
 function renderWallsToImageData(imageData: ImageData, player: Player, scene: Scene) {
     const [r1, r2] = playerFovRange(player);
     for (let x = 0; x < imageData.width; ++x) {
-        const p = castRay(scene, player.position, r1.lerp(r2, x/imageData.width));
+        const p = castRay(scene, player.position, r1.clone().lerp_(r2, x/imageData.width));
         const c = hittingCell(player.position, p);
         const cell = sceneGetWall(scene, c);
         if (cell instanceof RGBA) {
-            const v = p.sub(player.position);
+            const v = p.clone().sub_(player.position);
             const d = Vector2.angle(player.direction)
             const stripHeight = imageData.height/v.dot(d);
             const color = cell.brightness(v.dot(d));
@@ -374,12 +390,12 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
                 imageData.data[destP + 3] = color.a*255;
             }
         } else if (cell instanceof ImageData) {
-            const v = p.sub(player.position);
+            const v = p.clone().sub_(player.position);
             const d = Vector2.angle(player.direction)
             const stripHeight = imageData.height/v.dot(d);
 
             let u = 0;
-            const t = p.sub(c);
+            const t = p.clone().sub_(c);
             if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
                 u = t.y;
             } else {
@@ -403,20 +419,20 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
     }
 }
 
-function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene: Scene) {
+function renderCeilingIntoImageData(imageData: ImageData, player: Player) {
     const pz = imageData.height/2;
     const [p1, p2] = playerFovRange(player);
-    const bp = p1.sub(player.position).length();
+    const bp = p1.clone().sub_(player.position).length();
     for (let y = Math.floor(imageData.height/2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
 
         const ap = pz - sz;
         const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        const t1 = player.position.add(p1.sub(player.position).norm().scale(b));
-        const t2 = player.position.add(p2.sub(player.position).norm().scale(b));
+        const t1 = player.position.clone().add_(p1.clone().sub_(player.position).clone().norm_().clone().scale_(b));
+        const t2 = player.position.clone().add_(p2.clone().sub_(player.position).clone().norm_().clone().scale_(b));
 
         for (let x = 0; x < imageData.width; ++x) {
-            const t = t1.lerp(t2, x/imageData.width);
+            const t = t1.clone().lerp_(t2, x/imageData.width);
             const tile = sceneGetCeiling(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
@@ -430,20 +446,20 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player, scene:
     }
 }
 
-function renderFloorIntoImageData(imageData: ImageData, player: Player, scene: Scene) {
+function renderFloorIntoImageData(imageData: ImageData, player: Player) {
     const pz = imageData.height/2;
     const [p1, p2] = playerFovRange(player);
-    const bp = p1.sub(player.position).length();
+    const bp = p1.clone().sub_(player.position).length();
     for (let y = Math.floor(imageData.height/2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
 
         const ap = pz - sz;
         const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        const t1 = player.position.add(p1.sub(player.position).norm().scale(b));
-        const t2 = player.position.add(p2.sub(player.position).norm().scale(b));
+        const t1 = player.position.clone().add_(p1.clone().sub_(player.position).clone().norm_().clone().scale_(b));
+        const t2 = player.position.clone().add_(p2.clone().sub_(player.position).clone().norm_().clone().scale_(b));
 
         for (let x = 0; x < imageData.width; ++x) {
-            const t = t1.lerp(t2, x/imageData.width);
+            const t = t1.clone().lerp_(t2, x/imageData.width);
             const tile = sceneGetFloor(t);
             if (tile instanceof RGBA) {
                 const color = tile.brightness(Math.sqrt(player.position.sqrDistanceTo(t)));
@@ -461,10 +477,10 @@ export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: 
     let velocity = Vector2.zero();
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        velocity = velocity.add(Vector2.angle(player.direction).scale(PLAYER_SPEED))
+        velocity = velocity.clone().add_(Vector2.angle(player.direction).clone().scale_(PLAYER_SPEED))
     }
     if (player.movingBackward) {
-        velocity = velocity.sub(Vector2.angle(player.direction).scale(PLAYER_SPEED))
+        velocity = velocity.clone().sub_(Vector2.angle(player.direction).clone().scale_(PLAYER_SPEED))
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -482,13 +498,13 @@ export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: 
         player.position.y = ny;
     }
 
-    const minimapPosition = Vector2.zero().add(canvasSize(ctx).scale(0.03));
+    const minimapPosition = Vector2.zero().clone().add_(canvasSize(ctx).clone().scale_(0.03));
     const cellSize = ctx.canvas.width*0.03;
-    const minimapSize = sceneSize(scene).scale(cellSize);
+    const minimapSize = sceneSize(scene).clone().scale_(cellSize);
 
     backImageData.data.fill(255);
-    renderFloorIntoImageData(backImageData, player, scene);
-    renderCeilingIntoImageData(backImageData, player, scene);
+    renderFloorIntoImageData(backImageData, player);
+    renderCeilingIntoImageData(backImageData, player);
     renderWallsToImageData(backImageData, player, scene);
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
