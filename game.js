@@ -386,8 +386,8 @@ function renderCeilingIntoImageData(imageData, player) {
         const sz = imageData.height - y - 1;
         const ap = pz - sz;
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        const t1 = player.position.clone().add_(p1.clone().sub_(player.position).clone().norm_().clone().scale_(b));
-        const t2 = player.position.clone().add_(p2.clone().sub_(player.position).clone().norm_().clone().scale_(b));
+        const t1 = player.position.clone().add_(p1.clone().sub_(player.position).norm_().scale_(b));
+        const t2 = player.position.clone().add_(p2.clone().sub_(player.position).norm_().scale_(b));
         for (let x = 0; x < imageData.width; ++x) {
             const t = t1.clone().lerp_(t2, x / imageData.width);
             const tile = sceneGetCeiling(t);
@@ -410,8 +410,8 @@ function renderFloorIntoImageData(imageData, player) {
         const sz = imageData.height - y - 1;
         const ap = pz - sz;
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        const t1 = player.position.clone().add_(p1.clone().sub_(player.position).clone().norm_().clone().scale_(b));
-        const t2 = player.position.clone().add_(p2.clone().sub_(player.position).clone().norm_().clone().scale_(b));
+        const t1 = player.position.clone().add_(p1.clone().sub_(player.position).norm_().scale_(b));
+        const t2 = player.position.clone().add_(p2.clone().sub_(player.position).norm_().scale_(b));
         for (let x = 0; x < imageData.width; ++x) {
             const t = t1.clone().lerp_(t2, x / imageData.width);
             const tile = sceneGetFloor(t);
@@ -430,10 +430,10 @@ export function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, 
     let velocity = Vector2.zero();
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        velocity = velocity.clone().add_(Vector2.angle(player.direction).clone().scale_(PLAYER_SPEED));
+        velocity.add_(Vector2.angle(player.direction).scale_(PLAYER_SPEED));
     }
     if (player.movingBackward) {
-        velocity = velocity.clone().sub_(Vector2.angle(player.direction).clone().scale_(PLAYER_SPEED));
+        velocity.sub_(Vector2.angle(player.direction).scale_(PLAYER_SPEED));
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -450,9 +450,9 @@ export function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, 
     if (sceneCanRectangleFitHere(scene, new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
         player.position.y = ny;
     }
-    const minimapPosition = Vector2.zero().clone().add_(canvasSize(ctx).clone().scale_(0.03));
+    const minimapPosition = canvasSize(ctx).scale_(0.03);
     const cellSize = ctx.canvas.width * 0.03;
-    const minimapSize = sceneSize(scene).clone().scale_(cellSize);
+    const minimapSize = sceneSize(scene).scale_(cellSize);
     backImageData.data.fill(255);
     renderFloorIntoImageData(backImageData, player);
     renderCeilingIntoImageData(backImageData, player);
