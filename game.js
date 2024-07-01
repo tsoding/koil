@@ -172,17 +172,18 @@ function rayStep(p1, p2) {
     // c = y1 - k*x1
     // k = dy/dx
     let p3 = p2;
-    const d = p2.clone().sub_(p1);
-    if (d.x !== 0) {
-        const k = d.y / d.x;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    if (dx !== 0) {
+        const k = dy / dx;
         const c = p1.y - k * p1.x;
         {
-            const x3 = snap(p2.x, d.x);
+            const x3 = snap(p2.x, dx);
             const y3 = x3 * k + c;
             p3 = new Vector2(x3, y3);
         }
         if (k !== 0) {
-            const y3 = snap(p2.y, d.y);
+            const y3 = snap(p2.y, dy);
             const x3 = (y3 - c) / k;
             const p3t = new Vector2(x3, y3);
             if (p2.sqrDistanceTo(p3t) < p2.sqrDistanceTo(p3)) {
@@ -191,7 +192,7 @@ function rayStep(p1, p2) {
         }
     }
     else {
-        const y3 = snap(p2.y, d.y);
+        const y3 = snap(p2.y, dy);
         const x3 = p2.x;
         p3 = new Vector2(x3, y3);
     }
