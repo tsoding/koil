@@ -246,7 +246,7 @@ function sceneContains(scene: Scene, p: Vector2): boolean {
     return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
 }
 
-function sceneGetWall(scene: Scene, p: Vector2): Tile | undefined {
+function sceneGetTile(scene: Scene, p: Vector2): Tile | undefined {
     if (!sceneContains(scene, p)) return undefined;
     const fp = p.clone().map_(Math.floor);
     return scene.walls[fp.y*scene.width + fp.x];
@@ -269,7 +269,7 @@ function sceneGetCeiling(p: Vector2): Tile | undefined {
 }
 
 function sceneIsWall(scene: Scene, p: Vector2): boolean {
-    const c = sceneGetWall(scene, p);
+    const c = sceneGetTile(scene, p);
     return c !== null && c !== undefined;
 }
 
@@ -342,7 +342,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     ctx.lineWidth = 0.1;
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
-            const cell = sceneGetWall(scene, new Vector2(x, y));
+            const cell = sceneGetTile(scene, new Vector2(x, y));
             if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
@@ -379,7 +379,7 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
     for (let x = 0; x < imageData.width; ++x) {
         const p = castRay(scene, player.position, r1.clone().lerp_(r2, x/imageData.width));
         const c = hittingCell(player.position, p);
-        const cell = sceneGetWall(scene, c);
+        const cell = sceneGetTile(scene, c);
         if (cell instanceof RGBA) {
             const v = p.clone().sub_(player.position);
             const d = Vector2.angle(player.direction)

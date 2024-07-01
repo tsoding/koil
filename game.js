@@ -225,7 +225,7 @@ export function sceneSize(scene) {
 function sceneContains(scene, p) {
     return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
 }
-function sceneGetWall(scene, p) {
+function sceneGetTile(scene, p) {
     if (!sceneContains(scene, p))
         return undefined;
     const fp = p.clone().map_(Math.floor);
@@ -248,7 +248,7 @@ function sceneGetCeiling(p) {
     }
 }
 function sceneIsWall(scene, p) {
-    const c = sceneGetWall(scene, p);
+    const c = sceneGetTile(scene, p);
     return c !== null && c !== undefined;
 }
 export function sceneCanRectangleFitHere(scene, position, size) {
@@ -303,7 +303,7 @@ function renderMinimap(ctx, player, position, size, scene) {
     ctx.lineWidth = 0.1;
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
-            const cell = sceneGetWall(scene, new Vector2(x, y));
+            const cell = sceneGetTile(scene, new Vector2(x, y));
             if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
@@ -334,7 +334,7 @@ function renderWallsToImageData(imageData, player, scene) {
     for (let x = 0; x < imageData.width; ++x) {
         const p = castRay(scene, player.position, r1.clone().lerp_(r2, x / imageData.width));
         const c = hittingCell(player.position, p);
-        const cell = sceneGetWall(scene, c);
+        const cell = sceneGetTile(scene, c);
         if (cell instanceof RGBA) {
             const v = p.clone().sub_(player.position);
             const d = Vector2.angle(player.direction);
