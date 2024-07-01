@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Hotreloading in TypeScript</title>
+    <style>
+      body {
+          background: #181818;
+          color: #FFFFFF;
+      }
+      .container {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div style="margin-bottom: 5px">
+        <span>Controls: WASD</span>
+        <span style="float:right">Source Code: <a href="https://github.com/tsoding/raycasting">https://github.com/tsoding/raycasting</a></span>
+      </div>
+      <canvas id="game"></canvas>
+    </div>
+    <script src="hotreload.js"></script>
+  </body>
+</html>
