@@ -66,9 +66,6 @@ export class Vector2 {
         this.x = x;
         this.y = y;
     }
-    static zero(): Vector2 {
-        return new Vector2(0, 0);
-    }
     static scalar(value: number): Vector2 {
         return new Vector2(value, value);
     }
@@ -77,6 +74,11 @@ export class Vector2 {
     }
     clone(): Vector2 {
         return new Vector2(this.x, this.y)
+    }
+    setScalar(scalar: number): this {
+        this.x = scalar;
+        this.y = scalar;
+        return this;
     }
     add_(that: Vector2): this {
         this.x += that.x;
@@ -302,6 +304,7 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
 
 export interface Player {
     position: Vector2;
+    velocity: Vector2;
     direction: number;
     movingForward: boolean;
     movingBackward: boolean;
@@ -312,6 +315,7 @@ export interface Player {
 export function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
+        velocity: new Vector2(0, 0),
         direction: direction,
         movingForward: false,
         movingBackward: false,
@@ -479,13 +483,13 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player) {
 }
 
 export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: OffscreenCanvasRenderingContext2D, backImageData: ImageData, deltaTime: number, player: Player, scene: Scene) {
-    let velocity = Vector2.zero();
+    player.velocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        velocity.add_(Vector2.angle(player.direction).scale_(PLAYER_SPEED))
+        player.velocity.add_(Vector2.angle(player.direction).scale_(PLAYER_SPEED))
     }
     if (player.movingBackward) {
-        velocity.sub_(Vector2.angle(player.direction).scale_(PLAYER_SPEED))
+        player.velocity.sub_(Vector2.angle(player.direction).scale_(PLAYER_SPEED))
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -494,11 +498,11 @@ export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: 
         angularVelocity += Math.PI;
     }
     player.direction = player.direction + angularVelocity*deltaTime;
-    const nx = player.position.x + velocity.x*deltaTime;
+    const nx = player.position.x + player.velocity.x*deltaTime;
     if (sceneCanRectangleFitHere(scene, new Vector2(nx, player.position.y), Vector2.scalar(PLAYER_SIZE))) {
         player.position.x = nx;
     }
-    const ny = player.position.y + velocity.y*deltaTime;
+    const ny = player.position.y + player.velocity.y*deltaTime;
     if (sceneCanRectangleFitHere(scene, new Vector2(player.position.x, ny), Vector2.scalar(PLAYER_SIZE))) {
         player.position.y = ny;
     }
