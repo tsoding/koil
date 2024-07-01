@@ -10,7 +10,7 @@
     if (ctx === null)
         throw new Error("2D context is not supported");
     let dvd = await import("./dvd.js");
-    let state = new dvd.State();
+    let state = dvd.createState();
     const isDev = window.location.hostname === "localhost";
     if (isDev) {
         const ws = new WebSocket("ws://localhost:6970");
@@ -18,7 +18,6 @@
             if (event.data === "reload") {
                 console.log("Hot reloading module");
                 dvd = await import("./dvd.js?date=" + new Date().getTime());
-                Object.setPrototypeOf(state, Object.getPrototypeOf(new dvd.State()));
             }
         });
     }
@@ -26,7 +25,7 @@
     const frame = (timestamp) => {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         prevTimestamp = timestamp;
-        state.update(ctx, deltaTime);
+        dvd.updateState(ctx, state, deltaTime);
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {
