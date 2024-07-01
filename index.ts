@@ -54,9 +54,11 @@ async function loadImageData(url: string): Promise<ImageData> {
         const ws = new WebSocket("ws://localhost:6970");
 
         ws.addEventListener("message", async (event) => {
-            if (event.data === "reload") {
+            if (event.data === "hot") {
                 console.log("Hot reloading module");
                 game = await import("./game.js?date="+new Date().getTime());
+            } else if (event.data === "cold") {
+                window.location.reload()
             }
         });
     }
@@ -127,7 +129,7 @@ async function loadImageData(url: string): Promise<ImageData> {
         prevTimestamp = timestamp;
         window.requestAnimationFrame(frame);
     });
-})()
+})();
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.

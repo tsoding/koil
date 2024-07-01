@@ -175,7 +175,7 @@ function rayStep(p1, p2) {
     }
     return p3;
 }
-const SCENE_FLOOR1 = RGBA.purple();
+const SCENE_FLOOR1 = new RGBA(0.188, 0.188, 0.188, 1.0);
 const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.05, 0.188 + 0.05, 1.0);
 const SCENE_CEILING1 = new RGBA(0.094 + 0.05, 0.094, 0.094, 1.0);
 const SCENE_CEILING2 = new RGBA(0.188 + 0.05, 0.188, 0.188, 1.0);

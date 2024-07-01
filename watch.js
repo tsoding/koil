@@ -45,10 +45,16 @@ wss.on("connection", (ws) => {
   });
 });
 
-const FILES_TO_WATCH = ["index.html", "index.js", "game.js"];
-
-FILES_TO_WATCH.forEach((file) =>
+const COLD_RELOAD_FILES = ["index.html", "index.js"];
+COLD_RELOAD_FILES.forEach((file) =>
   watchFile(path.join(__dirname, file), { interval: 50 }, () => {
-    websockets.forEach((socket) => socket.send("reload"));
+    websockets.forEach((socket) => socket.send("cold"));
+  })
+);
+
+const HOT_RELOAD_FILES = ["game.js"];
+HOT_RELOAD_FILES.forEach((file) =>
+  watchFile(path.join(__dirname, file), { interval: 50 }, () => {
+    websockets.forEach((socket) => socket.send("hot"));
   })
 );

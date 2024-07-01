@@ -49,9 +49,12 @@ async function loadImageData(url) {
     if (isDev) {
         const ws = new WebSocket("ws://localhost:6970");
         ws.addEventListener("message", async (event) => {
-            if (event.data === "reload") {
+            if (event.data === "hot") {
                 console.log("Hot reloading module");
                 game = await import("./game.js?date=" + new Date().getTime());
+            }
+            else if (event.data === "cold") {
+                window.location.reload();
             }
         });
     }
