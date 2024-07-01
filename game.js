@@ -1,3 +1,15 @@
+// This module is the main logic of the game and when served via `npm run watch` should be 
+// hot-reloadable without losing the state of the game. Anything outside of this module
+// is only cold-reloadable by simply refreshing the whole page.
+//
+// The way we hot-reload modules is rather limited and does not allow to reload for instance
+// classes. In case of Vector2 and RGBA we don't really care because they are not modified very
+// often.
+//
+// TODO: maybe Vector2 and RBGA should be moved outside of this module for the above reason.
+//
+// Only simple functions that operate on objects that don't store any functions can be easily
+// hot-reloaded. Examples are State and Player which we defined as interfaces.
 export const EPS = 1e-6;
 export const NEAR_CLIPPING_PLANE = 0.1;
 export const FAR_CLIPPING_PLANE = 20.0;
