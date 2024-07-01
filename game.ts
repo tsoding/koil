@@ -322,9 +322,10 @@ export function createPlayer(position: Vector2, direction: number): Player {
 
 function playerFovRange(player: Player): [Vector2, Vector2] {
     const l = Math.tan(FOV*0.5)*NEAR_CLIPPING_PLANE;
-    const p = player.position.clone().add_(Vector2.angle(player.direction).clone().scale_(NEAR_CLIPPING_PLANE));
-    const p1 = p.clone().sub_(p.clone().sub_(player.position).clone().rot90_().clone().norm_().clone().scale_(l));
-    const p2 = p.clone().add_(p.clone().sub_(player.position).clone().rot90_().clone().norm_().clone().scale_(l));
+    const p = player.position.clone().add_(Vector2.angle(player.direction).scale_(NEAR_CLIPPING_PLANE));
+    const wing = p.clone().sub_(player.position).rot90_().norm_().scale_(l);
+    const p1 = p.clone().sub_(wing);
+    const p2 = p.clone().add_(wing);
     return [p1, p2];
 }
 
