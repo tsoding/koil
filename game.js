@@ -10,13 +10,13 @@
 //
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are State and Player which we defined as interfaces.
-export const EPS = 1e-6;
-export const NEAR_CLIPPING_PLANE = 0.1;
-export const FAR_CLIPPING_PLANE = 20.0;
-export const FOV = Math.PI * 0.5;
-export const PLAYER_STEP_LEN = 0.5;
-export const PLAYER_SPEED = 2;
-export const PLAYER_SIZE = 0.5;
+const EPS = 1e-6;
+const NEAR_CLIPPING_PLANE = 0.1;
+const FAR_CLIPPING_PLANE = 20.0;
+const FOV = Math.PI * 0.5;
+const PLAYER_STEP_LEN = 0.5;
+const PLAYER_SPEED = 2;
+const PLAYER_SIZE = 0.5;
 export class RGBA {
     r;
     g;
@@ -252,7 +252,7 @@ function sceneIsWall(scene, p) {
     const c = sceneGetTile(scene, p);
     return c !== null && c !== undefined;
 }
-export function sceneCanRectangleFitHere(scene, position, size) {
+function sceneCanRectangleFitHere(scene, position, size) {
     const x1 = Math.floor(position.x - size.x * 0.5);
     const x2 = Math.floor(position.x + size.x * 0.5);
     const y1 = Math.floor(position.y - size.y * 0.5);
