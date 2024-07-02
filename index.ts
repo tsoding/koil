@@ -106,7 +106,6 @@ async function loadImageData(url: string): Promise<ImageData> {
         window.requestAnimationFrame(frame);
     });
 })();
-// TODO: The canvas should take the entire screen
 // TODO: Hot reload assets
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Load assets asynchronously
