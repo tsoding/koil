@@ -350,7 +350,6 @@ function renderWallsToImageData(imageData, player, scene) {
                 imageData.data[destP + 0] = color.r * 255;
                 imageData.data[destP + 1] = color.g * 255;
                 imageData.data[destP + 2] = color.b * 255;
-                imageData.data[destP + 3] = color.a * 255;
             }
         }
         else if (cell instanceof ImageData) {
@@ -369,14 +368,16 @@ function renderWallsToImageData(imageData, player, scene) {
             const y2 = Math.floor(y1 + stripHeight);
             const by1 = Math.max(0, y1);
             const by2 = Math.min(imageData.height - 1, y2);
+            const tx = Math.floor(u * cell.width);
+            const sh = (1 / Math.ceil(stripHeight)) * cell.height;
+            const shadow = 1 / v.dot(d) * 2;
             for (let y = by1; y <= by2; ++y) {
-                const tx = Math.floor(u * cell.width);
-                const ty = Math.floor((y - y1) / Math.ceil(stripHeight) * cell.height);
+                const ty = Math.floor((y - y1) * sh);
                 const destP = (y * imageData.width + x) * 4;
-                imageData.data[destP + 0] = cell.data[(ty * cell.width + tx) * 4 + 0] / v.dot(d) * 2;
-                imageData.data[destP + 1] = cell.data[(ty * cell.width + tx) * 4 + 1] / v.dot(d) * 2;
-                imageData.data[destP + 2] = cell.data[(ty * cell.width + tx) * 4 + 2] / v.dot(d) * 2;
-                imageData.data[destP + 3] = cell.data[(ty * cell.width + tx) * 4 + 3];
+                const srcP = (ty * cell.width + tx) * 4;
+                imageData.data[destP + 0] = cell.data[srcP + 0] * shadow;
+                imageData.data[destP + 1] = cell.data[srcP + 1] * shadow;
+                imageData.data[destP + 2] = cell.data[srcP + 2] * shadow;
             }
         }
     }
@@ -400,7 +401,6 @@ function renderCeilingIntoImageData(imageData, player) {
                 imageData.data[destP + 0] = color.r * 255;
                 imageData.data[destP + 1] = color.g * 255;
                 imageData.data[destP + 2] = color.b * 255;
-                imageData.data[destP + 3] = color.a * 255;
             }
         }
     }
@@ -424,7 +424,6 @@ function renderFloorIntoImageData(imageData, player) {
                 imageData.data[destP + 0] = color.r * 255;
                 imageData.data[destP + 1] = color.g * 255;
                 imageData.data[destP + 2] = color.b * 255;
-                imageData.data[destP + 3] = color.a * 255;
             }
         }
     }
