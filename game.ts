@@ -379,7 +379,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     ctx.restore();
 }
 
-function renderWallsToImageData(imageData: ImageData, player: Player, scene: Scene) {
+function renderWalls(imageData: ImageData, player: Player, scene: Scene) {
     const [r1, r2] = playerFovRange(player);
     for (let x = 0; x < imageData.width; ++x) {
         const p = castRay(scene, player.position, r1.clone().lerp(r2, x/imageData.width));
@@ -430,7 +430,7 @@ function renderWallsToImageData(imageData: ImageData, player: Player, scene: Sce
     }
 }
 
-function renderCeilingIntoImageData(imageData: ImageData, player: Player) {
+function renderCeiling(imageData: ImageData, player: Player) {
     const pz = imageData.height/2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.clone().sub(player.position).length();
@@ -456,7 +456,7 @@ function renderCeilingIntoImageData(imageData: ImageData, player: Player) {
     }
 }
 
-function renderFloorIntoImageData(imageData: ImageData, player: Player) {
+function renderFloor(imageData: ImageData, player: Player) {
     const pz = imageData.height/2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.clone().sub(player.position).length();
@@ -484,7 +484,7 @@ function renderFloorIntoImageData(imageData: ImageData, player: Player) {
     }
 }
 
-export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: OffscreenCanvasRenderingContext2D, backImageData: ImageData, deltaTime: number, player: Player, scene: Scene) {
+export function renderGame(ctx: CanvasRenderingContext2D, backCtx: OffscreenCanvasRenderingContext2D, backImageData: ImageData, deltaTime: number, player: Player, scene: Scene) {
     player.velocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
@@ -514,9 +514,9 @@ export function renderGameIntoImageData(ctx: CanvasRenderingContext2D, backCtx: 
     const minimapSize = sceneSize(scene).scale(cellSize);
 
     backImageData.data.fill(255);
-    renderFloorIntoImageData(backImageData, player);
-    renderCeilingIntoImageData(backImageData, player);
-    renderWallsToImageData(backImageData, player, scene);
+    renderFloor(backImageData, player);
+    renderCeiling(backImageData, player);
+    renderWalls(backImageData, player, scene);
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
 

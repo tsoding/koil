@@ -115,7 +115,7 @@ async function loadImageData(url) {
     const frame = (timestamp) => {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         prevTimestamp = timestamp;
-        game.renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene);
+        game.renderGame(ctx, backCtx, backImageData, deltaTime, player, scene);
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {

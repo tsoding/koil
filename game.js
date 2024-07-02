@@ -333,7 +333,7 @@ function renderMinimap(ctx, player, position, size, scene) {
     strokeLine(ctx, player.position, p2);
     ctx.restore();
 }
-function renderWallsToImageData(imageData, player, scene) {
+function renderWalls(imageData, player, scene) {
     const [r1, r2] = playerFovRange(player);
     for (let x = 0; x < imageData.width; ++x) {
         const p = castRay(scene, player.position, r1.clone().lerp(r2, x / imageData.width));
@@ -382,7 +382,7 @@ function renderWallsToImageData(imageData, player, scene) {
         }
     }
 }
-function renderCeilingIntoImageData(imageData, player) {
+function renderCeiling(imageData, player) {
     const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.clone().sub(player.position).length();
@@ -405,7 +405,7 @@ function renderCeilingIntoImageData(imageData, player) {
         }
     }
 }
-function renderFloorIntoImageData(imageData, player) {
+function renderFloor(imageData, player) {
     const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.clone().sub(player.position).length();
@@ -429,7 +429,7 @@ function renderFloorIntoImageData(imageData, player) {
         }
     }
 }
-export function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, player, scene) {
+export function renderGame(ctx, backCtx, backImageData, deltaTime, player, scene) {
     player.velocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
@@ -457,9 +457,9 @@ export function renderGameIntoImageData(ctx, backCtx, backImageData, deltaTime, 
     const cellSize = ctx.canvas.width * 0.03;
     const minimapSize = sceneSize(scene).scale(cellSize);
     backImageData.data.fill(255);
-    renderFloorIntoImageData(backImageData, player);
-    renderCeilingIntoImageData(backImageData, player);
-    renderWallsToImageData(backImageData, player, scene);
+    renderFloor(backImageData, player);
+    renderCeiling(backImageData, player);
+    renderWalls(backImageData, player, scene);
     backCtx.putImageData(backImageData, 0, 0);
     ctx.drawImage(backCtx.canvas, 0, 0, ctx.canvas.width, ctx.canvas.height);
     renderMinimap(ctx, player, minimapPosition, minimapSize, scene);
