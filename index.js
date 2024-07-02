@@ -30,12 +30,8 @@ async function loadImageData(url) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const [typescript, wall1, wall2, wall3, wall4] = await Promise.all([
+    const [typescript] = await Promise.all([
         loadImageData("assets/images/Typescript_logo_2020.png").catch(() => game.RGBA.purple()),
-        loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall1_color.png").catch(() => game.RGBA.purple()),
-        loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall2_color.png").catch(() => game.RGBA.purple()),
-        loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall3_color.png").catch(() => game.RGBA.purple()),
-        loadImageData("assets/images/opengameart/wezu_tex_cc_by/wall4_color.png").catch(() => game.RGBA.purple()),
     ]);
     let game = await import("./game.js");
     const scene = game.createScene([
