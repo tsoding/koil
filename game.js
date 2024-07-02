@@ -124,6 +124,9 @@ export class Vector2 {
         const dy = that.y - this.y;
         return dx * dx + dy * dy;
     }
+    distanceTo(that) {
+        return Math.sqrt(this.sqrDistanceTo(that));
+    }
     lerp(that, t) {
         this.x += (that.x - this.x) * t;
         this.y += (that.y - this.y) * t;
@@ -415,6 +418,7 @@ function renderFloorIntoImageData(imageData, player) {
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
         const t1 = player.position.clone().add(p1.clone().sub(player.position).norm().scale(b));
         const t2 = player.position.clone().add(p2.clone().sub(player.position).norm().scale(b));
+        // TODO: render rows up until FAR_CLIPPING_PLANE
         for (let x = 0; x < imageData.width; ++x) {
             const t = t1.clone().lerp(t2, x / imageData.width);
             const tile = sceneGetFloor(t);
