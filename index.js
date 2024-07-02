@@ -70,15 +70,19 @@ async function loadImageData(url) {
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
             switch (e.code) {
+                case 'ArrowUp':
                 case 'KeyW':
                     player.movingForward = true;
                     break;
+                case 'ArrowDown':
                 case 'KeyS':
                     player.movingBackward = true;
                     break;
+                case 'ArrowLeft':
                 case 'KeyA':
                     player.turningLeft = true;
                     break;
+                case 'ArrowRight':
                 case 'KeyD':
                     player.turningRight = true;
                     break;
@@ -88,15 +92,19 @@ async function loadImageData(url) {
     window.addEventListener("keyup", (e) => {
         if (!e.repeat) {
             switch (e.code) {
+                case 'ArrowUp':
                 case 'KeyW':
                     player.movingForward = false;
                     break;
+                case 'ArrowDown':
                 case 'KeyS':
                     player.movingBackward = false;
                     break;
+                case 'ArrowLeft':
                 case 'KeyA':
                     player.turningLeft = false;
                     break;
+                case 'ArrowRight':
                 case 'KeyD':
                     player.turningRight = false;
                     break;
