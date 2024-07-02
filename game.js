@@ -370,14 +370,14 @@ function renderWallsToImageData(imageData, player, scene) {
             const by2 = Math.min(imageData.height - 1, y2);
             const tx = Math.floor(u * cell.width);
             const sh = (1 / Math.ceil(stripHeight)) * cell.height;
-            const shadow = 1 / v.dot(d) * 2;
+            const glow = v.dot(d) / 2;
             for (let y = by1; y <= by2; ++y) {
                 const ty = Math.floor((y - y1) * sh);
                 const destP = (y * imageData.width + x) * 4;
                 const srcP = (ty * cell.width + tx) * 4;
-                imageData.data[destP + 0] = cell.data[srcP + 0] * shadow;
-                imageData.data[destP + 1] = cell.data[srcP + 1] * shadow;
-                imageData.data[destP + 2] = cell.data[srcP + 2] * shadow;
+                imageData.data[destP + 0] = cell.data[srcP + 0] * glow;
+                imageData.data[destP + 1] = cell.data[srcP + 1] * glow;
+                imageData.data[destP + 2] = cell.data[srcP + 2] * glow;
             }
         }
     }
