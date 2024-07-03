@@ -30,20 +30,28 @@ async function loadImageData(url: string): Promise<ImageData> {
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const [typescript] = await Promise.all([
-        loadImageData("assets/images/Typescript_logo_2020.png").catch(() => game.RGBA.purple()),
+    const [typescript, water] = await Promise.all([
+        loadImageData("assets/images/Typescript_logo_2020.png"),
+        loadImageData("assets/images/opengameart/Water_Effect/05/Water__05.png"),
     ]);
 
     let game = await import("./game.js");
     const scene = game.createScene([
-        [null, null,  typescript, null, null, null, null, null, null],
-        [null, null,   null, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
-        [null, null,   null],
-        [null, null,   null,  null, null, null, null, null, null],
-        [null, null,   null,  null, null, null, null, null, null],
+        [ typescript, null, typescript, null, null, null, null],
+        [ null,       null, null, null, null, null, null],
+        [ typescript, null, typescript, null, null, null, null],
+        [  null,  null, null, null, null, null, null],
+        [  null],
+        [  null,  null, null, null, null, null, null],
+        [  null,  null, null, null, null, null, null],
     ]);
+
+    const sprites = [
+        {
+            imageData: water,
+            position: new game.Vector2(1.5, 1.5),
+        }
+    ];
 
     const player = game.createPlayer(
         game.sceneSize(scene).scale(0.63),
@@ -68,6 +76,12 @@ async function loadImageData(url: string): Promise<ImageData> {
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null) throw new Error("2D context is not supported");
     backCtx.imageSmoothingEnabled = false;
+    const display = {
+        ctx,
+        backCtx,
+        backImageData,
+        zBuffer: Array(SCREEN_WIDTH).fill(0),
+    };
 
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
@@ -94,7 +108,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     const frame = (timestamp: number) => {
         const deltaTime = (timestamp - prevTimestamp)/1000;
         prevTimestamp = timestamp;
-        game.renderGame(ctx, backCtx, backImageData, deltaTime, player, scene);
+        game.renderGame(display, deltaTime, player, scene, sprites);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {
