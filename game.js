@@ -460,13 +460,6 @@ function renderFloor(imageData, player) {
         }
     }
 }
-function clamp(mn, mx, v) {
-    if (v < mn)
-        return mn;
-    if (v > mx)
-        return mx;
-    return v;
-}
 function renderSprites(display, player, sprites) {
     // TODO: z-sort the sprites
     const markSize = 100;
@@ -484,25 +477,33 @@ function renderSprites(display, player, sprites) {
         const dist = NEAR_CLIPPING_PLANE / dot;
         sp.norm().scale(dist).add(player.position);
         const t = p1.distanceTo(sp) / p1.distanceTo(p2);
-        const cx = Math.floor(display.backImageData.width * t);
-        const cy = Math.floor(display.backImageData.height * 0.5);
+        const cx = display.backImageData.width * t;
+        const cy = display.backImageData.height * 0.5;
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
-        const spriteSize = Math.floor(display.backImageData.height / pdist * 0.75);
-        const x1 = clamp(0, display.backImageData.width - 1, Math.floor(cx - spriteSize * 0.5));
-        const x2 = clamp(0, display.backImageData.width - 1, Math.floor(cx + spriteSize * 0.5));
-        const y1 = clamp(0, display.backImageData.height - 1, Math.floor(cy - spriteSize * 0.5));
-        const y2 = clamp(0, display.backImageData.height - 1, Math.floor(cy + spriteSize * 0.5));
-        for (let x = x1; x <= x2; ++x) {
+        if (pdist < NEAR_CLIPPING_PLANE)
+            continue;
+        const spriteSize = Math.floor(display.backImageData.height / pdist);
+        const x1 = Math.floor(cx - spriteSize * 0.5);
+        const x2 = Math.floor(x1 + spriteSize - 1);
+        const bx1 = Math.max(0, x1);
+        const bx2 = Math.min(display.backImageData.width - 1, x2);
+        const y1 = Math.floor(cy - spriteSize * 0.5);
+        const y2 = Math.floor(y1 + spriteSize - 1);
+        const by1 = Math.max(0, y1);
+        const by2 = Math.min(display.backImageData.height - 1, y2);
+        const src = sprite.imageData.data;
+        const dest = display.backImageData.data;
+        for (let x = bx1; x <= bx2; ++x) {
             if (pdist < display.zBuffer[x]) {
-                for (let y = y1; y < y2; ++y) {
+                for (let y = by1; y <= by2; ++y) {
                     const tx = Math.floor((x - x1) / spriteSize * sprite.imageData.width);
                     const ty = Math.floor((y - y1) / spriteSize * sprite.imageData.height);
                     const srcP = (ty * sprite.imageData.width + tx) * 4;
                     const destP = (y * display.backImageData.width + x) * 4;
-                    const alpha = sprite.imageData.data[srcP + 3] / 255;
-                    display.backImageData.data[destP + 0] = sprite.imageData.data[srcP + 0] * alpha + display.backImageData.data[destP + 0] * (1 - alpha);
-                    display.backImageData.data[destP + 1] = sprite.imageData.data[srcP + 1] * alpha + display.backImageData.data[destP + 1] * (1 - alpha);
-                    display.backImageData.data[destP + 2] = sprite.imageData.data[srcP + 2] * alpha + display.backImageData.data[destP + 2] * (1 - alpha);
+                    const alpha = src[srcP + 3] / 255;
+                    dest[destP + 0] = dest[destP + 0] * (1 - alpha) + src[srcP + 0] * alpha;
+                    dest[destP + 1] = dest[destP + 1] * (1 - alpha) + src[srcP + 1] * alpha;
+                    dest[destP + 2] = dest[destP + 2] * (1 - alpha) + src[srcP + 2] * alpha;
                 }
             }
         }
