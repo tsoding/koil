@@ -295,7 +295,7 @@ export function createPlayer(position, direction) {
 }
 function playerFovRange(player) {
     const l = Math.tan(FOV * 0.5) * NEAR_CLIPPING_PLANE;
-    const p = player.position.clone().add(Vector2.angle(player.direction).scale(NEAR_CLIPPING_PLANE));
+    const p = Vector2.angle(player.direction).scale(NEAR_CLIPPING_PLANE).add(player.position);
     const wing = p.clone().sub(player.position).rot90().norm().scale(l);
     const p1 = p.clone().sub(wing);
     const p2 = p.clone().add(wing);
@@ -386,7 +386,6 @@ function renderWalls(display, player, scene) {
         }
         else if (cell instanceof ImageData) {
             const stripHeight = display.backImageData.height / display.zBuffer[x];
-            // const stripHeight = display.backImageData.height/player.position.distanceTo(p);
             let u = 0;
             const t = p.clone().sub(c);
             if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
