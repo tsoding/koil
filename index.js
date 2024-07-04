@@ -31,7 +31,7 @@ async function loadImageData(url) {
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
     const [typescript, water] = await Promise.all([
-        loadImageData("assets/images/Typescript_logo_2020.png"),
+        loadImageData("assets/images/misc/Typescript_logo_2020.png"),
         loadImageData("assets/images/opengameart/Water_Effect/05/Water__05.png"),
     ]);
     let game = await import("./game.js");

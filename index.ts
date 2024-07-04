@@ -31,7 +31,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     ctx.imageSmoothingEnabled = false;
 
     const [typescript, water] = await Promise.all([
-        loadImageData("assets/images/Typescript_logo_2020.png"),
+        loadImageData("assets/images/misc/Typescript_logo_2020.png"),
         loadImageData("assets/images/opengameart/Water_Effect/05/Water__05.png"),
     ]);
 
