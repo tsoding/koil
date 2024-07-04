@@ -387,7 +387,7 @@ function renderWalls(display, player, scene) {
             const by2 = Math.min(display.backImageData.height - 1, y2);
             const tx = Math.floor(u * cell.width);
             const sh = (1 / Math.ceil(stripHeight)) * cell.height;
-            const shadow = 1 / display.zBuffer[x] * 2;
+            const shadow = Math.min(1 / display.zBuffer[x] * 2, 1);
             for (let y = by1; y <= by2; ++y) {
                 const ty = Math.floor((y - y1) * sh);
                 const destP = (y * display.backImageData.width + x) * 4;
