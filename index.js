@@ -65,6 +65,7 @@ async function loadImageData(url) {
         });
     }
     const backImageData = new ImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
+    backImageData.data.fill(255);
     const backCanvas = new OffscreenCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null)

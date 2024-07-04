@@ -620,8 +620,6 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
         player.position.y = ny;
     }
 
-
-    display.backImageData.data.fill(255);
     renderFloor(display.backImageData, player);
     renderCeiling(display.backImageData, player);
     renderWalls(display, player, scene);

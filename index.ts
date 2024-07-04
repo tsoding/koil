@@ -72,6 +72,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     }
 
     const backImageData = new ImageData(SCREEN_WIDTH, SCREEN_HEIGHT);
+    backImageData.data.fill(255);
     const backCanvas = new OffscreenCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null) throw new Error("2D context is not supported");
