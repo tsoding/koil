@@ -467,6 +467,10 @@ function renderFloor(imageData, player) {
         }
     }
 }
+function displaySwapBackImageData(display) {
+    display.backCtx.putImageData(display.backImageData, 0, 0);
+    display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
+}
 function renderSprites(display, player, sprites) {
     // TODO: z-sort the sprites
     const markSize = 100;
@@ -551,8 +555,7 @@ export function renderGame(display, deltaTime, player, scene, sprites) {
     renderCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
     renderSprites(display, player, sprites);
-    display.backCtx.putImageData(display.backImageData, 0, 0);
-    display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
+    displaySwapBackImageData(display);
     renderMinimap(display.ctx, player, scene, sprites);
     renderFPS(display.ctx, deltaTime);
 }

@@ -534,6 +534,11 @@ interface Display {
     zBuffer: Array<number>;
 }
 
+function displaySwapBackImageData(display: Display) {
+    display.backCtx.putImageData(display.backImageData, 0, 0);
+    display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
+}
+
 export interface Sprite {
     imageData: ImageData;
     position: Vector2;
@@ -624,9 +629,7 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     renderCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
     renderSprites(display, player, sprites);
-    display.backCtx.putImageData(display.backImageData, 0, 0);
-    display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
-
+    displaySwapBackImageData(display);
 
     renderMinimap(display.ctx, player, scene, sprites);
     renderFPS(display.ctx, deltaTime);
