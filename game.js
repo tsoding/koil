@@ -134,9 +134,6 @@ export class Vector2 {
         return this;
     }
 }
-function canvasSize(ctx) {
-    return new Vector2(ctx.canvas.width, ctx.canvas.height);
-}
 function strokeLine(ctx, p1, p2) {
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
@@ -282,12 +279,10 @@ function playerFovRange(player) {
 }
 function renderMinimap(ctx, player, scene, sprites) {
     ctx.save();
-    const position = canvasSize(ctx).scale(0.03);
     const cellSize = ctx.canvas.width * MINIMAP_SCALE;
-    const size = sceneSize(scene).scale(cellSize);
     const gridSize = sceneSize(scene);
-    ctx.translate(position.x, position.y);
-    ctx.scale(size.x / gridSize.x, size.y / gridSize.y);
+    ctx.translate(ctx.canvas.width * 0.03, ctx.canvas.height * 0.03);
+    ctx.scale(cellSize, cellSize);
     ctx.fillStyle = "#181818";
     ctx.fillRect(0, 0, gridSize.x, gridSize.y);
     ctx.lineWidth = 0.05;
