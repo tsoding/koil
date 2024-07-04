@@ -348,6 +348,8 @@ function renderMinimap(ctx, player, scene, sprites) {
         strokeLine(ctx, player.position, player.position.clone().add(dir));
         for (let sprite of sprites) {
             ctx.fillRect(sprite.position.x - SPRITE_SIZE * 0.5, sprite.position.y - SPRITE_SIZE * 0.5, SPRITE_SIZE, SPRITE_SIZE);
+            // TODO: deduplicate code between here and renderSprites()
+            //   This code is important for trouble shooting anything related to projecting sprites
             sp.copy(sprite.position).sub(player.position);
             strokeLine(ctx, player.position, player.position.clone().add(sp));
             const spl = sp.length();
