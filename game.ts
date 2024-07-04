@@ -1,4 +1,4 @@
-// This module is the main logic of the game and when served via `npm run watch` should be 
+// This module is the main logic of the game and when served via `npm run watch` should be
 // hot-reloadable without losing the state of the game. Anything outside of this module
 // is only cold-reloadable by simply refreshing the whole page.
 //
@@ -17,8 +17,11 @@ const FOV = Math.PI*0.5;
 const COS_OF_HALF_FOV = Math.cos(FOV*0.5);
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
-const PLAYER_SIZE = 0.5
-const SPRITE_SIZE = 0.3
+
+const MINIMAP_SPRITES = false;
+const MINIMAP_PLAYER_SIZE = 0.5;
+const MINIMAP_SPRITE_SIZE = 0.3;
+const MINIMAP_SCALE = 0.03;
 
 export class RGBA {
     r: number;
@@ -174,7 +177,7 @@ function hittingCell(p1: Vector2, p2: Vector2): Vector2 {
 function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     // y = k*x + c
     // x = (y - c)/k
-    // 
+    //
     // p1 = (x1, y1)
     // p2 = (x2, y2)
     //
@@ -343,7 +346,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
     ctx.save();
 
     const position = canvasSize(ctx).scale(0.03);
-    const cellSize = ctx.canvas.width*0.03;
+    const cellSize = ctx.canvas.width*MINIMAP_SCALE;
     const size = sceneSize(scene).scale(cellSize);
     const gridSize = sceneSize(scene);
 
@@ -376,9 +379,9 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
     }
 
     ctx.fillStyle = "magenta";
-    ctx.fillRect(player.position.x - PLAYER_SIZE*0.5,
-                 player.position.y - PLAYER_SIZE*0.5,
-                 PLAYER_SIZE, PLAYER_SIZE);
+    ctx.fillRect(player.position.x - MINIMAP_PLAYER_SIZE*0.5,
+                 player.position.y - MINIMAP_PLAYER_SIZE*0.5,
+                 MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
 
     const [p1, p2] = playerFovRange(player);
     ctx.strokeStyle = "magenta";
@@ -386,36 +389,35 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
     strokeLine(ctx, player.position, p1);
     strokeLine(ctx, player.position, p2);
 
-    // Rendering the sprite projection
-    if (0) {
+    if (MINIMAP_SPRITES) {
         ctx.fillStyle = "red";
         ctx.strokeStyle = "yellow";
         const sp = new Vector2();
         const dir = new Vector2().setAngle(player.direction);
         strokeLine(ctx, player.position, player.position.clone().add(dir));
         for (let sprite of sprites) {
-            ctx.fillRect(sprite.position.x - SPRITE_SIZE*0.5,
-                         sprite.position.y - SPRITE_SIZE*0.5,
-                         SPRITE_SIZE, SPRITE_SIZE);
+            ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE*0.5,
+                         sprite.position.y - MINIMAP_SPRITE_SIZE*0.5,
+                         MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
 
             // TODO: deduplicate code between here and renderSprites()
             //   This code is important for trouble shooting anything related to projecting sprites
             sp.copy(sprite.position).sub(player.position);
             strokeLine(ctx, player.position, player.position.clone().add(sp));
             const spl = sp.length();
-            if (spl === 0) continue;
+            if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
+            if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
             const dot = sp.dot(dir)/spl;
             ctx.fillStyle = "white"
             ctx.font = "0.5px bold"
             ctx.fillText(`${dot}`, player.position.x, player.position.y);
-            if (!(COS_OF_HALF_FOV <= dot && dot <= (1.0 + EPS))) continue;
+            if (!(COS_OF_HALF_FOV <= dot)) continue;
             const dist = NEAR_CLIPPING_PLANE/dot;
             sp.norm().scale(dist).add(player.position);
-            const t = p1.distanceTo(sp)/p1.distanceTo(p2);
 
-            ctx.fillRect(sp.x - SPRITE_SIZE*0.5,
-                         sp.y - SPRITE_SIZE*0.5,
-                         SPRITE_SIZE, SPRITE_SIZE);
+            ctx.fillRect(sp.x - MINIMAP_SPRITE_SIZE*0.5,
+                         sp.y - MINIMAP_SPRITE_SIZE*0.5,
+                         MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
         }
     }
 
@@ -522,7 +524,7 @@ function renderFloor(imageData: ImageData, player: Player) {
             const tile = sceneGetFloor(t);
             if (tile instanceof RGBA) {
                 const shadow = Math.sqrt(player.position.sqrDistanceTo(t));
-                const destP = (y*imageData.width + x)*4; 
+                const destP = (y*imageData.width + x)*4;
                 imageData.data[destP + 0] = tile.r*shadow*255;
                 imageData.data[destP + 1] = tile.g*shadow*255;
                 imageData.data[destP + 2] = tile.b*shadow*255;
@@ -558,23 +560,22 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
     for (const sprite of sprites) {
         sp.copy(sprite.position).sub(player.position);
         const spl = sp.length();
-        if (spl <= NEAR_CLIPPING_PLANE) continue;
-        if (spl >= FAR_CLIPPING_PLANE) continue;
+        if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
+        if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
         const dot = sp.dot(dir)/spl;
-        // TODO: Sometimes dot ends up being slightly bigger than one.
-        // That's why we compare to 1.0 + EPS. It would be great to
-        // investigate why exactly that happens. Obviously it's some
-        // IEEE754 shenanigans, but it would be nice to know the details.
-        if (!(COS_OF_HALF_FOV <= dot && dot <= (1.0 + EPS))) continue;
+        // TODO: allow sprites to be slightly outside of FOV to make their edges visible
+        if (!(COS_OF_HALF_FOV <= dot)) continue;  // Sprite is outside of the Field of View
         const dist = NEAR_CLIPPING_PLANE/dot;
         sp.norm().scale(dist).add(player.position);
         const t = p1.distanceTo(sp)/p1.distanceTo(p2);
         const cx = display.backImageData.width*t;
         const cy = display.backImageData.height*0.5;
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
-        if (pdist < NEAR_CLIPPING_PLANE) continue;
-        // TODO: add an ability to positiion the sprite vertically
-        const spriteSize = display.backImageData.height/pdist*1.0; // TODO: make the size of sprite a parameter
+        if (pdist < NEAR_CLIPPING_PLANE) continue; // TODO: I'm not sure if this check is necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
+        // TODO: add an ability to positiion the sprites vertically
+        // TODO: make the scale of the sprite a parameter configurable per sprite
+        const spriteScale = 1.0;
+        const spriteSize = display.backImageData.height/pdist*spriteScale;
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
         const bx1 = Math.max(0, x1);
@@ -621,11 +622,11 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     }
     player.direction = player.direction + angularVelocity*deltaTime;
     const nx = player.position.x + player.velocity.x*deltaTime;
-    if (sceneCanRectangleFitHere(scene, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.x = nx;
     }
     const ny = player.position.y + player.velocity.y*deltaTime;
-    if (sceneCanRectangleFitHere(scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.y = ny;
     }
 
