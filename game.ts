@@ -424,10 +424,18 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
     ctx.restore();
 }
 
+const dts: number[] = [];
 function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
     ctx.font = "48px bold"
     ctx.fillStyle = "white"
-    ctx.fillText(`${Math.floor(1/deltaTime)}`, 100, 100);
+
+    dts.push(deltaTime);
+    if (dts.length > 60) // can be any number of frames
+        dts.shift();
+
+    const dtAvg = dts.reduce((a, b) => a + b, 0)/dts.length;
+
+    ctx.fillText(`${Math.floor(1/dtAvg)}`, 100, 100);
 }
 
 function renderWalls(display: Display, player: Player, scene: Scene) {
@@ -454,8 +462,12 @@ function renderWalls(display: Display, player: Player, scene: Scene) {
 
             let u = 0;
             const t = p.clone().sub(c);
-            if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
+            if (Math.abs(t.x) < EPS && t.y > 0) {
                 u = t.y;
+            } else if (Math.abs(t.x - 1) < EPS && t.y > 0) {
+                u = 1 - t.y;
+            } else if (Math.abs(t.y) < EPS && t.x > 0) {
+                u = 1 - t.x;
             } else {
                 u = t.x;
             }
@@ -466,7 +478,7 @@ function renderWalls(display: Display, player: Player, scene: Scene) {
             const by2 = Math.min(display.backImageData.height-1, y2);
             const tx = Math.floor(u*cell.width);
             const sh = (1/Math.ceil(stripHeight))*cell.height;
-            const shadow = 1/display.zBuffer[x]*2;
+            const shadow = Math.min(1/display.zBuffer[x]*2, 1);
             for (let y = by1; y <= by2; ++y) {
                 const ty = Math.floor((y - y1)*sh);
                 const destP = (y*display.backImageData.width + x)*4;
