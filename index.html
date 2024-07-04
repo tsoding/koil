@@ -65,7 +65,7 @@
               transform: translate(-50%, 0%)
           }
       }
-      @media (max-aspect-ratio: 16/9) {
+      @media not (min-aspect-ratio: 16/9) {
           canvas {
               position: absolute;
               width: 100%;
