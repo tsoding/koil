@@ -415,6 +415,12 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
     ctx.restore();
 }
 
+function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
+    ctx.font = "48px bold"
+    ctx.fillStyle = "white"
+    ctx.fillText(`${Math.floor(1/deltaTime)}`, 100, 100);
+}
+
 function renderWalls(display: Display, player: Player, scene: Scene) {
     const [r1, r2] = playerFovRange(player);
     const d = Vector2.angle(player.direction)
@@ -625,7 +631,5 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
 
     renderMinimap(display.ctx, player, minimapPosition, minimapSize, scene, sprites);
 
-    display.ctx.font = "48px bold"
-    display.ctx.fillStyle = "white"
-    display.ctx.fillText(`${Math.floor(1/deltaTime)}`, 100, 100);
+    renderFPS(display.ctx, deltaTime);
 }

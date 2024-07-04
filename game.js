@@ -364,6 +364,11 @@ function renderMinimap(ctx, player, position, size, scene, sprites) {
     }
     ctx.restore();
 }
+function renderFPS(ctx, deltaTime) {
+    ctx.font = "48px bold";
+    ctx.fillStyle = "white";
+    ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);
+}
 function renderWalls(display, player, scene) {
     const [r1, r2] = playerFovRange(player);
     const d = Vector2.angle(player.direction);
@@ -550,8 +555,6 @@ export function renderGame(display, deltaTime, player, scene, sprites) {
     display.backCtx.putImageData(display.backImageData, 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
     renderMinimap(display.ctx, player, minimapPosition, minimapSize, scene, sprites);
-    display.ctx.font = "48px bold";
-    display.ctx.fillStyle = "white";
-    display.ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);
+    renderFPS(display.ctx, deltaTime);
 }
 //# sourceMappingURL=game.js.map
