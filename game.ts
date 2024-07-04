@@ -586,7 +586,7 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         if (pdist < NEAR_CLIPPING_PLANE) continue; // TODO: I'm not sure if this check is necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
         // TODO: add an ability to positiion the sprites vertically
         // TODO: make the scale of the sprite a parameter configurable per sprite
-        const spriteScale = 0.4;
+        const spriteScale = 0.5;
         const spriteSize = display.backImageData.height/pdist*spriteScale;
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
@@ -649,5 +649,5 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     displaySwapBackImageData(display);
 
     // renderMinimap(display.ctx, player, scene, sprites);
-    // renderFPS(display.ctx, deltaTime);
+    renderFPS(display.ctx, deltaTime);
 }
