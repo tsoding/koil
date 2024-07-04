@@ -36,7 +36,7 @@ async function loadImageData(url) {
     ]);
     let game = await import("./game.js");
     const scene = game.createScene([
-        [typescript, null, typescript, null, null, null, null],
+        [null, null, typescript, null, null, null, null],
         [null, null, null, null, null, null, null],
         [typescript, null, null, null, null, null, null],
         [null, null, null, null, null, null, null],
