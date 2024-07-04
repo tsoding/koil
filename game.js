@@ -1,15 +1,3 @@
-// This module is the main logic of the game and when served via `npm run watch` should be 
-// hot-reloadable without losing the state of the game. Anything outside of this module
-// is only cold-reloadable by simply refreshing the whole page.
-//
-// The way we hot-reload modules is rather limited and does not allow to reload for instance
-// classes. In case of Vector2 and RGBA we don't really care because they are not modified very
-// often.
-//
-// TODO: maybe Vector2 and RBGA should be moved outside of this module for the above reason.
-//
-// Only simple functions that operate on objects that don't store any functions can be easily
-// hot-reloaded. Examples are State and Player which we defined as interfaces.
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -164,19 +152,6 @@ function hittingCell(p1, p2) {
     return new Vector2(Math.floor(p2.x + Math.sign(dx) * EPS), Math.floor(p2.y + Math.sign(dy) * EPS));
 }
 function rayStep(p1, p2) {
-    // y = k*x + c
-    // x = (y - c)/k
-    // 
-    // p1 = (x1, y1)
-    // p2 = (x2, y2)
-    //
-    // | y1 = k*x1 + c
-    // | y2 = k*x2 + c
-    //
-    // dy = y2 - y1
-    // dx = x2 - x1
-    // c = y1 - k*x1
-    // k = dy/dx
     let p3 = p2;
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
@@ -339,7 +314,6 @@ function renderMinimap(ctx, player, scene, sprites) {
     strokeLine(ctx, p1, p2);
     strokeLine(ctx, player.position, p1);
     strokeLine(ctx, player.position, p2);
-    // Rendering the sprite projection
     if (0) {
         ctx.fillStyle = "red";
         ctx.strokeStyle = "yellow";
@@ -348,8 +322,6 @@ function renderMinimap(ctx, player, scene, sprites) {
         strokeLine(ctx, player.position, player.position.clone().add(dir));
         for (let sprite of sprites) {
             ctx.fillRect(sprite.position.x - SPRITE_SIZE * 0.5, sprite.position.y - SPRITE_SIZE * 0.5, SPRITE_SIZE, SPRITE_SIZE);
-            // TODO: deduplicate code between here and renderSprites()
-            //   This code is important for trouble shooting anything related to projecting sprites
             sp.copy(sprite.position).sub(player.position);
             strokeLine(ctx, player.position, player.position.clone().add(sp));
             const spl = sp.length();
@@ -455,7 +427,6 @@ function renderFloor(imageData, player) {
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
         const t1 = player.position.clone().add(p1.clone().sub(player.position).norm().scale(b));
         const t2 = player.position.clone().add(p2.clone().sub(player.position).norm().scale(b));
-        // TODO: render rows up until FAR_CLIPPING_PLANE
         for (let x = 0; x < imageData.width; ++x) {
             const t = t1.clone().lerp(t2, x / imageData.width);
             const tile = sceneGetFloor(t);
@@ -474,7 +445,6 @@ function displaySwapBackImageData(display) {
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 function renderSprites(display, player, sprites) {
-    // TODO: z-sort the sprites
     const markSize = 100;
     const sp = new Vector2();
     const dir = Vector2.angle(player.direction);
@@ -487,10 +457,6 @@ function renderSprites(display, player, sprites) {
         if (spl >= FAR_CLIPPING_PLANE)
             continue;
         const dot = sp.dot(dir) / spl;
-        // TODO: Sometimes dot ends up being slightly bigger than one.
-        // That's why we compare to 1.0 + EPS. It would be great to
-        // investigate why exactly that happens. Obviously it's some
-        // IEEE754 shenanigans, but it would be nice to know the details.
         if (!(COS_OF_HALF_FOV <= dot && dot <= (1.0 + EPS)))
             continue;
         const dist = NEAR_CLIPPING_PLANE / dot;
@@ -501,8 +467,7 @@ function renderSprites(display, player, sprites) {
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (pdist < NEAR_CLIPPING_PLANE)
             continue;
-        // TODO: add an ability to positiion the sprite vertically
-        const spriteSize = display.backImageData.height / pdist * 1.0; // TODO: make the size of sprite a parameter
+        const spriteSize = display.backImageData.height / pdist * 1.0;
         const x1 = Math.floor(cx - spriteSize * 0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
         const bx1 = Math.max(0, x1);
