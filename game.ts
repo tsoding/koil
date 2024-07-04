@@ -320,9 +320,12 @@ export interface Player {
     direction: number;
     movingForward: boolean;
     movingBackward: boolean;
+    movingLeft: boolean;
+    movingRight: boolean;
     turningLeft: boolean;
     turningRight: boolean;
-    rotationLocked: boolean;
+    rotationalMovement: number;
+    sprinting: boolean;
 }
 
 export function createPlayer(position: Vector2, direction: number): Player {
@@ -332,9 +335,12 @@ export function createPlayer(position: Vector2, direction: number): Player {
         direction: direction,
         movingForward: false,
         movingBackward: false,
+        movingLeft: false,
+        movingRight: false,
         turningLeft: false,
         turningRight: false,
-        rotationLocked: false,
+        rotationalMovement: 0,
+        sprinting: false,
     }
 }
 
@@ -620,25 +626,35 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     if (player.movingBackward) {
         velocityRaw.sub(new Vector2().setAngle(player.direction))
     }
-    if (player.rotationLocked) {
-        if (player.turningLeft) {
-            velocityRaw.sub(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
-        }
-        if (player.turningRight) {
-            velocityRaw.add(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
-        }
-    } else {
-        if (player.turningLeft) {
-            angularVelocity -= Math.PI;
-        }
-        if (player.turningRight) {
-            angularVelocity += Math.PI;
-        }
+    if (player.movingLeft) {
+        velocityRaw.sub(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
+    }
+    if (player.movingRight) {
+        velocityRaw.add(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
+    }
+    if (player.turningLeft) {
+        angularVelocity -= Math.PI;
+    }
+    if (player.turningRight) {
+        angularVelocity += Math.PI;
+    }
+    
+    if (player.rotationalMovement !== 0) {
+        // TODO: no idea whether this constant is actually "a constant" on other software/hardware
+        // TODO: mouse speed configuration
+        const angularSpeedPerMouseMovementUnit = 0.1;
+        angularVelocity += (angularSpeedPerMouseMovementUnit * player.rotationalMovement);
+        player.rotationalMovement = 0;
     }
 
     player.velocity.setScalar(0);
     if (velocityRaw.length() > 0) {
-        player.velocity.setAngle(velocityRaw.getAngle(), PLAYER_SPEED);
+        let speed = PLAYER_SPEED;
+        if (player.sprinting) {
+            const sprintingSpeedMultiplier = 1.75;
+            speed *= sprintingSpeedMultiplier;
+        }
+        player.velocity.setAngle(velocityRaw.getAngle(), speed);
     }
 
     player.direction = player.direction + angularVelocity*deltaTime;

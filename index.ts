@@ -90,11 +90,13 @@ async function loadImageData(url: string): Promise<ImageData> {
             switch (e.code) {
                 case 'ArrowUp':    case 'KeyW': player.movingForward  = true; break;
                 case 'ArrowDown':  case 'KeyS': player.movingBackward = true; break;
-                case 'ArrowLeft':  case 'KeyA': player.turningLeft    = true; break;
-                case 'ArrowRight': case 'KeyD': player.turningRight   = true; break;
+                case 'ArrowLeft':  case 'KeyA': player.movingLeft     = true; break;
+                case 'ArrowRight': case 'KeyD': player.movingRight    = true; break;
+                                   case 'KeyQ': player.turningLeft    = true; break;
+                                   case 'KeyE': player.turningRight   = true; break;
             }
             if (e.shiftKey) {
-                player.rotationLocked = true;
+                player.sprinting = true;
             }
         }
     });
@@ -103,11 +105,34 @@ async function loadImageData(url: string): Promise<ImageData> {
             switch (e.code) {
                 case 'ArrowUp':    case 'KeyW': player.movingForward  = false; break;
                 case 'ArrowDown':  case 'KeyS': player.movingBackward = false; break;
-                case 'ArrowLeft':  case 'KeyA': player.turningLeft    = false; break;
-                case 'ArrowRight': case 'KeyD': player.turningRight   = false; break;
+                case 'ArrowLeft':  case 'KeyA': player.movingLeft     = false; break;
+                case 'ArrowRight': case 'KeyD': player.movingRight    = false; break;
+                                   case 'KeyQ': player.turningLeft    = false; break;
+                                   case 'KeyE': player.turningRight   = false; break;
             }
             if (!e.shiftKey) {
-                player.rotationLocked = false;
+                player.sprinting = false;
+            }
+        }
+    });
+    
+    gameCanvas.addEventListener("click", (e) => {
+        if (e.target === null) { return; }
+        if (e.target === document.pointerLockElement) { return; }
+        if (!(e.target instanceof Element)) { return; } // to help out typescript with the types
+        // It seems like "requestPointerLock" can throw a DOMException when the target was recently unlocked.
+        // Apparently there can be a cooldown for reacquiring a pointer lock (e.g. ~1s in Chrome).
+        // Nothing really breaks though, so we do not catch the DOMException so that any other exceptions don't get swallowed with it.
+        // TODO: handle this DOMException situation differently?
+    	// TODO: also do this on boot up so the mouse is immediately locked on the canvas?
+        e.target.requestPointerLock();
+    });
+
+    gameCanvas.addEventListener("mousemove", (e) => {
+        // only move with mouse when our pointer is locked in on the gameCanvas
+        if (document.pointerLockElement === gameCanvas) {
+            if (e.movementX !== 0) {
+                player.rotationalMovement = e.movementX;
             }
         }
     });

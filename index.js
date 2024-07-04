@@ -19,6 +19,9 @@ async function loadImageData(url) {
     ctx.drawImage(image, 0, 0);
     return ctx.getImageData(0, 0, image.width, image.height);
 }
+function requestPointerLockWithUnadjustedMovement(target) {
+    console.log(target.requestPointerLock);
+}
 (async () => {
     const gameCanvas = document.getElementById("game");
     if (gameCanvas === null)
@@ -90,15 +93,21 @@ async function loadImageData(url) {
                     break;
                 case 'ArrowLeft':
                 case 'KeyA':
-                    player.turningLeft = true;
+                    player.movingLeft = true;
                     break;
                 case 'ArrowRight':
                 case 'KeyD':
+                    player.movingRight = true;
+                    break;
+                case 'KeyQ':
+                    player.turningLeft = true;
+                    break;
+                case 'KeyE':
                     player.turningRight = true;
                     break;
             }
             if (e.shiftKey) {
-                player.rotationLocked = true;
+                player.sprinting = true;
             }
         }
     });
@@ -115,15 +124,40 @@ async function loadImageData(url) {
                     break;
                 case 'ArrowLeft':
                 case 'KeyA':
-                    player.turningLeft = false;
+                    player.movingLeft = false;
                     break;
                 case 'ArrowRight':
                 case 'KeyD':
+                    player.movingRight = false;
+                    break;
+                case 'KeyQ':
+                    player.turningLeft = false;
+                    break;
+                case 'KeyE':
                     player.turningRight = false;
                     break;
             }
             if (!e.shiftKey) {
-                player.rotationLocked = false;
+                player.sprinting = false;
+            }
+        }
+    });
+    gameCanvas.addEventListener("click", (e) => {
+        if (e.target === null) {
+            return;
+        }
+        if (e.target === document.pointerLockElement) {
+            return;
+        }
+        if (!(e.target instanceof Element)) {
+            return;
+        }
+        e.target.requestPointerLock();
+    });
+    gameCanvas.addEventListener("mousemove", (e) => {
+        if (document.pointerLockElement === gameCanvas) {
+            if (e.movementX !== 0) {
+                player.rotationalMovement = e.movementX;
             }
         }
     });
