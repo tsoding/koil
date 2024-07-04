@@ -183,10 +183,10 @@ function rayStep(p1, p2) {
     }
     return p3;
 }
-const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.05, 0.094 + 0.05, 1.0);
-const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.05, 0.188 + 0.05, 1.0);
-const SCENE_CEILING1 = new RGBA(0.094 + 0.05, 0.094, 0.094, 1.0);
-const SCENE_CEILING2 = new RGBA(0.188 + 0.05, 0.188, 0.188, 1.0);
+const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
+const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
+const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
+const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 export function createScene(walls) {
     const scene = {
         height: walls.length,
@@ -398,7 +398,7 @@ function renderWalls(display, player, scene) {
             const by2 = Math.min(display.backImageData.height - 1, y2);
             const tx = Math.floor(u * cell.width);
             const sh = (1 / Math.ceil(stripHeight)) * cell.height;
-            const shadow = Math.min(1 / display.zBuffer[x] * 2, 1);
+            const shadow = Math.min(1 / display.zBuffer[x] * 4, 1);
             for (let y = by1; y <= by2; ++y) {
                 const ty = Math.floor((y - y1) * sh);
                 const destP = (y * display.backImageData.width + x) * 4;
@@ -424,7 +424,7 @@ function renderCeiling(imageData, player) {
             const t = t1.clone().lerp(t2, x / imageData.width);
             const tile = sceneGetCeiling(t);
             if (tile instanceof RGBA) {
-                const shadow = Math.sqrt(player.position.sqrDistanceTo(t));
+                const shadow = player.position.distanceTo(t);
                 const destP = (sz * imageData.width + x) * 4;
                 imageData.data[destP + 0] = tile.r * shadow * 255;
                 imageData.data[destP + 1] = tile.g * shadow * 255;
@@ -447,7 +447,7 @@ function renderFloor(imageData, player) {
             const t = t1.clone().lerp(t2, x / imageData.width);
             const tile = sceneGetFloor(t);
             if (tile instanceof RGBA) {
-                const shadow = Math.sqrt(player.position.sqrDistanceTo(t));
+                const shadow = player.position.distanceTo(t);
                 const destP = (y * imageData.width + x) * 4;
                 imageData.data[destP + 0] = tile.r * shadow * 255;
                 imageData.data[destP + 1] = tile.g * shadow * 255;
@@ -483,7 +483,7 @@ function renderSprites(display, player, sprites) {
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (pdist < NEAR_CLIPPING_PLANE)
             continue;
-        const spriteScale = 1.0;
+        const spriteScale = 0.4;
         const spriteSize = display.backImageData.height / pdist * spriteScale;
         const x1 = Math.floor(cx - spriteSize * 0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
@@ -540,7 +540,5 @@ export function renderGame(display, deltaTime, player, scene, sprites) {
     renderWalls(display, player, scene);
     renderSprites(display, player, sprites);
     displaySwapBackImageData(display);
-    renderMinimap(display.ctx, player, scene, sprites);
-    renderFPS(display.ctx, deltaTime);
 }
 //# sourceMappingURL=game.js.map

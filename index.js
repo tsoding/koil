@@ -1,5 +1,5 @@
 "use strict";
-const SCREEN_FACTOR = 30;
+const SCREEN_FACTOR = 50;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 async function loadImage(url) {
@@ -30,23 +30,23 @@ async function loadImageData(url) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const [typescript, water] = await Promise.all([
-        loadImageData("assets/images/misc/Typescript_logo_2020.png"),
-        loadImageData("assets/images/opengameart/Water_Effect/05/Water__05.png"),
+    const [wall, key] = await Promise.all([
+        loadImageData("assets/images/custom/wall.png"),
+        loadImageData("assets/images/custom/key.png"),
     ]);
     let game = await import("./game.js");
     const scene = game.createScene([
-        [null, null, typescript, null, null, null, null],
+        [null, null, wall, wall, null, null, null],
         [null, null, null, null, null, null, null],
-        [typescript, null, null, null, null, null, null],
-        [null, null, null, null, null, null, null],
+        [wall, null, null, null, null, null, null],
+        [wall, null, null, null, null, null, null],
         [null],
         [null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null],
     ]);
     const sprites = [
         {
-            imageData: water,
+            imageData: key,
             position: new game.Vector2(1.5, 1.5),
         }
     ];

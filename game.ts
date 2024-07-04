@@ -220,10 +220,10 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
 
 type Tile = RGBA | ImageData | null;
 
-const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.05, 0.094 + 0.05, 1.0);
-const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.05, 0.188 + 0.05, 1.0);
-const SCENE_CEILING1 = new RGBA(0.094 + 0.05, 0.094, 0.094, 1.0);
-const SCENE_CEILING2 = new RGBA(0.188 + 0.05, 0.188, 0.188, 1.0);
+const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
+const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
+const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
+const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 
 export interface Scene {
     walls: Array<Tile>;
@@ -478,7 +478,7 @@ function renderWalls(display: Display, player: Player, scene: Scene) {
             const by2 = Math.min(display.backImageData.height-1, y2);
             const tx = Math.floor(u*cell.width);
             const sh = (1/Math.ceil(stripHeight))*cell.height;
-            const shadow = Math.min(1/display.zBuffer[x]*2, 1);
+            const shadow = Math.min(1/display.zBuffer[x]*4, 1);
             for (let y = by1; y <= by2; ++y) {
                 const ty = Math.floor((y - y1)*sh);
                 const destP = (y*display.backImageData.width + x)*4;
@@ -507,7 +507,7 @@ function renderCeiling(imageData: ImageData, player: Player) {
             const t = t1.clone().lerp(t2, x/imageData.width);
             const tile = sceneGetCeiling(t);
             if (tile instanceof RGBA) {
-                const shadow = Math.sqrt(player.position.sqrDistanceTo(t));
+                const shadow = player.position.distanceTo(t);
                 const destP = (sz*imageData.width + x)*4;
                 imageData.data[destP + 0] = tile.r*shadow*255;
                 imageData.data[destP + 1] = tile.g*shadow*255;
@@ -535,7 +535,7 @@ function renderFloor(imageData: ImageData, player: Player) {
             const t = t1.clone().lerp(t2, x/imageData.width);
             const tile = sceneGetFloor(t);
             if (tile instanceof RGBA) {
-                const shadow = Math.sqrt(player.position.sqrDistanceTo(t));
+                const shadow = player.position.distanceTo(t);
                 const destP = (y*imageData.width + x)*4;
                 imageData.data[destP + 0] = tile.r*shadow*255;
                 imageData.data[destP + 1] = tile.g*shadow*255;
@@ -586,7 +586,7 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         if (pdist < NEAR_CLIPPING_PLANE) continue; // TODO: I'm not sure if this check is necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
         // TODO: add an ability to positiion the sprites vertically
         // TODO: make the scale of the sprite a parameter configurable per sprite
-        const spriteScale = 1.0;
+        const spriteScale = 0.4;
         const spriteSize = display.backImageData.height/pdist*spriteScale;
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
@@ -648,6 +648,6 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     renderSprites(display, player, sprites);
     displaySwapBackImageData(display);
 
-    renderMinimap(display.ctx, player, scene, sprites);
-    renderFPS(display.ctx, deltaTime);
+    // renderMinimap(display.ctx, player, scene, sprites);
+    // renderFPS(display.ctx, deltaTime);
 }
