@@ -58,6 +58,9 @@ export class Vector2 {
         this.y = Math.sin(angle) * len;
         return this;
     }
+    getAngle() {
+        return Math.atan2(this.y, this.x);
+    }
     clone() {
         return new Vector2(this.x, this.y);
     }
@@ -270,6 +273,7 @@ export function createPlayer(position, direction) {
         movingBackward: false,
         turningLeft: false,
         turningRight: false,
+        rotationLocked: false,
     };
 }
 function playerFovRange(player) {
@@ -501,19 +505,33 @@ function renderSprites(display, player, sprites) {
     }
 }
 export function renderGame(display, deltaTime, player, scene, sprites) {
-    player.velocity.setScalar(0);
     let angularVelocity = 0.0;
+    let velocityRaw = new Vector2();
     if (player.movingForward) {
-        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED));
+        velocityRaw.add(new Vector2().setAngle(player.direction));
     }
     if (player.movingBackward) {
-        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED));
+        velocityRaw.sub(new Vector2().setAngle(player.direction));
     }
-    if (player.turningLeft) {
-        angularVelocity -= Math.PI;
+    if (!player.rotationLocked) {
+        if (player.turningLeft) {
+            velocityRaw.sub(new Vector2().setAngle(player.direction + 0.5 * Math.PI));
+        }
+        if (player.turningRight) {
+            velocityRaw.add(new Vector2().setAngle(player.direction + 0.5 * Math.PI));
+        }
     }
-    if (player.turningRight) {
-        angularVelocity += Math.PI;
+    else {
+        if (player.turningLeft) {
+            angularVelocity -= Math.PI;
+        }
+        if (player.turningRight) {
+            angularVelocity += Math.PI;
+        }
+    }
+    player.velocity.setScalar(0);
+    if (velocityRaw.length() > 0) {
+        player.velocity.setAngle(velocityRaw.getAngle(), PLAYER_SPEED);
     }
     player.direction = player.direction + angularVelocity * deltaTime;
     const nx = player.position.x + player.velocity.x * deltaTime;

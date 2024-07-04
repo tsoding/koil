@@ -97,6 +97,9 @@ async function loadImageData(url) {
                     player.turningRight = true;
                     break;
             }
+            if (e.shiftKey) {
+                player.rotationLocked = false;
+            }
         }
     });
     window.addEventListener("keyup", (e) => {
@@ -118,6 +121,9 @@ async function loadImageData(url) {
                 case 'KeyD':
                     player.turningRight = false;
                     break;
+            }
+            if (!e.shiftKey) {
+                player.rotationLocked = true;
             }
         }
     });

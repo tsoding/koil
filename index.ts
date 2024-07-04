@@ -93,6 +93,9 @@ async function loadImageData(url: string): Promise<ImageData> {
                 case 'ArrowLeft':  case 'KeyA': player.turningLeft    = true; break;
                 case 'ArrowRight': case 'KeyD': player.turningRight   = true; break;
             }
+            if (e.shiftKey) {
+                player.rotationLocked = false;
+            }
         }
     });
     window.addEventListener("keyup", (e) => {
@@ -102,6 +105,9 @@ async function loadImageData(url: string): Promise<ImageData> {
                 case 'ArrowDown':  case 'KeyS': player.movingBackward = false; break;
                 case 'ArrowLeft':  case 'KeyA': player.turningLeft    = false; break;
                 case 'ArrowRight': case 'KeyD': player.turningRight   = false; break;
+            }
+            if (!e.shiftKey) {
+                player.rotationLocked = true;
             }
         }
     });

@@ -73,6 +73,9 @@ export class Vector2 {
         this.y = Math.sin(angle)*len;
         return this;
     }
+    getAngle(): number {
+        return Math.atan2(this.y, this.x);
+    }
     clone(): Vector2 {
         return new Vector2(this.x, this.y)
     }
@@ -319,6 +322,7 @@ export interface Player {
     movingBackward: boolean;
     turningLeft: boolean;
     turningRight: boolean;
+    rotationLocked: boolean;
 }
 
 export function createPlayer(position: Vector2, direction: number): Player {
@@ -330,6 +334,7 @@ export function createPlayer(position: Vector2, direction: number): Player {
         movingBackward: false,
         turningLeft: false,
         turningRight: false,
+        rotationLocked: false,
     }
 }
 
@@ -606,20 +611,36 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
 }
 
 export function renderGame(display: Display, deltaTime: number, player: Player, scene: Scene, sprites: Array<Sprite>) {
-    player.velocity.setScalar(0);
     let angularVelocity = 0.0;
+    let velocityRaw = new Vector2();
+
     if (player.movingForward) {
-        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED))
+        velocityRaw.add(new Vector2().setAngle(player.direction))
     }
     if (player.movingBackward) {
-        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED))
+        velocityRaw.sub(new Vector2().setAngle(player.direction))
     }
-    if (player.turningLeft) {
-        angularVelocity -= Math.PI;
+    if (!player.rotationLocked) {
+        if (player.turningLeft) {
+            velocityRaw.sub(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
+        }
+        if (player.turningRight) {
+            velocityRaw.add(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
+        }
+    } else {
+        if (player.turningLeft) {
+            angularVelocity -= Math.PI;
+        }
+        if (player.turningRight) {
+            angularVelocity += Math.PI;
+        }
     }
-    if (player.turningRight) {
-        angularVelocity += Math.PI;
+
+    player.velocity.setScalar(0);
+    if (velocityRaw.length() > 0) {
+        player.velocity.setAngle(velocityRaw.getAngle(), PLAYER_SPEED);
     }
+
     player.direction = player.direction + angularVelocity*deltaTime;
     const nx = player.position.x + player.velocity.x*deltaTime;
     if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
