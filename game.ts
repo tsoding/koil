@@ -12,7 +12,7 @@
 // hot-reloaded. Examples are State and Player which we defined as interfaces.
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
-const FAR_CLIPPING_PLANE = 20.0;
+const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI*0.5;
 const COS_OF_HALF_FOV = Math.cos(FOV*0.5);
 const PLAYER_STEP_LEN = 0.5;
@@ -541,6 +541,7 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         sp.copy(sprite.position).sub(player.position);
         const spl = sp.length();
         if (spl <= NEAR_CLIPPING_PLANE) continue;
+        if (spl >= FAR_CLIPPING_PLANE) continue;
         const dot = sp.dot(dir)/spl;
         // TODO: Sometimes dot ends up being slightly bigger than one.
         // That's why we compare to 1.0 + EPS. It would be great to
@@ -554,7 +555,7 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         const cy = display.backImageData.height*0.5;
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (pdist < NEAR_CLIPPING_PLANE) continue;
-        const spriteSize = Math.floor(display.backImageData.height/pdist);
+        const spriteSize = display.backImageData.height/pdist*1.0;
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
         const bx1 = Math.max(0, x1);
