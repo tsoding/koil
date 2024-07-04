@@ -65,8 +65,10 @@ export class Vector2 {
         this.x = x;
         this.y = y;
     }
-    static angle(angle: number): Vector2 {
-        return new Vector2(Math.cos(angle), Math.sin(angle));
+    setAngle(angle: number, len: number = 1): this {
+        this.x = Math.cos(angle)*len;
+        this.y = Math.sin(angle)*len;
+        return this;
     }
     clone(): Vector2 {
         return new Vector2(this.x, this.y)
@@ -330,7 +332,7 @@ export function createPlayer(position: Vector2, direction: number): Player {
 
 function playerFovRange(player: Player): [Vector2, Vector2] {
     const l = Math.tan(FOV*0.5)*NEAR_CLIPPING_PLANE;
-    const p = Vector2.angle(player.direction).scale(NEAR_CLIPPING_PLANE).add(player.position);
+    const p = new Vector2().setAngle(player.direction, NEAR_CLIPPING_PLANE).add(player.position);
     const wing = p.clone().sub(player.position).rot90().norm().scale(l);
     const p1 = p.clone().sub(wing);
     const p2 = p.clone().add(wing);
@@ -389,7 +391,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
         ctx.fillStyle = "red";
         ctx.strokeStyle = "yellow";
         const sp = new Vector2();
-        const dir = Vector2.angle(player.direction);
+        const dir = new Vector2().setAngle(player.direction);
         strokeLine(ctx, player.position, player.position.clone().add(dir));
         for (let sprite of sprites) {
             ctx.fillRect(sprite.position.x - SPRITE_SIZE*0.5,
@@ -428,7 +430,7 @@ function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
 
 function renderWalls(display: Display, player: Player, scene: Scene) {
     const [r1, r2] = playerFovRange(player);
-    const d = Vector2.angle(player.direction)
+    const d = new Vector2().setAngle(player.direction)
     for (let x = 0; x < display.backImageData.width; ++x) {
         const p = castRay(scene, player.position, r1.clone().lerp(r2, x/display.backImageData.width));
         const c = hittingCell(player.position, p);
@@ -551,7 +553,7 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
     const markSize = 100;
 
     const sp = new Vector2();
-    const dir = Vector2.angle(player.direction);
+    const dir = new Vector2().setAngle(player.direction);
     const [p1, p2] = playerFovRange(player);
     for (const sprite of sprites) {
         sp.copy(sprite.position).sub(player.position);
@@ -606,10 +608,10 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     player.velocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.velocity.add(Vector2.angle(player.direction).scale(PLAYER_SPEED))
+        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED))
     }
     if (player.movingBackward) {
-        player.velocity.sub(Vector2.angle(player.direction).scale(PLAYER_SPEED))
+        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED))
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
