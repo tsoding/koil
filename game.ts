@@ -417,12 +417,12 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
 
 function renderWalls(display: Display, player: Player, scene: Scene) {
     const [r1, r2] = playerFovRange(player);
+    const d = Vector2.angle(player.direction)
     for (let x = 0; x < display.backImageData.width; ++x) {
         const p = castRay(scene, player.position, r1.clone().lerp(r2, x/display.backImageData.width));
         const c = hittingCell(player.position, p);
         const cell = sceneGetTile(scene, c);
         const v = p.clone().sub(player.position);
-        const d = Vector2.angle(player.direction)
         display.zBuffer[x] = v.dot(d);
         if (cell instanceof RGBA) {
             const stripHeight = display.backImageData.height/display.zBuffer[x];
