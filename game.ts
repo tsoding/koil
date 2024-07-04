@@ -555,7 +555,8 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         const cy = display.backImageData.height*0.5;
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (pdist < NEAR_CLIPPING_PLANE) continue;
-        const spriteSize = display.backImageData.height/pdist*1.0;
+        // TODO: add an ability to positiion the sprite vertically
+        const spriteSize = display.backImageData.height/pdist*1.0; // TODO: make the size of sprite a parameter
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
         const bx1 = Math.max(0, x1);
