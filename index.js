@@ -38,7 +38,7 @@ async function loadImageData(url) {
     const scene = game.createScene([
         [typescript, null, typescript, null, null, null, null],
         [null, null, null, null, null, null, null],
-        [typescript, null, typescript, null, null, null, null],
+        [typescript, null, null, null, null, null, null],
         [null, null, null, null, null, null, null],
         [null],
         [null, null, null, null, null, null, null],

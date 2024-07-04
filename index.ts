@@ -39,7 +39,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     const scene = game.createScene([
         [ typescript, null, typescript, null, null, null, null],
         [ null,       null, null, null, null, null, null],
-        [ typescript, null, typescript, null, null, null, null],
+        [ typescript, null, null, null, null, null, null],
         [  null,  null, null, null, null, null, null],
         [  null],
         [  null,  null, null, null, null, null, null],

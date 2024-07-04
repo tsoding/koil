@@ -398,7 +398,10 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
             const spl = sp.length();
             if (spl === 0) continue;
             const dot = sp.dot(dir)/spl;
-            if (!(COS_OF_HALF_FOV <= dot && dot <= 1.0)) continue;
+            ctx.fillStyle = "white"
+            ctx.font = "0.5px bold"
+            ctx.fillText(`${dot}`, player.position.x, player.position.y);
+            if (!(COS_OF_HALF_FOV <= dot && dot <= (1.0 + EPS))) continue;
             const dist = NEAR_CLIPPING_PLANE/dot;
             sp.norm().scale(dist).add(player.position);
             const t = p1.distanceTo(sp)/p1.distanceTo(p2);
@@ -406,9 +409,6 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, position: 
             ctx.fillRect(sp.x - SPRITE_SIZE*0.5,
                          sp.y - SPRITE_SIZE*0.5,
                          SPRITE_SIZE, SPRITE_SIZE);
-            ctx.font = "0.5px bold"
-            ctx.fillStyle = "white"
-            ctx.fillText(`${t}`, sp.x, sp.y);
         }
     }
 
@@ -542,7 +542,11 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         const spl = sp.length();
         if (spl <= NEAR_CLIPPING_PLANE) continue;
         const dot = sp.dot(dir)/spl;
-        if (!(COS_OF_HALF_FOV <= dot && dot <= 1.0)) continue;
+        // TODO: Sometimes dot ends up being slightly bigger than one.
+        // That's why we compare to 1.0 + EPS. It would be great to
+        // investigate why exactly that happens. Obviously it's some
+        // IEEE754 shenanigans, but it would be nice to know the details.
+        if (!(COS_OF_HALF_FOV <= dot && dot <= (1.0 + EPS))) continue;
         const dist = NEAR_CLIPPING_PLANE/dot;
         sp.norm().scale(dist).add(player.position);
         const t = p1.distanceTo(sp)/p1.distanceTo(p2);
