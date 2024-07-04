@@ -424,10 +424,18 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
     ctx.restore();
 }
 
+const dts: number[] = [];
 function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
     ctx.font = "48px bold"
     ctx.fillStyle = "white"
-    ctx.fillText(`${Math.floor(1/deltaTime)}`, 100, 100);
+
+    dts.push(deltaTime);
+    if (dts.length > 60) // can be any number of frames
+        dts.shift();
+
+    const dtAvg = dts.reduce((a, b) => a + b, 0)/dts.length;
+
+    ctx.fillText(`${Math.floor(1/dtAvg)}`, 100, 100);
 }
 
 function renderWalls(display: Display, player: Player, scene: Scene) {

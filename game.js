@@ -346,10 +346,15 @@ function renderMinimap(ctx, player, scene, sprites) {
     }
     ctx.restore();
 }
+const dts = [];
 function renderFPS(ctx, deltaTime) {
     ctx.font = "48px bold";
     ctx.fillStyle = "white";
-    ctx.fillText(`${Math.floor(1 / deltaTime)}`, 100, 100);
+    dts.push(deltaTime);
+    if (dts.length > 60)
+        dts.shift();
+    const dtAvg = dts.reduce((a, b) => a + b, 0) / dts.length;
+    ctx.fillText(`${Math.floor(1 / dtAvg)}`, 100, 100);
 }
 function renderWalls(display, player, scene) {
     const [r1, r2] = playerFovRange(player);
