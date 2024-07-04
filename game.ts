@@ -620,7 +620,7 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
     if (player.movingBackward) {
         velocityRaw.sub(new Vector2().setAngle(player.direction))
     }
-    if (!player.rotationLocked) {
+    if (player.rotationLocked) {
         if (player.turningLeft) {
             velocityRaw.sub(new Vector2().setAngle(player.direction + 0.5 * Math.PI))
         }
