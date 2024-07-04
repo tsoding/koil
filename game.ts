@@ -454,8 +454,12 @@ function renderWalls(display: Display, player: Player, scene: Scene) {
 
             let u = 0;
             const t = p.clone().sub(c);
-            if ((Math.abs(t.x) < EPS || Math.abs(t.x - 1) < EPS) && t.y > 0) {
+            if (Math.abs(t.x) < EPS && t.y > 0) {
                 u = t.y;
+            } else if (Math.abs(t.x - 1) < EPS && t.y > 0) {
+                u = 1 - t.y;
+            } else if (Math.abs(t.y) < EPS && t.x > 0) {
+                u = 1 - t.x;
             } else {
                 u = t.x;
             }
