@@ -51,9 +51,48 @@ async function loadImageData(url: string): Promise<ImageData> {
     const sprites = [
         {
             imageData: key,
-            position: new game.Vector2(1.5, 1.5),
+            position: new game.Vector2(2.5, 1.5),
             z: KEY_Z,
-            scale: KEY_SCALE
+            scale: KEY_SCALE,
+
+            pdist: 0,
+            t: 0,
+        },
+        {
+            imageData: key,
+            position: new game.Vector2(3.0, 1.5),
+            z: KEY_Z,
+            scale: KEY_SCALE,
+
+            pdist: 0,
+            t: 0,
+        },
+        {
+            imageData: key,
+            position: new game.Vector2(3.5, 1.5),
+            z: KEY_Z,
+            scale: KEY_SCALE,
+
+            pdist: 0,
+            t: 0,
+        },
+        {
+            imageData: key,
+            position: new game.Vector2(4.0, 1.5),
+            z: KEY_Z,
+            scale: KEY_SCALE,
+
+            pdist: 0,
+            t: 0,
+        },
+        {
+            imageData: key,
+            position: new game.Vector2(4.5, 1.5),
+            z: KEY_Z,
+            scale: KEY_SCALE,
+
+            pdist: 0,
+            t: 0,
         },
     ];
 
