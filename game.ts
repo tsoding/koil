@@ -536,6 +536,8 @@ function displaySwapBackImageData(display: Display) {
 export interface Sprite {
     imageData: ImageData;
     position: Vector2;
+    z: number;
+    scale: number;
 }
 
 function renderSprites(display: Display, player: Player, sprites: Array<Sprite>) {
@@ -560,15 +562,13 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
         const cy = display.backImageData.height*0.5;
         const pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (pdist < NEAR_CLIPPING_PLANE) continue; // TODO: I'm not sure if this check is necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
-        // TODO: add an ability to positiion the sprites vertically
-        // TODO: make the scale of the sprite a parameter configurable per sprite
-        const spriteScale = 0.5;
-        const spriteSize = display.backImageData.height/pdist*spriteScale;
+        const maxSpriteSize = display.backImageData.height/pdist;
+        const spriteSize = maxSpriteSize*sprite.scale;
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
         const bx1 = Math.max(0, x1);
         const bx2 = Math.min(display.backImageData.width-1, x2);
-        const y1 = Math.floor(cy - spriteSize*0.5);
+        const y1 = Math.floor(cy + maxSpriteSize*0.5 - maxSpriteSize*sprite.z);
         const y2 = Math.floor(y1 + spriteSize - 1);
         const by1 = Math.max(0, y1);
         const by2 = Math.min(display.backImageData.height-1, y2);

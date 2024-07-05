@@ -37,20 +37,24 @@ async function loadImageData(url: string): Promise<ImageData> {
 
     let game = await import("./game.js");
     const scene = game.createScene([
-        [ null, null, wall, wall, null, null, null],
+        [ null, null, wall, wall, wall, null, null],
         [ null, null, null, null, null, null, null],
         [ wall, null, null, null, null, null, null],
         [ wall,  null, null, null, null, null, null],
-        [ null],
+        [ wall],
         [  null,  null, null, null, null, null, null],
         [  null,  null, null, null, null, null, null],
     ]);
 
+    const KEY_SCALE = 0.4;
+    const KEY_Z = KEY_SCALE;
     const sprites = [
         {
             imageData: key,
             position: new game.Vector2(1.5, 1.5),
-        }
+            z: KEY_Z,
+            scale: KEY_SCALE
+        },
     ];
 
     const player = game.createPlayer(
