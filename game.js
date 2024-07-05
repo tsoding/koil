@@ -405,7 +405,7 @@ function renderWalls(display, player, scene) {
         }
     }
 }
-function renderCeiling(imageData, player) {
+function renderFloorAndCeiling(imageData, player) {
     const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
     const bp = p1.clone().sub(player.position).length();
@@ -417,36 +417,21 @@ function renderCeiling(imageData, player) {
         const t2 = player.position.clone().add(p2.clone().sub(player.position).norm().scale(b));
         for (let x = 0; x < imageData.width; ++x) {
             const t = t1.clone().lerp(t2, x / imageData.width);
-            const tile = sceneGetCeiling(t);
-            if (tile instanceof RGBA) {
-                const shadow = player.position.distanceTo(t);
-                const destP = (sz * imageData.width + x) * 4;
-                imageData.data[destP + 0] = tile.r * shadow * 255;
-                imageData.data[destP + 1] = tile.g * shadow * 255;
-                imageData.data[destP + 2] = tile.b * shadow * 255;
-            }
-        }
-    }
-}
-function renderFloor(imageData, player) {
-    const pz = imageData.height / 2;
-    const [p1, p2] = playerFovRange(player);
-    const bp = p1.clone().sub(player.position).length();
-    for (let y = Math.floor(imageData.height / 2); y < imageData.height; ++y) {
-        const sz = imageData.height - y - 1;
-        const ap = pz - sz;
-        const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        const t1 = player.position.clone().add(p1.clone().sub(player.position).norm().scale(b));
-        const t2 = player.position.clone().add(p2.clone().sub(player.position).norm().scale(b));
-        for (let x = 0; x < imageData.width; ++x) {
-            const t = t1.clone().lerp(t2, x / imageData.width);
-            const tile = sceneGetFloor(t);
-            if (tile instanceof RGBA) {
+            const floorTile = sceneGetFloor(t);
+            if (floorTile instanceof RGBA) {
                 const shadow = player.position.distanceTo(t);
                 const destP = (y * imageData.width + x) * 4;
-                imageData.data[destP + 0] = tile.r * shadow * 255;
-                imageData.data[destP + 1] = tile.g * shadow * 255;
-                imageData.data[destP + 2] = tile.b * shadow * 255;
+                imageData.data[destP + 0] = floorTile.r * shadow * 255;
+                imageData.data[destP + 1] = floorTile.g * shadow * 255;
+                imageData.data[destP + 2] = floorTile.b * shadow * 255;
+            }
+            const ceilingTile = sceneGetCeiling(t);
+            if (ceilingTile instanceof RGBA) {
+                const shadow = player.position.distanceTo(t);
+                const destP = (sz * imageData.width + x) * 4;
+                imageData.data[destP + 0] = ceilingTile.r * shadow * 255;
+                imageData.data[destP + 1] = ceilingTile.g * shadow * 255;
+                imageData.data[destP + 2] = ceilingTile.b * shadow * 255;
             }
         }
     }
@@ -530,8 +515,7 @@ export function renderGame(display, deltaTime, player, scene, sprites) {
     if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.y = ny;
     }
-    renderFloor(display.backImageData, player);
-    renderCeiling(display.backImageData, player);
+    renderFloorAndCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
     renderSprites(display, player, sprites);
     displaySwapBackImageData(display);
