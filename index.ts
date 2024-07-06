@@ -57,37 +57,31 @@ async function loadImageData(url: string): Promise<ImageData> {
     const items = [
         {
             imageData: bomb,
-            pickupAudio: itemPickup,
             position: new game.Vector2(1.5, 2.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: itemPickup,
             position: new game.Vector2(2.5, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: itemPickup,
             position: new game.Vector2(3, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: itemPickup,
             position: new game.Vector2(3.5, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: itemPickup,
             position: new game.Vector2(4.0, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: itemPickup,
             position: new game.Vector2(4.5, 1.5),
             alive: true,
         },
@@ -154,7 +148,7 @@ async function loadImageData(url: string): Promise<ImageData> {
         const deltaTime = (timestamp - prevTimestamp)/1000;
         const time = timestamp/1000;
         prevTimestamp = timestamp;
-        game.renderGame(display, deltaTime, time, player, scene, spritePool, items, bombs, bomb, bombRicochet);
+        game.renderGame(display, deltaTime, time, player, scene, spritePool, items, bombs, bomb, bombRicochet, itemPickup);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {
