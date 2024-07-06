@@ -267,6 +267,9 @@ export function createPlayer(position, direction) {
         movingBackward: false,
         turningLeft: false,
         turningRight: false,
+        modifierKey: false,
+        fastTurn: false,
+        sprinting: false,
     };
 }
 function playerFovRange(player) {
@@ -500,18 +503,30 @@ function renderSprites(display, player, sprites) {
 }
 export function renderGame(display, deltaTime, player, scene, sprites) {
     player.velocity.setScalar(0);
+    const fastTurnFactor = player.fastTurn ? 1.5 : 1.0;
+    const sprintFactor = player.sprinting ? 1.0 : 0.0;
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED));
+        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED + sprintFactor));
     }
     if (player.movingBackward) {
-        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED));
+        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED + sprintFactor));
     }
     if (player.turningLeft) {
-        angularVelocity -= Math.PI;
+        if (!player.modifierKey) {
+            angularVelocity -= Math.PI * fastTurnFactor;
+        }
+        else {
+            player.velocity.add(new Vector2().setAngle(player.direction - Math.PI * 0.5, PLAYER_SPEED));
+        }
     }
     if (player.turningRight) {
-        angularVelocity += Math.PI;
+        if (!player.modifierKey) {
+            angularVelocity += Math.PI * fastTurnFactor;
+        }
+        else {
+            player.velocity.add(new Vector2().setAngle(player.direction + Math.PI * 0.5, PLAYER_SPEED));
+        }
     }
     player.direction = player.direction + angularVelocity * deltaTime;
     const nx = player.position.x + player.velocity.x * deltaTime;

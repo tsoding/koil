@@ -135,6 +135,11 @@ async function loadImageData(url: string): Promise<ImageData> {
                 case 'ArrowDown':  case 'KeyS': player.movingBackward = true; break;
                 case 'ArrowLeft':  case 'KeyA': player.turningLeft    = true; break;
                 case 'ArrowRight': case 'KeyD': player.turningRight   = true; break;
+                case 'AltLeft': case 'AltRight': player.modifierKey = true; break;
+                case 'ShiftLeft': case 'ShiftRight': 
+                    player.fastTurn = true;
+                    player.sprinting = true; 
+                    break;
             }
         }
     });
@@ -145,6 +150,11 @@ async function loadImageData(url: string): Promise<ImageData> {
                 case 'ArrowDown':  case 'KeyS': player.movingBackward = false; break;
                 case 'ArrowLeft':  case 'KeyA': player.turningLeft    = false; break;
                 case 'ArrowRight': case 'KeyD': player.turningRight   = false; break;
+                case 'AltLeft': case 'AltRight': player.modifierKey = false; break;
+                case 'ShiftLeft': case 'ShiftRight': 
+                player.fastTurn = false; 
+                player.sprinting = false;
+                break;
             }
         }
     });
