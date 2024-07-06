@@ -1,0 +1,3 @@
+Used Sounds:
+    - key-pickup.wav - https://opengameart.org/content/beep-tone-sound-sfx
+    - ricochet.wav - https://opengameart.org/content/ui-soundpack-by-m1chiboi-bleeps-and-clicks

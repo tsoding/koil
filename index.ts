@@ -30,10 +30,13 @@ async function loadImageData(url: string): Promise<ImageData> {
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const [wall, key] = await Promise.all([
+    const [wall, key, bomb] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
+        loadImageData("assets/images/custom/bomb.png"),
     ]);
+    const keyPickup = new Audio("assets/sounds/key-pickup.wav");
+    const bombRicochet = new Audio("assets/sounds/ricochet.wav");
 
     let game = await import("./game.js");
     const scene = game.createScene([
@@ -46,59 +49,51 @@ async function loadImageData(url: string): Promise<ImageData> {
         [  null,  null, null, null, null, null, null],
     ]);
 
-    const KEY_SCALE = 0.4;
-    const KEY_Z = KEY_SCALE;
-    const sprites = [
-        {
-            imageData: key,
-            position: new game.Vector2(2.5, 1.5),
-            z: KEY_Z,
-            scale: KEY_SCALE,
-
-            pdist: 0,
-            t: 0,
-        },
-        {
-            imageData: key,
-            position: new game.Vector2(3.0, 1.5),
-            z: KEY_Z,
-            scale: KEY_SCALE,
-
-            pdist: 0,
-            t: 0,
-        },
-        {
-            imageData: key,
-            position: new game.Vector2(3.5, 1.5),
-            z: KEY_Z,
-            scale: KEY_SCALE,
-
-            pdist: 0,
-            t: 0,
-        },
-        {
-            imageData: key,
-            position: new game.Vector2(4.0, 1.5),
-            z: KEY_Z,
-            scale: KEY_SCALE,
-
-            pdist: 0,
-            t: 0,
-        },
-        {
-            imageData: key,
-            position: new game.Vector2(4.5, 1.5),
-            z: KEY_Z,
-            scale: KEY_SCALE,
-
-            pdist: 0,
-            t: 0,
-        },
-    ];
-
     const player = game.createPlayer(
         game.sceneSize(scene).scale(0.63),
         Math.PI*1.25);
+
+    const spritePool = game.createSpritePool();
+    const items = [
+        {
+            imageData: bomb,
+            pickupAudio: keyPickup,
+            position: new game.Vector2(1.5, 2.5),
+            alive: true,
+        },
+        {
+            imageData: key,
+            pickupAudio: keyPickup,
+            position: new game.Vector2(2.5, 1.5),
+            alive: true,
+        },
+        {
+            imageData: key,
+            pickupAudio: keyPickup,
+            position: new game.Vector2(3, 1.5),
+            alive: true,
+        },
+        {
+            imageData: key,
+            pickupAudio: keyPickup,
+            position: new game.Vector2(3.5, 1.5),
+            alive: true,
+        },
+        {
+            imageData: key,
+            pickupAudio: keyPickup,
+            position: new game.Vector2(4.0, 1.5),
+            alive: true,
+        },
+        {
+            imageData: key,
+            pickupAudio: keyPickup,
+            position: new game.Vector2(4.5, 1.5),
+            alive: true,
+        },
+    ]
+
+    const bombs = game.allocateBombs(10);
 
     const isDev = window.location.hostname === "localhost";
     if (isDev) {
@@ -135,6 +130,10 @@ async function loadImageData(url: string): Promise<ImageData> {
                 case 'ArrowDown':  case 'KeyS': player.movingBackward = true; break;
                 case 'ArrowLeft':  case 'KeyA': player.turningLeft    = true; break;
                 case 'ArrowRight': case 'KeyD': player.turningRight   = true; break;
+                case 'Space': {
+                    game.throwBomb(player, bombs);
+                    console.log(bombs);
+                } break;
             }
         }
     });
@@ -153,8 +152,9 @@ async function loadImageData(url: string): Promise<ImageData> {
     let prevTimestamp = 0;
     const frame = (timestamp: number) => {
         const deltaTime = (timestamp - prevTimestamp)/1000;
+        const time = timestamp/1000;
         prevTimestamp = timestamp;
-        game.renderGame(display, deltaTime, player, scene, sprites);
+        game.renderGame(display, deltaTime, time, player, scene, spritePool, items, bombs, bomb, bombRicochet);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {

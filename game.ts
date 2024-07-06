@@ -17,6 +17,10 @@ const FOV = Math.PI*0.5;
 const COS_OF_HALF_FOV = Math.cos(FOV*0.5);
 const PLAYER_STEP_LEN = 0.5;
 const PLAYER_SPEED = 2;
+const PLAYER_RADIUS = 0.5;
+
+const ITEM_FREQ = 1.0;
+const ITEM_AMP = 0.03;
 
 const MINIMAP_SPRITES = false;
 const MINIMAP_PLAYER_SIZE = 0.5;
@@ -146,6 +150,105 @@ export class Vector2 {
     map(f: (x: number) => number): this {
         this.x = f(this.x);
         this.y = f(this.y);
+        return this;
+    }
+}
+
+export class Vector3 {
+    x: number;
+    y: number;
+    z: number;
+    constructor(x: number = 0, y: number = 0, z: number = 0) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+    clone(): Vector3 {
+        return new Vector3(this.x, this.y, this.z)
+    }
+    clone2(): Vector2 {
+        return new Vector2(this.x, this.y)
+    }
+    copy(that: Vector3): this {
+        this.x = that.x;
+        this.y = that.y;
+        this.z = that.z;
+        return this;
+    }
+    copy2(that: Vector2, z: number): this {
+        this.x = that.x;
+        this.y = that.y;
+        this.z = z;
+        return this;
+    }
+    setScalar(scalar: number): this {
+        this.x = scalar;
+        this.y = scalar;
+        this.z = scalar;
+        return this;
+    }
+    add(that: Vector3): this {
+        this.x += that.x;
+        this.y += that.y;
+        this.z += that.z;
+        return this;
+    }
+    sub(that: Vector3): this {
+        this.x -= that.x;
+        this.y -= that.y;
+        this.z -= that.z;
+        return this;
+    }
+    div(that: Vector3): this {
+        this.x /= that.x;
+        this.y /= that.y;
+        this.z /= that.z;
+        return this;
+    }
+    mul(that: Vector3): this {
+        this.x *= that.x;
+        this.y *= that.y;
+        this.z *= that.z;
+        return this;
+    }
+    sqrLength(): number {
+        return this.x*this.x + this.y*this.y + this.z*this.z;
+    }
+    length(): number {
+        return Math.sqrt(this.sqrLength());
+    }
+    scale(value: number): this {
+        this.x *= value;
+        this.y *= value;
+        this.z *= value;
+        return this;
+    }
+    norm(): this {
+        const l = this.length();
+        return l === 0 ? this : this.scale(1/l);
+    }
+    sqrDistanceTo(that: Vector3): number {
+        const dx = that.x - this.x;
+        const dy = that.y - this.y;
+        const dz = that.z - this.z;
+        return dx*dx + dy*dy + dz*dz;
+    }
+    distanceTo(that: Vector3): number {
+        return Math.sqrt(this.sqrDistanceTo(that));
+    }
+    lerp(that: Vector3, t: number): this {
+        this.x += (that.x - this.x)*t;
+        this.y += (that.y - this.y)*t;
+        this.z += (that.z - this.z)*t;
+        return this;
+    }
+    dot(that: Vector3): number {
+        return this.x*that.x + this.y*that.y + this.z*that.z;
+    }
+    map(f: (x: number) => number): this {
+        this.x = f(this.x);
+        this.y = f(this.y);
+        this.z = f(this.z);
         return this;
     }
 }
@@ -552,13 +655,15 @@ export interface Sprite {
 }
 
 const visibleSprites: Array<Sprite> = [];
-function renderSprites(display: Display, player: Player, sprites: Array<Sprite>) {
+function renderSprites(display: Display, player: Player, spritePool: SpritePool) {
     const sp = new Vector2();
     const dir = new Vector2().setAngle(player.direction);
     const [p1, p2] = playerFovRange(player);
 
     visibleSprites.length = 0;
-    for (const sprite of sprites) {
+    for (let i = 0; i < spritePool.count; ++i) {
+        const sprite = spritePool.sprites[i];
+
         sp.copy(sprite.position).sub(player.position);
         const spl = sp.length();
         if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
@@ -615,7 +720,80 @@ function renderSprites(display: Display, player: Player, sprites: Array<Sprite>)
     }
 }
 
-export function renderGame(display: Display, deltaTime: number, player: Player, scene: Scene, sprites: Array<Sprite>) {
+export interface SpritePool {
+    sprites: Array<Sprite>,
+    count: number,
+}
+
+function pushSprite(spritePool: SpritePool, imageData: ImageData, position: Vector2, z: number, scale: number) {
+    if (spritePool.sprites.length <= spritePool.count) {
+        spritePool.sprites.push({
+            imageData,
+            position,
+            z,
+            scale,
+
+            pdist: 0,
+            t: 0,
+        })
+    } else {
+        spritePool.sprites[spritePool.count].imageData = imageData;
+        spritePool.sprites[spritePool.count].position = position;
+        spritePool.sprites[spritePool.count].z = z;
+        spritePool.sprites[spritePool.count].scale = scale;
+    }
+    spritePool.count += 1;
+}
+
+export function createSpritePool(): SpritePool {
+    return {
+        sprites: [],
+        count: 0,
+    }
+}
+
+interface Item {
+    alive: boolean,
+    imageData: ImageData,
+    pickupAudio: HTMLAudioElement,
+    position: Vector2,
+}
+
+export interface Bomb {
+    position: Vector3,
+    velocity: Vector3,
+    lifetime: number,
+}
+
+export function allocateBombs(capacity: number): Array<Bomb> {
+    let bomb: Array<Bomb> = []
+    for (let i = 0; i < capacity; ++i) {
+        bomb.push({
+            position: new Vector3(),
+            velocity: new Vector3(),
+            lifetime: 0,
+        })
+    }
+    return bomb
+}
+
+const BOMB_THROW_VELOCITY = 5;
+const GRAVITY = new Vector3(0, 0, -10);
+
+export function throwBomb(player: Player, bombs: Array<Bomb>) {
+    for (let bomb of bombs) {
+        if (bomb.lifetime <= 0) {
+            bomb.lifetime = 5.0;
+            bomb.position.copy2(player.position, 0.6);
+            bomb.velocity.x = Math.cos(player.direction);
+            bomb.velocity.y = Math.sin(player.direction);
+            bomb.velocity.scale(BOMB_THROW_VELOCITY);
+            break;
+        }
+    }
+}
+
+export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, spritePool: SpritePool, items: Array<Item>, bombs: Array<Bomb>, bombImageData: ImageData, bombRicochet: HTMLAudioElement) {
     player.velocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
@@ -640,9 +818,73 @@ export function renderGame(display: Display, deltaTime: number, player: Player, 
         player.position.y = ny;
     }
 
+    for (let item of items) {
+        if (item.alive) {
+            if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS*PLAYER_RADIUS) {
+                item.pickupAudio.currentTime = 0;
+                item.pickupAudio.play();
+                item.alive = false;
+            }
+        }
+    }
+
+    spritePool.count = 0;
+
+    for (let bomb of bombs) {
+        if (bomb.lifetime > 0) {
+            bomb.lifetime -= deltaTime;
+            // bomb.velocity.x += GRAVITY.x*deltaTime;
+            // bomb.velocity.y += GRAVITY.y*deltaTime;
+            bomb.velocity.z += GRAVITY.z*deltaTime;
+
+            const nx = bomb.position.x + bomb.velocity.x*deltaTime;
+            const ny = bomb.position.y + bomb.velocity.y*deltaTime;
+            const BOMB_DAMP = 0.8;
+            if (sceneIsWall(scene, new Vector2(nx, ny))) {
+                const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
+                const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
+                
+                if (dx > 0) bomb.velocity.x *= -1;
+                if (dy > 0) bomb.velocity.y *= -1;
+                bomb.velocity.scale(BOMB_DAMP);
+                if (bomb.velocity.length() > 1) {
+                    bombRicochet.currentTime = 0;
+                    bombRicochet.play();
+                }
+            } else {
+                bomb.position.x = nx;
+                bomb.position.y = ny;
+            }
+
+            const nz = bomb.position.z + bomb.velocity.z*deltaTime;
+            if (nz < 0.25 || nz > 1.0) {
+                bomb.velocity.z *= -1
+                bomb.velocity.scale(BOMB_DAMP);
+                if (bomb.velocity.length() > 1) {
+                    bombRicochet.currentTime = 0;
+                    bombRicochet.play();
+                }
+            } else {
+                bomb.position.z = nz;
+            }
+
+            if (bomb.lifetime <= 0) {
+                // TODO: explode
+            } else {
+                pushSprite(spritePool, bombImageData, bomb.position.clone2(), bomb.position.z, 0.25)
+            }
+        }
+    }
+
+    for (let item of items) {
+        if (item.alive) {
+            pushSprite(spritePool, item.imageData, item.position, 0.25 + ITEM_AMP - ITEM_AMP*Math.sin(ITEM_FREQ*Math.PI*time + item.position.x + item.position.y), 0.25);
+        }
+    }
+
     renderFloorAndCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
-    renderSprites(display, player, sprites);
+    renderSprites(display, player, spritePool);
     displaySwapBackImageData(display);
 
     // renderMinimap(display.ctx, player, scene, sprites);
