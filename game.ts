@@ -309,6 +309,9 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
 
 export interface Player {
     position: Vector2;
+    // TODO: it is unclear that velocity is a temporary vector that only makes sense within a single frame
+    //   And if we want to avoid Vector.clone()-s we will have lots of temporary vectors like that.
+    //   Maybe we should create some sort of temporary allocator of vectors that live for a single frame?
     velocity: Vector2;
     direction: number;
     movingForward: boolean;
