@@ -35,7 +35,7 @@ async function loadImageData(url: string): Promise<ImageData> {
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
     ]);
-    const keyPickup = new Audio("assets/sounds/key-pickup.wav");
+    const itemPickup = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochet = new Audio("assets/sounds/ricochet.wav");
 
     let game = await import("./game.js");
@@ -57,37 +57,37 @@ async function loadImageData(url: string): Promise<ImageData> {
     const items = [
         {
             imageData: bomb,
-            pickupAudio: keyPickup,
+            pickupAudio: itemPickup,
             position: new game.Vector2(1.5, 2.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: keyPickup,
+            pickupAudio: itemPickup,
             position: new game.Vector2(2.5, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: keyPickup,
+            pickupAudio: itemPickup,
             position: new game.Vector2(3, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: keyPickup,
+            pickupAudio: itemPickup,
             position: new game.Vector2(3.5, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: keyPickup,
+            pickupAudio: itemPickup,
             position: new game.Vector2(4.0, 1.5),
             alive: true,
         },
         {
             imageData: key,
-            pickupAudio: keyPickup,
+            pickupAudio: itemPickup,
             position: new game.Vector2(4.5, 1.5),
             alive: true,
         },
