@@ -138,6 +138,7 @@ async function loadImageData(url: string): Promise<ImageData> {
             }
         }
     });
+    // TODO: When the window loses the focus, reset all the controls
     window.addEventListener("keyup", (e) => {
         if (!e.repeat) {
             switch (e.code) {
