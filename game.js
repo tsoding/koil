@@ -408,30 +408,33 @@ function renderWalls(display, player, scene) {
 function renderFloorAndCeiling(imageData, player) {
     const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
-    const bp = p1.clone().sub(player.position).length();
+    const t = new Vector2();
+    const t1 = new Vector2();
+    const t2 = new Vector2();
+    const bp = t1.copy(p1).sub(player.position).length();
     for (let y = Math.floor(imageData.height / 2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
         const ap = pz - sz;
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        const t1 = player.position.clone().add(p1.clone().sub(player.position).norm().scale(b));
-        const t2 = player.position.clone().add(p2.clone().sub(player.position).norm().scale(b));
+        t1.copy(p1).sub(player.position).norm().scale(b).add(player.position);
+        t2.copy(p2).sub(player.position).norm().scale(b).add(player.position);
         for (let x = 0; x < imageData.width; ++x) {
-            const t = t1.clone().lerp(t2, x / imageData.width);
+            t.copy(t1).lerp(t2, x / imageData.width);
             const floorTile = sceneGetFloor(t);
             if (floorTile instanceof RGBA) {
-                const shadow = player.position.distanceTo(t);
                 const destP = (y * imageData.width + x) * 4;
-                imageData.data[destP + 0] = floorTile.r * shadow * 255;
-                imageData.data[destP + 1] = floorTile.g * shadow * 255;
-                imageData.data[destP + 2] = floorTile.b * shadow * 255;
+                const shadow = player.position.distanceTo(t) * 255;
+                imageData.data[destP + 0] = floorTile.r * shadow;
+                imageData.data[destP + 1] = floorTile.g * shadow;
+                imageData.data[destP + 2] = floorTile.b * shadow;
             }
             const ceilingTile = sceneGetCeiling(t);
             if (ceilingTile instanceof RGBA) {
-                const shadow = player.position.distanceTo(t);
                 const destP = (sz * imageData.width + x) * 4;
-                imageData.data[destP + 0] = ceilingTile.r * shadow * 255;
-                imageData.data[destP + 1] = ceilingTile.g * shadow * 255;
-                imageData.data[destP + 2] = ceilingTile.b * shadow * 255;
+                const shadow = player.position.distanceTo(t) * 255;
+                imageData.data[destP + 0] = ceilingTile.r * shadow;
+                imageData.data[destP + 1] = ceilingTile.g * shadow;
+                imageData.data[destP + 2] = ceilingTile.b * shadow;
             }
         }
     }
