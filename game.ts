@@ -787,6 +787,7 @@ export function throwBomb(player: Player, bombs: Array<Bomb>) {
             bomb.position.copy2(player.position, 0.6);
             bomb.velocity.x = Math.cos(player.direction);
             bomb.velocity.y = Math.sin(player.direction);
+            bomb.velocity.z = 0.5;
             bomb.velocity.scale(BOMB_THROW_VELOCITY);
             break;
         }
