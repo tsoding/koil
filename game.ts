@@ -865,8 +865,7 @@ function updateItems(time: number, player: Player, items: Array<Item>, assets: A
     for (let item of items) {
         if (item.alive) {
             if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS*PLAYER_RADIUS) {
-                assets.itemPickupSound.currentTime = 0;
-                assets.itemPickupSound.play();
+                playSound(assets.itemPickupSound);
                 item.alive = false;
             }
         }
@@ -946,7 +945,23 @@ function emitParticle(source: Vector3, particles: Array<Particle>) {
     }
 }
 
-function updateBombs(bombs: Array<Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, assets: Assets) {
+function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
+}
+
+function playSound(sound: HTMLAudioElement, playerPosition?: Vector2, objectPosition?: Vector3) {
+    const maxVolume = 1;
+    if (playerPosition !== undefined && objectPosition !== undefined) {
+        const distanceToPlayer = new Vector2(objectPosition.x, objectPosition.y).distanceTo(playerPosition);
+        sound.volume = clamp(maxVolume / distanceToPlayer, 0.0, 1.0);
+    } else {
+        sound.volume = maxVolume;
+    }
+    sound.currentTime = 0;
+    sound.play();
+}
+
+function updateBombs(player: Player, bombs: Array<Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, assets: Assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             bomb.lifetime -= deltaTime;
@@ -962,8 +977,7 @@ function updateBombs(bombs: Array<Bomb>, particles: Array<Particle>, scene: Scen
                 if (dy > 0) bomb.velocity.y *= -1;
                 bomb.velocity.scale(BOMB_DAMP);
                 if (bomb.velocity.length() > 1) {
-                    assets.bombRicochetSound.currentTime = 0;
-                    assets.bombRicochetSound.play();
+                    playSound(assets.bombRicochetSound, player.position, bomb.position);
                 }
             } else {
                 bomb.position.x = nx;
@@ -975,16 +989,14 @@ function updateBombs(bombs: Array<Bomb>, particles: Array<Particle>, scene: Scen
                 bomb.velocity.z *= -1
                 bomb.velocity.scale(BOMB_DAMP);
                 if (bomb.velocity.length() > 1) {
-                    assets.bombRicochetSound.currentTime = 0;
-                    assets.bombRicochetSound.play();
+                    playSound(assets.bombRicochetSound, player.position, bomb.position);
                 }
             } else {
                 bomb.position.z = nz;
             }
 
             if (bomb.lifetime <= 0) {
-                assets.bombBlastSound.currentTime = 0;
-                assets.bombBlastSound.play();
+                playSound(assets.bombBlastSound, player.position, bomb.position);
                 for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
                     emitParticle(bomb.position, particles);
                 }
@@ -1011,7 +1023,7 @@ export function renderGame(display: Display, deltaTime: number, time: number, pl
 
     updatePlayer(player, scene, deltaTime);
     updateItems(time, player, items, assets);
-    updateBombs(bombs, particles, scene, deltaTime, assets);
+    updateBombs(player, bombs, particles, scene, deltaTime, assets);
     updateParticles(deltaTime, scene, particles, assets)
 
     renderFloorAndCeiling(display.backImageData, player);
