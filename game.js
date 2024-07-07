@@ -11,6 +11,7 @@ const ITEM_AMP = 0.03;
 const BOMB_THROW_VELOCITY = 5;
 const BOMB_GRAVITY = 10;
 const BOMB_DAMP = 0.8;
+const MINIMAP = false;
 const MINIMAP_SPRITES = false;
 const MINIMAP_PLAYER_SIZE = 0.5;
 const MINIMAP_SPRITE_SIZE = 0.3;
@@ -381,7 +382,7 @@ function playerFovRange(player) {
     const p2 = p.clone().add(wing);
     return [p1, p2];
 }
-function renderMinimap(ctx, player, scene, sprites) {
+function renderMinimap(ctx, player, scene, spritePool) {
     ctx.save();
     const cellSize = ctx.canvas.width * MINIMAP_SCALE;
     const gridSize = sceneSize(scene);
@@ -423,7 +424,9 @@ function renderMinimap(ctx, player, scene, sprites) {
         const sp = new Vector2();
         const dir = new Vector2().setAngle(player.direction);
         strokeLine(ctx, player.position, player.position.clone().add(dir));
-        for (let sprite of sprites) {
+        ctx.fillStyle = "white";
+        for (let i = 0; i < spritePool.count; ++i) {
+            const sprite = spritePool.sprites[i];
             ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE * 0.5, sprite.position.y - MINIMAP_SPRITE_SIZE * 0.5, MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
             sp.copy(sprite.position).sub(player.position);
             strokeLine(ctx, player.position, player.position.clone().add(sp));
@@ -433,9 +436,6 @@ function renderMinimap(ctx, player, scene, sprites) {
             if (spl >= FAR_CLIPPING_PLANE)
                 continue;
             const dot = sp.dot(dir) / spl;
-            ctx.fillStyle = "white";
-            ctx.font = "0.5px bold";
-            ctx.fillText(`${dot}`, player.position.x, player.position.y);
             if (!(COS_OF_HALF_FOV <= dot))
                 continue;
             const dist = NEAR_CLIPPING_PLANE / dot;
@@ -738,6 +738,8 @@ export function renderGame(display, deltaTime, time, player, scene, spritePool, 
     renderWalls(display, player, scene);
     renderSprites(display, player, spritePool);
     displaySwapBackImageData(display);
+    if (MINIMAP)
+        renderMinimap(display.ctx, player, scene, spritePool);
     renderFPS(display.ctx, deltaTime);
 }
 //# sourceMappingURL=game.js.map
