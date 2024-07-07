@@ -5,8 +5,8 @@ const FOV = Math.PI * 0.5;
 const COS_OF_HALF_FOV = Math.cos(FOV * 0.5);
 const PLAYER_SPEED = 2;
 const PLAYER_RADIUS = 0.5;
-const ITEM_FREQ = 1.0;
-const ITEM_AMP = 0.03;
+const ITEM_FREQ = 0.7;
+const ITEM_AMP = 0.07;
 const BOMB_LIFETIME = 2;
 const BOMB_THROW_VELOCITY = 5;
 const BOMB_GRAVITY = 10;
@@ -705,6 +705,12 @@ function updatePlayer(player, scene, deltaTime) {
         player.position.y = ny;
     }
 }
+function spriteOfItemKind(itemKind, assets) {
+    switch (itemKind) {
+        case "key": return assets.keyImageData;
+        case "bomb": return assets.bombImageData;
+    }
+}
 function updateItems(time, player, items, assets) {
     for (let item of items) {
         if (item.alive) {
@@ -715,7 +721,7 @@ function updateItems(time, player, items, assets) {
             }
         }
         if (item.alive) {
-            pushSprite(item.imageData, item.position, 0.25 + ITEM_AMP - ITEM_AMP * Math.sin(ITEM_FREQ * Math.PI * time + item.position.x + item.position.y), 0.25);
+            pushSprite(spriteOfItemKind(item.kind, assets), item.position, 0.25 + ITEM_AMP - ITEM_AMP * Math.sin(ITEM_FREQ * Math.PI * time + item.position.x + item.position.y), 0.25);
         }
     }
 }

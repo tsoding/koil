@@ -30,7 +30,7 @@ async function loadImageData(url) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const [wall, key, bombImageData, particleImageData] = await Promise.all([
+    const [wall, keyImageData, bombImageData, particleImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
@@ -40,6 +40,7 @@ async function loadImageData(url) {
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
     const bombBlastSound = new Audio("assets/sounds/blast.ogg");
     const assets = {
+        keyImageData,
         bombImageData,
         particleImageData,
         bombRicochetSound,
@@ -59,32 +60,32 @@ async function loadImageData(url) {
     const player = game.createPlayer(new game.Vector2(scene.width, scene.height).scale(0.63), Math.PI * 1.25);
     const items = [
         {
-            imageData: bombImageData,
+            kind: "bomb",
             position: new game.Vector2(1.5, 2.5),
             alive: true,
         },
         {
-            imageData: key,
+            kind: "key",
             position: new game.Vector2(2.5, 1.5),
             alive: true,
         },
         {
-            imageData: key,
+            kind: "key",
             position: new game.Vector2(3, 1.5),
             alive: true,
         },
         {
-            imageData: key,
+            kind: "key",
             position: new game.Vector2(3.5, 1.5),
             alive: true,
         },
         {
-            imageData: key,
+            kind: "key",
             position: new game.Vector2(4.0, 1.5),
             alive: true,
         },
         {
-            imageData: key,
+            kind: "key",
             position: new game.Vector2(4.5, 1.5),
             alive: true,
         },
