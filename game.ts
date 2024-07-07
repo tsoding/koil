@@ -21,10 +21,17 @@ const PLAYER_RADIUS = 0.5;
 const ITEM_FREQ = 1.0;
 const ITEM_AMP = 0.03;
 
+const BOMB_LIFETIME = 2;
 const BOMB_THROW_VELOCITY = 5;
 const BOMB_GRAVITY = 10;
 const BOMB_DAMP = 0.8;
 const BOMB_SCALE = 0.25;
+const BOMB_PARTICLE_COUNT = 30
+
+const PARTICLE_LIFETIME = 1.0;
+const PARTICLE_DAMP = 0.8;
+const PARTICLE_SCALE = 0.05;
+const PARTICLE_MAX_SPEED = 8;
 
 const MINIMAP = false;
 const MINIMAP_SPRITES = false;
@@ -808,7 +815,7 @@ export function allocateBombs(capacity: number): Array<Bomb> {
 export function throwBomb(player: Player, bombs: Array<Bomb>) {
     for (let bomb of bombs) {
         if (bomb.lifetime <= 0) {
-            bomb.lifetime = 5.0;
+            bomb.lifetime = BOMB_LIFETIME;
             bomb.position.copy2(player.position, 0.6);
             bomb.velocity.x = Math.cos(player.direction);
             bomb.velocity.y = Math.sin(player.direction);
@@ -861,7 +868,76 @@ function updateItems(time: number, player: Player, items: Array<Item>, itemPicku
     }
 }
 
-function updateBombs(bombs: Array<Bomb>, scene: Scene, deltaTime: number, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement) {
+interface Particle {
+    lifetime: number,
+    position: Vector3,
+    velocity: Vector3,
+}
+
+export function allocateParticles(capacity: number): Array<Particle> {
+    let bomb: Array<Particle> = []
+    for (let i = 0; i < capacity; ++i) {
+        bomb.push({
+            position: new Vector3(),
+            velocity: new Vector3(),
+            lifetime: 0,
+        })
+    }
+    return bomb
+}
+
+function updateParticles(deltaTime: number, scene: Scene, particles: Array<Particle>, particleImageData: ImageData) {
+    for (let particle of particles) {
+        if (particle.lifetime > 0) {
+            particle.lifetime -= deltaTime;
+            particle.velocity.z -= BOMB_GRAVITY*deltaTime;
+
+            const nx = particle.position.x + particle.velocity.x*deltaTime;
+            const ny = particle.position.y + particle.velocity.y*deltaTime;
+            if (sceneIsWall(scene, allocPool(poolV2).set(nx, ny))) {
+                const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
+                const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
+                
+                if (dx > 0) particle.velocity.x *= -1;
+                if (dy > 0) particle.velocity.y *= -1;
+                particle.velocity.scale(PARTICLE_DAMP);
+            } else {
+                particle.position.x = nx;
+                particle.position.y = ny;
+            }
+
+            const nz = particle.position.z + particle.velocity.z*deltaTime;
+            if (nz < PARTICLE_SCALE || nz > 1.0) {
+                particle.velocity.z *= -1
+                particle.velocity.scale(PARTICLE_DAMP);
+            } else {
+                particle.position.z = nz;
+            }
+
+            if (particle.lifetime <= 0) {
+            } else {
+                pushSprite(particleImageData, allocPool(poolV2).set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE)
+            }
+        }
+    }
+}
+
+function emitParticle(source: Vector3, particles: Array<Particle>) {
+    for (let particle of particles) {
+        if (particle.lifetime <= 0) {
+            particle.lifetime = PARTICLE_LIFETIME;
+            particle.position.copy(source);
+            const angle = Math.random()*2*Math.PI;
+            particle.velocity.x = Math.cos(angle);
+            particle.velocity.y = Math.sin(angle);
+            particle.velocity.z = Math.random()*1.0;
+            particle.velocity.scale(PARTICLE_MAX_SPEED*Math.random());
+            break;
+        }
+    }
+}
+
+function updateBombs(bombs: Array<Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement, bombBlastSound: HTMLAudioElement) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             bomb.lifetime -= deltaTime;
@@ -898,7 +974,11 @@ function updateBombs(bombs: Array<Bomb>, scene: Scene, deltaTime: number, bombIm
             }
 
             if (bomb.lifetime <= 0) {
-                // TODO: explode
+                bombBlastSound.currentTime = 0;
+                bombBlastSound.play();
+                for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
+                    emitParticle(bomb.position, particles);
+                }
             } else {
                 pushSprite(bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE)
             }
@@ -906,14 +986,15 @@ function updateBombs(bombs: Array<Bomb>, scene: Scene, deltaTime: number, bombIm
     }
 }
 
-export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, items: Array<Item>, bombs: Array<Bomb>, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement, itemPickupSound: HTMLAudioElement) {
+export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, items: Array<Item>, bombs: Array<Bomb>, particles: Array<Particle>, bombImageData: ImageData, particleImageData: ImageData, bombRicochetSound: HTMLAudioElement, itemPickupSound: HTMLAudioElement, bombBlastSound: HTMLAudioElement) {
     resetPool(spritePool);
     resetPool(poolV2);
     resetPool(poolV3);
 
     updatePlayer(player, scene, deltaTime);
     updateItems(time, player, items, itemPickupSound);
-    updateBombs(bombs, scene, deltaTime, bombImageData, bombRicochetSound);
+    updateBombs(bombs, particles, scene, deltaTime, bombImageData, bombRicochetSound, bombBlastSound);
+    updateParticles(deltaTime, scene, particles, particleImageData)
 
     renderFloorAndCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
