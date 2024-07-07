@@ -409,7 +409,7 @@ function playerFovRange(player) {
     const p2 = p.clonePool(poolV2).add(wing);
     return [p1, p2];
 }
-function renderMinimap(ctx, player, scene, spritePool) {
+function renderMinimap(ctx, player, scene) {
     ctx.save();
     const cellSize = ctx.canvas.width * MINIMAP_SCALE;
     const gridSize = sceneSize(scene);
@@ -452,8 +452,8 @@ function renderMinimap(ctx, player, scene, spritePool) {
         const dir = allocPool(poolV2).setAngle(player.direction);
         strokeLine(ctx, player.position, player.position.clonePool(poolV2).add(dir));
         ctx.fillStyle = "white";
-        for (let i = 0; i < spritePool.count; ++i) {
-            const sprite = spritePool.sprites[i];
+        for (let i = 0; i < spritePool.length; ++i) {
+            const sprite = spritePool.items[i];
             ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE * 0.5, sprite.position.y - MINIMAP_SPRITE_SIZE * 0.5, MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
             sp.copy(sprite.position).sub(player.position);
             strokeLine(ctx, player.position, player.position.clonePool(poolV2).add(sp));
@@ -574,14 +574,22 @@ function displaySwapBackImageData(display) {
     display.backCtx.putImageData(display.backImageData, 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
+const spritePool = createPool({
+    imageData: undefined,
+    position: undefined,
+    z: 0,
+    scale: 0,
+    pdist: 0,
+    t: 0,
+});
 const visibleSprites = [];
-function renderSprites(display, player, spritePool) {
+function renderSprites(display, player) {
     const sp = allocPool(poolV2);
     const dir = allocPool(poolV2).setAngle(player.direction);
     const [p1, p2] = playerFovRange(player);
     visibleSprites.length = 0;
-    for (let i = 0; i < spritePool.count; ++i) {
-        const sprite = spritePool.sprites[i];
+    for (let i = 0; i < spritePool.length; ++i) {
+        const sprite = spritePool.items[i];
         sp.copy(sprite.position).sub(player.position);
         const spl = sp.length();
         if (spl <= NEAR_CLIPPING_PLANE)
@@ -633,30 +641,14 @@ function renderSprites(display, player, spritePool) {
         }
     }
 }
-function pushSprite(spritePool, imageData, position, z, scale) {
-    if (spritePool.sprites.length <= spritePool.count) {
-        spritePool.sprites.push({
-            imageData,
-            position,
-            z,
-            scale,
-            pdist: 0,
-            t: 0,
-        });
-    }
-    else {
-        spritePool.sprites[spritePool.count].imageData = imageData;
-        spritePool.sprites[spritePool.count].position = position;
-        spritePool.sprites[spritePool.count].z = z;
-        spritePool.sprites[spritePool.count].scale = scale;
-    }
-    spritePool.count += 1;
-}
-export function createSpritePool() {
-    return {
-        sprites: [],
-        count: 0,
-    };
+function pushSprite(imageData, position, z, scale) {
+    const sprite = allocPool(spritePool);
+    sprite.imageData = imageData;
+    sprite.position = position;
+    sprite.z = z;
+    sprite.scale = scale;
+    sprite.pdist = 0;
+    sprite.t = 0;
 }
 export function allocateBombs(capacity) {
     let bomb = [];
@@ -707,7 +699,7 @@ function updatePlayer(player, scene, deltaTime) {
         player.position.y = ny;
     }
 }
-function updateItems(spritePool, time, player, items, itemPickupSound) {
+function updateItems(time, player, items, itemPickupSound) {
     for (let item of items) {
         if (item.alive) {
             if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS * PLAYER_RADIUS) {
@@ -717,11 +709,11 @@ function updateItems(spritePool, time, player, items, itemPickupSound) {
             }
         }
         if (item.alive) {
-            pushSprite(spritePool, item.imageData, item.position, 0.25 + ITEM_AMP - ITEM_AMP * Math.sin(ITEM_FREQ * Math.PI * time + item.position.x + item.position.y), 0.25);
+            pushSprite(item.imageData, item.position, 0.25 + ITEM_AMP - ITEM_AMP * Math.sin(ITEM_FREQ * Math.PI * time + item.position.x + item.position.y), 0.25);
         }
     }
 }
-function updateBombs(spritePool, bombs, scene, deltaTime, bombImageData, bombRicochetSound) {
+function updateBombs(bombs, scene, deltaTime, bombImageData, bombRicochetSound) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             bomb.lifetime -= deltaTime;
@@ -760,24 +752,24 @@ function updateBombs(spritePool, bombs, scene, deltaTime, bombImageData, bombRic
             if (bomb.lifetime <= 0) {
             }
             else {
-                pushSprite(spritePool, bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
+                pushSprite(bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
             }
         }
     }
 }
-export function renderGame(display, deltaTime, time, player, scene, spritePool, items, bombs, bombImageData, bombRicochetSound, itemPickupSound) {
-    spritePool.count = 0;
+export function renderGame(display, deltaTime, time, player, scene, items, bombs, bombImageData, bombRicochetSound, itemPickupSound) {
+    resetPool(spritePool);
     resetPool(poolV2);
     resetPool(poolV3);
     updatePlayer(player, scene, deltaTime);
-    updateItems(spritePool, time, player, items, itemPickupSound);
-    updateBombs(spritePool, bombs, scene, deltaTime, bombImageData, bombRicochetSound);
+    updateItems(time, player, items, itemPickupSound);
+    updateBombs(bombs, scene, deltaTime, bombImageData, bombRicochetSound);
     renderFloorAndCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
-    renderSprites(display, player, spritePool);
+    renderSprites(display, player);
     displaySwapBackImageData(display);
     if (MINIMAP)
-        renderMinimap(display.ctx, player, scene, spritePool);
+        renderMinimap(display.ctx, player, scene);
     renderFPS(display.ctx, deltaTime);
 }
 //# sourceMappingURL=game.js.map

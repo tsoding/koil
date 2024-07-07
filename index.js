@@ -48,7 +48,6 @@ async function loadImageData(url) {
         [null, null, null, null, null, null, null],
     ]);
     const player = game.createPlayer(new game.Vector2(scene.width, scene.height).scale(0.63), Math.PI * 1.25);
-    const spritePool = game.createSpritePool();
     const items = [
         {
             imageData: bomb,
@@ -163,7 +162,7 @@ async function loadImageData(url) {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
-        game.renderGame(display, deltaTime, time, player, scene, spritePool, items, bombs, bomb, bombRicochet, itemPickup);
+        game.renderGame(display, deltaTime, time, player, scene, items, bombs, bomb, bombRicochet, itemPickup);
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {

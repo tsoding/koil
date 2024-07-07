@@ -486,7 +486,7 @@ function playerFovRange(player: Player): [Vector2, Vector2] {
     return [p1, p2];
 }
 
-function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Scene, spritePool: SpritePool) {
+function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
     ctx.save();
 
     const cellSize = ctx.canvas.width*MINIMAP_SCALE;
@@ -538,8 +538,8 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
         const dir = allocPool(poolV2).setAngle(player.direction);
         strokeLine(ctx, player.position, player.position.clonePool(poolV2).add(dir));
         ctx.fillStyle = "white"
-        for (let i = 0; i < spritePool.count; ++i) {
-            const sprite = spritePool.sprites[i];
+        for (let i = 0; i < spritePool.length; ++i) {
+            const sprite = spritePool.items[i];
 
             ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE*0.5,
                          sprite.position.y - MINIMAP_SPRITE_SIZE*0.5,
@@ -696,15 +696,24 @@ export interface Sprite {
     t: number;     // Normalized horizontal position on the screen
 }
 
+const spritePool = createPool({
+    imageData: undefined as unknown as ImageData,
+    position: undefined as unknown as Vector2,
+    z: 0,
+    scale: 0,
+    pdist: 0,
+    t: 0,
+});
+
 const visibleSprites: Array<Sprite> = [];
-function renderSprites(display: Display, player: Player, spritePool: SpritePool) {
+function renderSprites(display: Display, player: Player) {
     const sp = allocPool(poolV2);
     const dir = allocPool(poolV2).setAngle(player.direction);
     const [p1, p2] = playerFovRange(player);
 
     visibleSprites.length = 0;
-    for (let i = 0; i < spritePool.count; ++i) {
-        const sprite = spritePool.sprites[i];
+    for (let i = 0; i < spritePool.length; ++i) {
+        const sprite = spritePool.items[i];
 
         sp.copy(sprite.position).sub(player.position);
         const spl = sp.length();
@@ -762,36 +771,14 @@ function renderSprites(display: Display, player: Player, spritePool: SpritePool)
     }
 }
 
-export interface SpritePool {
-    sprites: Array<Sprite>,
-    count: number,
-}
-
-function pushSprite(spritePool: SpritePool, imageData: ImageData, position: Vector2, z: number, scale: number) {
-    if (spritePool.sprites.length <= spritePool.count) {
-        spritePool.sprites.push({
-            imageData,
-            position,
-            z,
-            scale,
-
-            pdist: 0,
-            t: 0,
-        })
-    } else {
-        spritePool.sprites[spritePool.count].imageData = imageData;
-        spritePool.sprites[spritePool.count].position = position;
-        spritePool.sprites[spritePool.count].z = z;
-        spritePool.sprites[spritePool.count].scale = scale;
-    }
-    spritePool.count += 1;
-}
-
-export function createSpritePool(): SpritePool {
-    return {
-        sprites: [],
-        count: 0,
-    }
+function pushSprite(imageData: ImageData, position: Vector2, z: number, scale: number) {
+    const sprite = allocPool(spritePool);
+    sprite.imageData = imageData;
+    sprite.position = position;
+    sprite.z = z;
+    sprite.scale = scale;
+    sprite.pdist = 0;
+    sprite.t = 0;
 }
 
 interface Item {
@@ -858,7 +845,7 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
     }
 }
 
-function updateItems(spritePool: SpritePool, time: number, player: Player, items: Array<Item>, itemPickupSound: HTMLAudioElement) {
+function updateItems(time: number, player: Player, items: Array<Item>, itemPickupSound: HTMLAudioElement) {
     for (let item of items) {
         if (item.alive) {
             if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS*PLAYER_RADIUS) {
@@ -869,12 +856,12 @@ function updateItems(spritePool: SpritePool, time: number, player: Player, items
         }
 
         if (item.alive) {
-            pushSprite(spritePool, item.imageData, item.position, 0.25 + ITEM_AMP - ITEM_AMP*Math.sin(ITEM_FREQ*Math.PI*time + item.position.x + item.position.y), 0.25);
+            pushSprite(item.imageData, item.position, 0.25 + ITEM_AMP - ITEM_AMP*Math.sin(ITEM_FREQ*Math.PI*time + item.position.x + item.position.y), 0.25);
         }
     }
 }
 
-function updateBombs(spritePool: SpritePool, bombs: Array<Bomb>, scene: Scene, deltaTime: number, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement) {
+function updateBombs(bombs: Array<Bomb>, scene: Scene, deltaTime: number, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             bomb.lifetime -= deltaTime;
@@ -913,26 +900,26 @@ function updateBombs(spritePool: SpritePool, bombs: Array<Bomb>, scene: Scene, d
             if (bomb.lifetime <= 0) {
                 // TODO: explode
             } else {
-                pushSprite(spritePool, bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE)
+                pushSprite(bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE)
             }
         }
     }
 }
 
-export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, spritePool: SpritePool, items: Array<Item>, bombs: Array<Bomb>, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement, itemPickupSound: HTMLAudioElement) {
-    spritePool.count = 0;
+export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, items: Array<Item>, bombs: Array<Bomb>, bombImageData: ImageData, bombRicochetSound: HTMLAudioElement, itemPickupSound: HTMLAudioElement) {
+    resetPool(spritePool);
     resetPool(poolV2);
     resetPool(poolV3);
 
     updatePlayer(player, scene, deltaTime);
-    updateItems(spritePool, time, player, items, itemPickupSound);
-    updateBombs(spritePool, bombs, scene, deltaTime, bombImageData, bombRicochetSound);
+    updateItems(time, player, items, itemPickupSound);
+    updateBombs(bombs, scene, deltaTime, bombImageData, bombRicochetSound);
 
     renderFloorAndCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
-    renderSprites(display, player, spritePool);
+    renderSprites(display, player);
     displaySwapBackImageData(display);
 
-    if (MINIMAP) renderMinimap(display.ctx, player, scene, spritePool);
+    if (MINIMAP) renderMinimap(display.ctx, player, scene);
     renderFPS(display.ctx, deltaTime);
 }
