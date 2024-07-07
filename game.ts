@@ -26,7 +26,7 @@ const BOMB_THROW_VELOCITY = 5;
 const BOMB_GRAVITY = 10;
 const BOMB_DAMP = 0.8;
 const BOMB_SCALE = 0.25;
-const BOMB_PARTICLE_COUNT = 30
+const BOMB_PARTICLE_COUNT = 50
 
 const PARTICLE_LIFETIME = 1.0;
 const PARTICLE_DAMP = 0.8;
@@ -930,7 +930,7 @@ function emitParticle(source: Vector3, particles: Array<Particle>) {
             const angle = Math.random()*2*Math.PI;
             particle.velocity.x = Math.cos(angle);
             particle.velocity.y = Math.sin(angle);
-            particle.velocity.z = Math.random()*1.0;
+            particle.velocity.z = Math.random()*0.5 + 0.5;
             particle.velocity.scale(PARTICLE_MAX_SPEED*Math.random());
             break;
         }
