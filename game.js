@@ -705,12 +705,12 @@ function updatePlayer(player, scene, deltaTime) {
         player.position.y = ny;
     }
 }
-function updateItems(time, player, items, itemPickupSound) {
+function updateItems(time, player, items, assets) {
     for (let item of items) {
         if (item.alive) {
             if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS * PLAYER_RADIUS) {
-                itemPickupSound.currentTime = 0;
-                itemPickupSound.play();
+                assets.itemPickupSound.currentTime = 0;
+                assets.itemPickupSound.play();
                 item.alive = false;
             }
         }
@@ -730,7 +730,7 @@ export function allocateParticles(capacity) {
     }
     return bomb;
 }
-function updateParticles(deltaTime, scene, particles, particleImageData) {
+function updateParticles(deltaTime, scene, particles, assets) {
     for (let particle of particles) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
@@ -761,7 +761,7 @@ function updateParticles(deltaTime, scene, particles, particleImageData) {
             if (particle.lifetime <= 0) {
             }
             else {
-                pushSprite(particleImageData, allocPool(poolV2).set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
+                pushSprite(assets.particleImageData, allocPool(poolV2).set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
             }
         }
     }
@@ -780,7 +780,7 @@ function emitParticle(source, particles) {
         }
     }
 }
-function updateBombs(bombs, particles, scene, deltaTime, bombImageData, bombRicochetSound, bombBlastSound) {
+function updateBombs(bombs, particles, scene, deltaTime, assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             bomb.lifetime -= deltaTime;
@@ -796,8 +796,8 @@ function updateBombs(bombs, particles, scene, deltaTime, bombImageData, bombRico
                     bomb.velocity.y *= -1;
                 bomb.velocity.scale(BOMB_DAMP);
                 if (bomb.velocity.length() > 1) {
-                    bombRicochetSound.currentTime = 0;
-                    bombRicochetSound.play();
+                    assets.bombRicochetSound.currentTime = 0;
+                    assets.bombRicochetSound.play();
                 }
             }
             else {
@@ -809,34 +809,34 @@ function updateBombs(bombs, particles, scene, deltaTime, bombImageData, bombRico
                 bomb.velocity.z *= -1;
                 bomb.velocity.scale(BOMB_DAMP);
                 if (bomb.velocity.length() > 1) {
-                    bombRicochetSound.currentTime = 0;
-                    bombRicochetSound.play();
+                    assets.bombRicochetSound.currentTime = 0;
+                    assets.bombRicochetSound.play();
                 }
             }
             else {
                 bomb.position.z = nz;
             }
             if (bomb.lifetime <= 0) {
-                bombBlastSound.currentTime = 0;
-                bombBlastSound.play();
+                assets.bombBlastSound.currentTime = 0;
+                assets.bombBlastSound.play();
                 for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
                     emitParticle(bomb.position, particles);
                 }
             }
             else {
-                pushSprite(bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
+                pushSprite(assets.bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
             }
         }
     }
 }
-export function renderGame(display, deltaTime, time, player, scene, items, bombs, particles, bombImageData, particleImageData, bombRicochetSound, itemPickupSound, bombBlastSound) {
+export function renderGame(display, deltaTime, time, player, scene, items, bombs, particles, assets) {
     resetPool(spritePool);
     resetPool(poolV2);
     resetPool(poolV3);
     updatePlayer(player, scene, deltaTime);
-    updateItems(time, player, items, itemPickupSound);
-    updateBombs(bombs, particles, scene, deltaTime, bombImageData, bombRicochetSound, bombBlastSound);
-    updateParticles(deltaTime, scene, particles, particleImageData);
+    updateItems(time, player, items, assets);
+    updateBombs(bombs, particles, scene, deltaTime, assets);
+    updateParticles(deltaTime, scene, particles, assets);
     renderFloorAndCeiling(display.backImageData, player);
     renderWalls(display, player, scene);
     renderSprites(display, player);

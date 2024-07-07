@@ -30,15 +30,22 @@ async function loadImageData(url: string): Promise<ImageData> {
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const [wall, key, bomb, particle] = await Promise.all([
+    const [wall, key, bombImageData, particleImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/particle.png"),
     ]);
-    const itemPickup = new Audio("assets/sounds/bomb-pickup.ogg");
-    const bombRicochet = new Audio("assets/sounds/ricochet.wav");
-    const blast = new Audio("assets/sounds/blast.ogg");
+    const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
+    const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
+    const bombBlastSound = new Audio("assets/sounds/blast.ogg");
+    const assets = {
+        bombImageData,
+        particleImageData,
+        bombRicochetSound,
+        itemPickupSound,
+        bombBlastSound,
+    }
 
     let game = await import("./game.js");
     const scene = game.createScene([
@@ -57,7 +64,7 @@ async function loadImageData(url: string): Promise<ImageData> {
 
     const items = [
         {
-            imageData: bomb,
+            imageData: bombImageData,
             position: new game.Vector2(1.5, 2.5),
             alive: true,
         },
@@ -150,7 +157,7 @@ async function loadImageData(url: string): Promise<ImageData> {
         const deltaTime = (timestamp - prevTimestamp)/1000;
         const time = timestamp/1000;
         prevTimestamp = timestamp;
-        game.renderGame(display, deltaTime, time, player, scene, items, bombs, particles, bomb, particle, bombRicochet, itemPickup, blast);
+        game.renderGame(display, deltaTime, time, player, scene, items, bombs, particles, assets);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {
