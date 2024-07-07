@@ -47,7 +47,7 @@ async function loadImageData(url) {
         [null, null, null, null, null, null, null],
         [null, null, null, null, null, null, null],
     ]);
-    const player = game.createPlayer(game.sceneSize(scene).scale(0.63), Math.PI * 1.25);
+    const player = game.createPlayer(new game.Vector2(scene.width, scene.height).scale(0.63), Math.PI * 1.25);
     const spritePool = game.createSpritePool();
     const items = [
         {
