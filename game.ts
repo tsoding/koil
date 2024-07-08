@@ -7,7 +7,7 @@
 // often.
 //
 // Only simple functions that operate on objects that don't store any functions can be easily
-// hot-reloaded. Examples are State and Player which we defined as interfaces.
+// hot-reloaded. Examples are Scene and Player which we defined as interfaces.
 import { Vector2, Vector3, RGBA } from './vector.js';
 
 const EPS = 1e-6;
