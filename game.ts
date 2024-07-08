@@ -398,7 +398,14 @@ function renderFloorAndCeiling(imageData: ImageData, player: Player) {
         t1.copy(player.fovLeft).sub(player.position).norm().scale(b).add(player.position);
         t2.copy(player.fovRight).sub(player.position).norm().scale(b).add(player.position);
 
-        // TODO: render rows up until FAR_CLIPPING_PLANE
+        // TODO: Render rows up until FAR_CLIPPING_PLANE
+        //   There is a small bug with how we are projecting the floor and ceiling which makes it non-trivial.
+        //   I think we are projecting it too far, and the only reason it works is because we have no
+        //   specific textures at specific places anywhere. So it works completely accidentally.
+        //   We need to fix this bug first.
+        //
+        //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
+        //   fewer rows.
 
         for (let x = 0; x < imageData.width; ++x) {
             t.copy(t1).lerp(t2, x/imageData.width);
