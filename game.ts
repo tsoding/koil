@@ -745,7 +745,7 @@ function pushSprite(imageData: ImageData, position: Vector2, z: number, scale: n
     if (spritePool.length >= spritePool.items.length) {
         spritePool.items.push({
             imageData,
-            position,
+            position: position.clone(),
             z,
             scale,
             pdist: 0,
@@ -753,7 +753,7 @@ function pushSprite(imageData: ImageData, position: Vector2, z: number, scale: n
         })
     } else {
         spritePool.items[spritePool.length].imageData = imageData;
-        spritePool.items[spritePool.length].position = position;
+        spritePool.items[spritePool.length].position.copy(position);
         spritePool.items[spritePool.length].z = z;
         spritePool.items[spritePool.length].scale = scale;
         spritePool.items[spritePool.length].pdist = 0;
