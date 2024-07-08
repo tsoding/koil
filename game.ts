@@ -445,10 +445,12 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
 
 export interface Player {
     position: Vector2;
-    // TODO: it is unclear that velocity is a temporary vector that only makes sense within a single frame
+    // TODO: it is unclear that velocity, fovLeft and fovRight are temporary vectors that only makes sense within a single frame
     //   And if we want to avoid Vector.clone()-s we will have lots of temporary vectors like that.
     //   Maybe we should create some sort of temporary allocator of vectors that live for a single frame?
     velocity: Vector2;
+    fovLeft: Vector2;
+    fovRight: Vector2;
     direction: number;
     movingForward: boolean;
     movingBackward: boolean;
@@ -459,7 +461,9 @@ export interface Player {
 export function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
-        velocity: new Vector2(0, 0),
+        velocity: new Vector2(),
+        fovLeft: new Vector2(),
+        fovRight: new Vector2(),
         direction: direction,
         movingForward: false,
         movingBackward: false,
@@ -468,13 +472,10 @@ export function createPlayer(position: Vector2, direction: number): Player {
     }
 }
 
-function playerFovRange(player: Player): [Vector2, Vector2] {
-    const l = Math.tan(FOV*0.5)*NEAR_CLIPPING_PLANE;
-    const p = new Vector2().setAngle(player.direction, NEAR_CLIPPING_PLANE).add(player.position);
-    const wing = p.clone().sub(player.position).rot90().norm().scale(l);
-    const p1 = p.clone().sub(wing);
-    const p2 = p.clone().add(wing);
-    return [p1, p2];
+function playerComputeFov(player: Player) {
+    const l = NEAR_CLIPPING_PLANE/Math.cos(FOV*0.5);
+    player.fovLeft.setAngle(player.direction-FOV*0.5, l).add(player.position);
+    player.fovRight.setAngle(player.direction+FOV*0.5, l).add(player.position);
 }
 
 function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Scene) {
@@ -516,11 +517,10 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
                  player.position.y - MINIMAP_PLAYER_SIZE*0.5,
                  MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
 
-    const [p1, p2] = playerFovRange(player);
     ctx.strokeStyle = "magenta";
-    strokeLine(ctx, p1, p2);
-    strokeLine(ctx, player.position, p1);
-    strokeLine(ctx, player.position, p2);
+    strokeLine(ctx, player.fovLeft, player.fovRight);
+    strokeLine(ctx, player.position, player.fovLeft);
+    strokeLine(ctx, player.position, player.fovRight);
 
     if (MINIMAP_SPRITES) {
         ctx.fillStyle = "red";
@@ -572,10 +572,9 @@ function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
 }
 
 function renderWalls(display: Display, player: Player, scene: Scene) {
-    const [r1, r2] = playerFovRange(player);
     const d = new Vector2().setAngle(player.direction)
     for (let x = 0; x < display.backImageData.width; ++x) {
-        const p = castRay(scene, player.position, r1.clone().lerp(r2, x/display.backImageData.width));
+        const p = castRay(scene, player.position, player.fovLeft.clone().lerp(player.fovRight, x/display.backImageData.width));
         const c = hittingCell(player.position, p);
         const cell = sceneGetTile(scene, c);
         const v = p.clone().sub(player.position);
@@ -626,18 +625,17 @@ function renderWalls(display: Display, player: Player, scene: Scene) {
 
 function renderFloorAndCeiling(imageData: ImageData, player: Player) {
     const pz = imageData.height/2;
-    const [p1, p2] = playerFovRange(player);
     const t = new Vector2();
     const t1 = new Vector2();
     const t2 = new Vector2();
-    const bp = t1.copy(p1).sub(player.position).length();
+    const bp = t1.copy(player.fovLeft).sub(player.position).length();
     for (let y = Math.floor(imageData.height/2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
 
         const ap = pz - sz;
         const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        t1.copy(p1).sub(player.position).norm().scale(b).add(player.position);
-        t2.copy(p2).sub(player.position).norm().scale(b).add(player.position);
+        t1.copy(player.fovLeft).sub(player.position).norm().scale(b).add(player.position);
+        t2.copy(player.fovRight).sub(player.position).norm().scale(b).add(player.position);
 
         // TODO: render rows up until FAR_CLIPPING_PLANE
 
@@ -693,7 +691,6 @@ const visibleSprites: Array<Sprite> = [];
 function renderSprites(display: Display, player: Player) {
     const sp = new Vector2();
     const dir = new Vector2().setAngle(player.direction);
-    const [p1, p2] = playerFovRange(player);
 
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
@@ -709,7 +706,7 @@ function renderSprites(display: Display, player: Player) {
         if (!(COS_OF_HALF_FOV <= dot)) continue;  // Sprite is outside of the Field of View
         const dist = NEAR_CLIPPING_PLANE/dot;
         sp.norm().scale(dist).add(player.position);
-        sprite.t = p1.distanceTo(sp)/p1.distanceTo(p2);
+        sprite.t = player.fovLeft.distanceTo(sp)/player.fovLeft.distanceTo(player.fovRight);
         sprite.pdist = sprite.position.clone().sub(player.position).dot(dir);
 
         // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
@@ -840,6 +837,7 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
     if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.y = ny;
     }
+    playerComputeFov(player);
 }
 
 function spriteOfItemKind(itemKind: ItemKind, assets: Assets): ImageData {
