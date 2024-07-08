@@ -30,11 +30,10 @@ async function loadImageData(url) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const [wall, keyImageData, bombImageData, particleImageData] = await Promise.all([
+    const [wall, keyImageData, bombImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
-        loadImageData("assets/images/custom/particle.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -42,7 +41,6 @@ async function loadImageData(url) {
     const assets = {
         keyImageData,
         bombImageData,
-        particleImageData,
         bombRicochetSound,
         itemPickupSound,
         bombBlastSound,

@@ -10,6 +10,27 @@
 //
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are State and Player which we defined as interfaces.
+
+export class RGBA {
+    r: number;
+    g: number;
+    b: number;
+    a: number;
+    constructor(r: number, g: number, b: number, a: number) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+    toStyle(): string {
+        return `rgba(`
+            +`${Math.floor(this.r*255)}, `
+            +`${Math.floor(this.g*255)}, `
+            +`${Math.floor(this.b*255)}, `
+            +`${this.a})`;
+    }
+}
+
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -32,6 +53,7 @@ const PARTICLE_LIFETIME = 1.0;
 const PARTICLE_DAMP = 0.8;
 const PARTICLE_SCALE = 0.05;
 const PARTICLE_MAX_SPEED = 8;
+const PARTICLE_COLOR = new RGBA(1, 0.5, 0.15, 1);
 
 const MINIMAP = false;
 const MINIMAP_SPRITES = false;
@@ -53,26 +75,6 @@ function createSpritePool(): SpritePool {
 
 function resetSpritePool(spritePool: SpritePool) {
     spritePool.length = 0;
-}
-
-export class RGBA {
-    r: number;
-    g: number;
-    b: number;
-    a: number;
-    constructor(r: number, g: number, b: number, a: number) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
-    }
-    toStyle(): string {
-        return `rgba(`
-            +`${Math.floor(this.r*255)}, `
-            +`${Math.floor(this.g*255)}, `
-            +`${Math.floor(this.b*255)}, `
-            +`${this.a})`;
-    }
 }
 
 export class Vector2 {
@@ -898,7 +900,7 @@ function updateParticles(deltaTime: number, scene: Scene, particles: Array<Parti
 
             if (particle.lifetime <= 0) {
             } else {
-                pushSprite(assets.particleImageData, new Vector2().set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE)
+                pushSprite(PARTICLE_COLOR, new Vector2().set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE)
             }
         }
     }
@@ -980,7 +982,6 @@ function updateBombs(player: Player, bombs: Array<Bomb>, particles: Array<Partic
 export interface Assets {
     keyImageData: ImageData,
     bombImageData: ImageData,
-    particleImageData: ImageData,
     bombRicochetSound: HTMLAudioElement,
     itemPickupSound: HTMLAudioElement,
     bombBlastSound: HTMLAudioElement

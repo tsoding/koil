@@ -1,3 +1,22 @@
+export class RGBA {
+    r;
+    g;
+    b;
+    a;
+    constructor(r, g, b, a) {
+        this.r = r;
+        this.g = g;
+        this.b = b;
+        this.a = a;
+    }
+    toStyle() {
+        return `rgba(`
+            + `${Math.floor(this.r * 255)}, `
+            + `${Math.floor(this.g * 255)}, `
+            + `${Math.floor(this.b * 255)}, `
+            + `${this.a})`;
+    }
+}
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -17,6 +36,7 @@ const PARTICLE_LIFETIME = 1.0;
 const PARTICLE_DAMP = 0.8;
 const PARTICLE_SCALE = 0.05;
 const PARTICLE_MAX_SPEED = 8;
+const PARTICLE_COLOR = new RGBA(1, 0.5, 0.15, 1);
 const MINIMAP = false;
 const MINIMAP_SPRITES = false;
 const MINIMAP_PLAYER_SIZE = 0.5;
@@ -30,25 +50,6 @@ function createSpritePool() {
 }
 function resetSpritePool(spritePool) {
     spritePool.length = 0;
-}
-export class RGBA {
-    r;
-    g;
-    b;
-    a;
-    constructor(r, g, b, a) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
-    }
-    toStyle() {
-        return `rgba(`
-            + `${Math.floor(this.r * 255)}, `
-            + `${Math.floor(this.g * 255)}, `
-            + `${Math.floor(this.b * 255)}, `
-            + `${this.a})`;
-    }
 }
 export class Vector2 {
     x;
@@ -750,7 +751,7 @@ function updateParticles(deltaTime, scene, particles, assets) {
             if (particle.lifetime <= 0) {
             }
             else {
-                pushSprite(assets.particleImageData, new Vector2().set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
+                pushSprite(PARTICLE_COLOR, new Vector2().set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
             }
         }
     }
