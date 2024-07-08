@@ -90,9 +90,6 @@ export class Vector2 {
     clone() {
         return new Vector2(this.x, this.y);
     }
-    clonePool(pool) {
-        return allocPool(pool).copy(this);
-    }
     copy(that) {
         this.x = that.x;
         this.y = that.y;
@@ -269,8 +266,6 @@ export class Vector3 {
         return this;
     }
 }
-const poolV2 = createPool(new Vector2());
-const poolV3 = createPool(new Vector3());
 function strokeLine(ctx, p1, p2) {
     ctx.beginPath();
     ctx.moveTo(p1.x, p1.y);
@@ -287,8 +282,7 @@ function snap(x, dx) {
 function hittingCell(p1, p2) {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
-    return allocPool(poolV2)
-        .set(Math.floor(p2.x + Math.sign(dx) * EPS), Math.floor(p2.y + Math.sign(dy) * EPS));
+    return new Vector2(Math.floor(p2.x + Math.sign(dx) * EPS), Math.floor(p2.y + Math.sign(dy) * EPS));
 }
 function rayStep(p1, p2) {
     let p3 = p2;
@@ -300,12 +294,12 @@ function rayStep(p1, p2) {
         {
             const x3 = snap(p2.x, dx);
             const y3 = x3 * k + c;
-            p3 = allocPool(poolV2).set(x3, y3);
+            p3 = new Vector2().set(x3, y3);
         }
         if (k !== 0) {
             const y3 = snap(p2.y, dy);
             const x3 = (y3 - c) / k;
-            const p3t = allocPool(poolV2).set(x3, y3);
+            const p3t = new Vector2().set(x3, y3);
             if (p2.sqrDistanceTo(p3t) < p2.sqrDistanceTo(p3)) {
                 p3 = p3t;
             }
@@ -314,7 +308,7 @@ function rayStep(p1, p2) {
     else {
         const y3 = snap(p2.y, dy);
         const x3 = p2.x;
-        p3 = allocPool(poolV2).set(x3, y3);
+        p3 = new Vector2().set(x3, y3);
     }
     return p3;
 }
@@ -340,7 +334,7 @@ export function createScene(walls) {
     return scene;
 }
 function sceneSize(scene) {
-    return allocPool(poolV2).set(scene.width, scene.height);
+    return new Vector2().set(scene.width, scene.height);
 }
 function sceneContains(scene, p) {
     return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
@@ -377,7 +371,7 @@ function sceneCanRectangleFitHere(scene, px, py, sx, sy) {
     const y2 = Math.floor(py + sy * 0.5);
     for (let x = x1; x <= x2; ++x) {
         for (let y = y1; y <= y2; ++y) {
-            if (sceneIsWall(scene, allocPool(poolV2).set(x, y))) {
+            if (sceneIsWall(scene, new Vector2().set(x, y))) {
                 return false;
             }
         }
@@ -409,10 +403,10 @@ export function createPlayer(position, direction) {
 }
 function playerFovRange(player) {
     const l = Math.tan(FOV * 0.5) * NEAR_CLIPPING_PLANE;
-    const p = allocPool(poolV2).setAngle(player.direction, NEAR_CLIPPING_PLANE).add(player.position);
-    const wing = p.clonePool(poolV2).sub(player.position).rot90().norm().scale(l);
-    const p1 = p.clonePool(poolV2).sub(wing);
-    const p2 = p.clonePool(poolV2).add(wing);
+    const p = new Vector2().setAngle(player.direction, NEAR_CLIPPING_PLANE).add(player.position);
+    const wing = p.clone().sub(player.position).rot90().norm().scale(l);
+    const p1 = p.clone().sub(wing);
+    const p2 = p.clone().add(wing);
     return [p1, p2];
 }
 function renderMinimap(ctx, player, scene) {
@@ -426,7 +420,7 @@ function renderMinimap(ctx, player, scene) {
     ctx.lineWidth = 0.05;
     for (let y = 0; y < gridSize.y; ++y) {
         for (let x = 0; x < gridSize.x; ++x) {
-            const cell = sceneGetTile(scene, allocPool(poolV2).set(x, y));
+            const cell = sceneGetTile(scene, new Vector2().set(x, y));
             if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
@@ -439,10 +433,10 @@ function renderMinimap(ctx, player, scene) {
     }
     ctx.strokeStyle = "#303030";
     for (let x = 0; x <= gridSize.x; ++x) {
-        strokeLine(ctx, allocPool(poolV2).set(x, 0), allocPool(poolV2).set(x, gridSize.y));
+        strokeLine(ctx, new Vector2().set(x, 0), new Vector2().set(x, gridSize.y));
     }
     for (let y = 0; y <= gridSize.y; ++y) {
-        strokeLine(ctx, allocPool(poolV2).set(0, y), allocPool(poolV2).set(gridSize.x, y));
+        strokeLine(ctx, new Vector2().set(0, y), new Vector2().set(gridSize.x, y));
     }
     ctx.fillStyle = "magenta";
     ctx.fillRect(player.position.x - MINIMAP_PLAYER_SIZE * 0.5, player.position.y - MINIMAP_PLAYER_SIZE * 0.5, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
@@ -454,15 +448,15 @@ function renderMinimap(ctx, player, scene) {
     if (MINIMAP_SPRITES) {
         ctx.fillStyle = "red";
         ctx.strokeStyle = "yellow";
-        const sp = allocPool(poolV2);
-        const dir = allocPool(poolV2).setAngle(player.direction);
-        strokeLine(ctx, player.position, player.position.clonePool(poolV2).add(dir));
+        const sp = new Vector2();
+        const dir = new Vector2().setAngle(player.direction);
+        strokeLine(ctx, player.position, player.position.clone().add(dir));
         ctx.fillStyle = "white";
         for (let i = 0; i < spritePool.length; ++i) {
             const sprite = spritePool.items[i];
             ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE * 0.5, sprite.position.y - MINIMAP_SPRITE_SIZE * 0.5, MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
             sp.copy(sprite.position).sub(player.position);
-            strokeLine(ctx, player.position, player.position.clonePool(poolV2).add(sp));
+            strokeLine(ctx, player.position, player.position.clone().add(sp));
             const spl = sp.length();
             if (spl <= NEAR_CLIPPING_PLANE)
                 continue;
@@ -490,12 +484,12 @@ function renderFPS(ctx, deltaTime) {
 }
 function renderWalls(display, player, scene) {
     const [r1, r2] = playerFovRange(player);
-    const d = allocPool(poolV2).setAngle(player.direction);
+    const d = new Vector2().setAngle(player.direction);
     for (let x = 0; x < display.backImageData.width; ++x) {
-        const p = castRay(scene, player.position, r1.clonePool(poolV2).lerp(r2, x / display.backImageData.width));
+        const p = castRay(scene, player.position, r1.clone().lerp(r2, x / display.backImageData.width));
         const c = hittingCell(player.position, p);
         const cell = sceneGetTile(scene, c);
-        const v = p.clonePool(poolV2).sub(player.position);
+        const v = p.clone().sub(player.position);
         display.zBuffer[x] = v.dot(d);
         if (cell instanceof RGBA) {
             const stripHeight = display.backImageData.height / display.zBuffer[x];
@@ -511,7 +505,7 @@ function renderWalls(display, player, scene) {
         else if (cell instanceof ImageData) {
             const stripHeight = display.backImageData.height / display.zBuffer[x];
             let u = 0;
-            const t = p.clonePool(poolV2).sub(c);
+            const t = p.clone().sub(c);
             if (Math.abs(t.x) < EPS && t.y > 0) {
                 u = t.y;
             }
@@ -545,9 +539,9 @@ function renderWalls(display, player, scene) {
 function renderFloorAndCeiling(imageData, player) {
     const pz = imageData.height / 2;
     const [p1, p2] = playerFovRange(player);
-    const t = allocPool(poolV2);
-    const t1 = allocPool(poolV2);
-    const t2 = allocPool(poolV2);
+    const t = new Vector2();
+    const t1 = new Vector2();
+    const t2 = new Vector2();
     const bp = t1.copy(p1).sub(player.position).length();
     for (let y = Math.floor(imageData.height / 2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
@@ -590,8 +584,8 @@ const spritePool = createPool({
 });
 const visibleSprites = [];
 function renderSprites(display, player) {
-    const sp = allocPool(poolV2);
-    const dir = allocPool(poolV2).setAngle(player.direction);
+    const sp = new Vector2();
+    const dir = new Vector2().setAngle(player.direction);
     const [p1, p2] = playerFovRange(player);
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
@@ -608,7 +602,7 @@ function renderSprites(display, player) {
         const dist = NEAR_CLIPPING_PLANE / dot;
         sp.norm().scale(dist).add(player.position);
         sprite.t = p1.distanceTo(sp) / p1.distanceTo(p2);
-        sprite.pdist = sprite.position.clonePool(poolV2).sub(player.position).dot(dir);
+        sprite.pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (sprite.pdist < NEAR_CLIPPING_PLANE)
             continue;
         if (sprite.pdist >= FAR_CLIPPING_PLANE)
@@ -684,10 +678,10 @@ function updatePlayer(player, scene, deltaTime) {
     player.velocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.velocity.add(allocPool(poolV2).setAngle(player.direction, PLAYER_SPEED));
+        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED));
     }
     if (player.movingBackward) {
-        player.velocity.sub(allocPool(poolV2).setAngle(player.direction, PLAYER_SPEED));
+        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED));
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -742,7 +736,7 @@ function updateParticles(deltaTime, scene, particles, assets) {
             particle.velocity.z -= BOMB_GRAVITY * deltaTime;
             const nx = particle.position.x + particle.velocity.x * deltaTime;
             const ny = particle.position.y + particle.velocity.y * deltaTime;
-            if (sceneIsWall(scene, allocPool(poolV2).set(nx, ny))) {
+            if (sceneIsWall(scene, new Vector2().set(nx, ny))) {
                 const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
                 if (dx > 0)
@@ -766,7 +760,7 @@ function updateParticles(deltaTime, scene, particles, assets) {
             if (particle.lifetime <= 0) {
             }
             else {
-                pushSprite(assets.particleImageData, allocPool(poolV2).set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
+                pushSprite(assets.particleImageData, new Vector2().set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
             }
         }
     }
@@ -802,7 +796,7 @@ function updateBombs(player, bombs, particles, scene, deltaTime, assets) {
             bomb.velocity.z -= BOMB_GRAVITY * deltaTime;
             const nx = bomb.position.x + bomb.velocity.x * deltaTime;
             const ny = bomb.position.y + bomb.velocity.y * deltaTime;
-            if (sceneIsWall(scene, allocPool(poolV2).set(nx, ny))) {
+            if (sceneIsWall(scene, new Vector2().set(nx, ny))) {
                 const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
                 if (dx > 0)
@@ -836,15 +830,13 @@ function updateBombs(player, bombs, particles, scene, deltaTime, assets) {
                 }
             }
             else {
-                pushSprite(assets.bombImageData, allocPool(poolV2).set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
+                pushSprite(assets.bombImageData, new Vector2().set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
             }
         }
     }
 }
 export function renderGame(display, deltaTime, time, player, scene, items, bombs, particles, assets) {
     resetPool(spritePool);
-    resetPool(poolV2);
-    resetPool(poolV3);
     updatePlayer(player, scene, deltaTime);
     updateItems(time, player, items, assets);
     updateBombs(player, bombs, particles, scene, deltaTime, assets);
