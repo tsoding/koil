@@ -169,7 +169,6 @@ async function loadImageData(url: string): Promise<ImageData> {
     });
 })();
 // TODO: Hot reload assets
-// TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.
-// TODO: Bomb collision should take into account its size
+

@@ -676,8 +676,6 @@ export interface Sprite {
     z: number;
     scale: number;
 
-    // Used only during the rendering. Initialize with 0.
-    // TODO: some sort of constructor that tucks all these away?
     pdist: number; // Player distance.
     t: number;     // Normalized horizontal position on the screen
 }
@@ -1013,3 +1011,7 @@ export function renderGame(display: Display, deltaTime: number, time: number, pl
 }
 
 // TODO: "magnet" items into the player
+// TODO: Blast particles should fade out as they age
+// TODO: Bomb collision should take into account its size
+// TODO: Try lighting with normal maps that come with some of the assets
+// TODO: Try cel shading the walls (using normals and stuff)
