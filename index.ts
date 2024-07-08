@@ -172,6 +172,4 @@ async function loadImageData(url: string): Promise<ImageData> {
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.
-// TODO: 3D sounds
-//   Change volume based on the distance to the sound effect
 // TODO: Bomb collision should take into account its size
