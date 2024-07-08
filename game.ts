@@ -445,10 +445,7 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
 
 export interface Player {
     position: Vector2;
-    // TODO: it is unclear that velocity, fovLeft and fovRight are temporary vectors that only makes sense within a single frame
-    //   And if we want to avoid Vector.clone()-s we will have lots of temporary vectors like that.
-    //   Maybe we should create some sort of temporary allocator of vectors that live for a single frame?
-    velocity: Vector2;
+    controlVelocity: Vector2;
     fovLeft: Vector2;
     fovRight: Vector2;
     direction: number;
@@ -461,7 +458,7 @@ export interface Player {
 export function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
-        velocity: new Vector2(),
+        controlVelocity: new Vector2(),
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
         direction: direction,
@@ -814,13 +811,13 @@ export function throwBomb(player: Player, bombs: Array<Bomb>) {
 }
 
 function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
-    player.velocity.setScalar(0);
+    player.controlVelocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.velocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED))
+        player.controlVelocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED))
     }
     if (player.movingBackward) {
-        player.velocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED))
+        player.controlVelocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED))
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -829,11 +826,11 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
         angularVelocity += Math.PI;
     }
     player.direction = player.direction + angularVelocity*deltaTime;
-    const nx = player.position.x + player.velocity.x*deltaTime;
+    const nx = player.position.x + player.controlVelocity.x*deltaTime;
     if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.x = nx;
     }
-    const ny = player.position.y + player.velocity.y*deltaTime;
+    const ny = player.position.y + player.controlVelocity.y*deltaTime;
     if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.y = ny;
     }
@@ -1014,3 +1011,5 @@ export function renderGame(display: Display, deltaTime: number, time: number, pl
     if (MINIMAP) renderMinimap(display.ctx, player, scene);
     renderFPS(display.ctx, deltaTime);
 }
+
+// TODO: "magnet" items into the player
