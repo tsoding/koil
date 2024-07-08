@@ -22,21 +22,14 @@ const MINIMAP_SPRITES = false;
 const MINIMAP_PLAYER_SIZE = 0.5;
 const MINIMAP_SPRITE_SIZE = 0.3;
 const MINIMAP_SCALE = 0.07;
-function createPool(init) {
+function createSpritePool() {
     return {
         items: [],
-        init,
         length: 0,
     };
 }
-function allocPool(pool) {
-    if (pool.length >= pool.items.length) {
-        pool.items.push(Object.assign(Object.create(Object.getPrototypeOf(pool.init)), pool.init));
-    }
-    return pool.items[pool.length++];
-}
-function resetPool(pool) {
-    pool.length = 0;
+function resetSpritePool(spritePool) {
+    spritePool.length = 0;
 }
 export class RGBA {
     r;
@@ -574,14 +567,7 @@ function displaySwapBackImageData(display) {
     display.backCtx.putImageData(display.backImageData, 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
-const spritePool = createPool({
-    imageData: undefined,
-    position: undefined,
-    z: 0,
-    scale: 0,
-    pdist: 0,
-    t: 0,
-});
+const spritePool = createSpritePool();
 const visibleSprites = [];
 function renderSprites(display, player) {
     const sp = new Vector2();
@@ -642,13 +628,25 @@ function renderSprites(display, player) {
     }
 }
 function pushSprite(imageData, position, z, scale) {
-    const sprite = allocPool(spritePool);
-    sprite.imageData = imageData;
-    sprite.position = position;
-    sprite.z = z;
-    sprite.scale = scale;
-    sprite.pdist = 0;
-    sprite.t = 0;
+    if (spritePool.length >= spritePool.items.length) {
+        spritePool.items.push({
+            imageData,
+            position,
+            z,
+            scale,
+            pdist: 0,
+            t: 0,
+        });
+    }
+    else {
+        spritePool.items[spritePool.length].imageData = imageData;
+        spritePool.items[spritePool.length].position = position;
+        spritePool.items[spritePool.length].z = z;
+        spritePool.items[spritePool.length].scale = scale;
+        spritePool.items[spritePool.length].pdist = 0;
+        spritePool.items[spritePool.length].t = 0;
+        spritePool.length += 1;
+    }
 }
 export function allocateBombs(capacity) {
     let bomb = [];
@@ -836,7 +834,7 @@ function updateBombs(player, bombs, particles, scene, deltaTime, assets) {
     }
 }
 export function renderGame(display, deltaTime, time, player, scene, items, bombs, particles, assets) {
-    resetPool(spritePool);
+    resetSpritePool(spritePool);
     updatePlayer(player, scene, deltaTime);
     updateItems(time, player, items, assets);
     updateBombs(player, bombs, particles, scene, deltaTime, assets);

@@ -39,29 +39,20 @@ const MINIMAP_PLAYER_SIZE = 0.5;
 const MINIMAP_SPRITE_SIZE = 0.3;
 const MINIMAP_SCALE = 0.07;
 
-interface Pool<T> {
-    items: Array<T>,
-    init: T,
+interface SpritePool {
+    items: Array<Sprite>,
     length: number,
 }
 
-function createPool<T>(init: T): Pool<T> {
+function createSpritePool(): SpritePool {
     return {
         items: [],
-        init,
         length: 0,
     }
 }
 
-function allocPool<T>(pool: Pool<T>): T {
-    if (pool.length >= pool.items.length) {
-        pool.items.push(Object.assign(Object.create(Object.getPrototypeOf(pool.init)), pool.init));
-    }
-    return pool.items[pool.length++];
-}
-
-function resetPool<T>(pool: Pool<T>) {
-    pool.length = 0;
+function resetSpritePool(spritePool: SpritePool) {
+    spritePool.length = 0;
 }
 
 export class RGBA {
@@ -696,14 +687,7 @@ export interface Sprite {
     t: number;     // Normalized horizontal position on the screen
 }
 
-const spritePool = createPool({
-    imageData: undefined as unknown as ImageData,
-    position: undefined as unknown as Vector2,
-    z: 0,
-    scale: 0,
-    pdist: 0,
-    t: 0,
-});
+const spritePool = createSpritePool();
 
 const visibleSprites: Array<Sprite> = [];
 function renderSprites(display: Display, player: Player) {
@@ -772,13 +756,24 @@ function renderSprites(display: Display, player: Player) {
 }
 
 function pushSprite(imageData: ImageData, position: Vector2, z: number, scale: number) {
-    const sprite = allocPool(spritePool);
-    sprite.imageData = imageData;
-    sprite.position = position;
-    sprite.z = z;
-    sprite.scale = scale;
-    sprite.pdist = 0;
-    sprite.t = 0;
+    if (spritePool.length >= spritePool.items.length) {
+        spritePool.items.push({
+            imageData,
+            position,
+            z,
+            scale,
+            pdist: 0,
+            t: 0,
+        })
+    } else {
+        spritePool.items[spritePool.length].imageData = imageData;
+        spritePool.items[spritePool.length].position = position;
+        spritePool.items[spritePool.length].z = z;
+        spritePool.items[spritePool.length].scale = scale;
+        spritePool.items[spritePool.length].pdist = 0;
+        spritePool.items[spritePool.length].t = 0;
+        spritePool.length += 1;
+    }
 }
 
 export type ItemKind = "key" | "bomb";
@@ -1006,7 +1001,7 @@ export interface Assets {
 }
 
 export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, items: Array<Item>, bombs: Array<Bomb>, particles: Array<Particle>, assets: Assets) {
-    resetPool(spritePool);
+    resetSpritePool(spritePool);
 
     updatePlayer(player, scene, deltaTime);
     updateItems(time, player, items, assets);
