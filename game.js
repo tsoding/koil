@@ -581,28 +581,44 @@ function renderSprites(display, player) {
         const y2 = Math.floor(y1 + spriteSize - 1);
         const by1 = Math.max(0, y1);
         const by2 = Math.min(display.backImageData.height - 1, y2);
-        const src = sprite.imageData.data;
-        const dest = display.backImageData.data;
-        for (let x = bx1; x <= bx2; ++x) {
-            if (sprite.pdist < display.zBuffer[x]) {
-                for (let y = by1; y <= by2; ++y) {
-                    const tx = Math.floor((x - x1) / spriteSize * sprite.imageData.width);
-                    const ty = Math.floor((y - y1) / spriteSize * sprite.imageData.height);
-                    const srcP = (ty * sprite.imageData.width + tx) * 4;
-                    const destP = (y * display.backImageData.width + x) * 4;
-                    const alpha = src[srcP + 3] / 255;
-                    dest[destP + 0] = dest[destP + 0] * (1 - alpha) + src[srcP + 0] * alpha;
-                    dest[destP + 1] = dest[destP + 1] * (1 - alpha) + src[srcP + 1] * alpha;
-                    dest[destP + 2] = dest[destP + 2] * (1 - alpha) + src[srcP + 2] * alpha;
+        if (sprite.image instanceof ImageData) {
+            const src = sprite.image.data;
+            const dest = display.backImageData.data;
+            for (let x = bx1; x <= bx2; ++x) {
+                if (sprite.pdist < display.zBuffer[x]) {
+                    for (let y = by1; y <= by2; ++y) {
+                        const tx = Math.floor((x - x1) / spriteSize * sprite.image.width);
+                        const ty = Math.floor((y - y1) / spriteSize * sprite.image.height);
+                        const srcP = (ty * sprite.image.width + tx) * 4;
+                        const destP = (y * display.backImageData.width + x) * 4;
+                        const alpha = src[srcP + 3] / 255;
+                        dest[destP + 0] = dest[destP + 0] * (1 - alpha) + src[srcP + 0] * alpha;
+                        dest[destP + 1] = dest[destP + 1] * (1 - alpha) + src[srcP + 1] * alpha;
+                        dest[destP + 2] = dest[destP + 2] * (1 - alpha) + src[srcP + 2] * alpha;
+                    }
+                }
+            }
+        }
+        else if (sprite.image instanceof RGBA) {
+            const dest = display.backImageData.data;
+            for (let x = bx1; x <= bx2; ++x) {
+                if (sprite.pdist < display.zBuffer[x]) {
+                    for (let y = by1; y <= by2; ++y) {
+                        const destP = (y * display.backImageData.width + x) * 4;
+                        const alpha = sprite.image.a;
+                        dest[destP + 0] = dest[destP + 0] * (1 - alpha) + sprite.image.r * 255 * alpha;
+                        dest[destP + 1] = dest[destP + 1] * (1 - alpha) + sprite.image.g * 255 * alpha;
+                        dest[destP + 2] = dest[destP + 2] * (1 - alpha) + sprite.image.b * 255 * alpha;
+                    }
                 }
             }
         }
     }
 }
-function pushSprite(imageData, position, z, scale) {
+function pushSprite(image, position, z, scale) {
     if (spritePool.length >= spritePool.items.length) {
         spritePool.items.push({
-            imageData,
+            image,
             position: position.clone(),
             z,
             scale,
@@ -611,7 +627,7 @@ function pushSprite(imageData, position, z, scale) {
         });
     }
     else {
-        spritePool.items[spritePool.length].imageData = imageData;
+        spritePool.items[spritePool.length].image = image;
         spritePool.items[spritePool.length].position.copy(position);
         spritePool.items[spritePool.length].z = z;
         spritePool.items[spritePool.length].scale = scale;
