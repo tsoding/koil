@@ -18,6 +18,11 @@ const COS_OF_HALF_FOV = Math.cos(FOV*0.5);
 const PLAYER_SPEED = 2;
 const PLAYER_RADIUS = 0.5;
 
+const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
+const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
+const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
+const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
+
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
 
@@ -121,11 +126,6 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
 }
 
 type Tile = RGBA | ImageData | null;
-
-const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
-const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
-const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
-const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 
 interface Scene {
     walls: Array<Tile>;

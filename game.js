@@ -6,6 +6,10 @@ const FOV = Math.PI * 0.5;
 const COS_OF_HALF_FOV = Math.cos(FOV * 0.5);
 const PLAYER_SPEED = 2;
 const PLAYER_RADIUS = 0.5;
+const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
+const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
+const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
+const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
 const BOMB_LIFETIME = 2;
@@ -79,10 +83,6 @@ function rayStep(p1, p2) {
     }
     return p3;
 }
-const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
-const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
-const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
-const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 function createScene(walls) {
     const scene = {
         height: walls.length,
