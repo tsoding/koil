@@ -100,7 +100,7 @@ export class Vector2 {
         this.x = x;
         this.y = y;
     }
-    setAngle(angle: number, len: number = 1): this {
+    setPolar(angle: number, len: number = 1): this {
         this.x = Math.cos(angle)*len;
         this.y = Math.sin(angle)*len;
         return this;
@@ -517,7 +517,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
         ctx.fillStyle = "red";
         ctx.strokeStyle = "yellow";
         const sp = new Vector2();
-        const dir = new Vector2().setAngle(player.direction);
+        const dir = new Vector2().setPolar(player.direction);
         strokeLine(ctx, player.position, player.position.clone().add(dir));
         ctx.fillStyle = "white"
         for (let i = 0; i < spritePool.length; ++i) {
@@ -563,7 +563,7 @@ function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
 }
 
 function renderWalls(display: Display, player: Player, scene: Scene) {
-    const d = new Vector2().setAngle(player.direction)
+    const d = new Vector2().setPolar(player.direction)
     for (let x = 0; x < display.backImageData.width; ++x) {
         const p = castRay(scene, player.position, player.fovLeft.clone().lerp(player.fovRight, x/display.backImageData.width));
         const c = hittingCell(player.position, p);
@@ -679,7 +679,7 @@ const spritePool = createSpritePool();
 const visibleSprites: Array<Sprite> = [];
 function renderSprites(display: Display, player: Player) {
     const sp = new Vector2();
-    const dir = new Vector2().setAngle(player.direction);
+    const dir = new Vector2().setPolar(player.direction);
 
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
@@ -806,10 +806,10 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
     player.controlVelocity.setScalar(0);
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.controlVelocity.add(new Vector2().setAngle(player.direction, PLAYER_SPEED))
+        player.controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED))
     }
     if (player.movingBackward) {
-        player.controlVelocity.sub(new Vector2().setAngle(player.direction, PLAYER_SPEED))
+        player.controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED))
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -829,8 +829,8 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
 
     const halfFov = FOV*0.5;
     const fovLen = NEAR_CLIPPING_PLANE/Math.cos(halfFov);
-    player.fovLeft.setAngle(player.direction-halfFov, fovLen).add(player.position);
-    player.fovRight.setAngle(player.direction+halfFov, fovLen).add(player.position);
+    player.fovLeft.setPolar(player.direction-halfFov, fovLen).add(player.position);
+    player.fovRight.setPolar(player.direction+halfFov, fovLen).add(player.position);
 }
 
 function spriteOfItemKind(itemKind: ItemKind, assets: Assets): ImageData {
