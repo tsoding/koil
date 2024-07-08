@@ -2,7 +2,8 @@
 // Do not run this file directly. Run it via `npm run watch`. See package.json for more info.
 const { spawn } = require('child_process');
 const { WebSocketServer } = require("ws");
-const { watch } = require("fs");
+// TODO: consider using fs.watch instead
+const { watchFile } = require("fs");
 const path = require("path");
 
 /**
@@ -47,14 +48,14 @@ wss.on("connection", (ws) => {
 
 const COLD_RELOAD_FILES = ["index.html", "index.js"];
 COLD_RELOAD_FILES.forEach((file) =>
-  watch(path.join(__dirname, file), { interval: 50 }, () => {
+  watchFile(path.join(__dirname, file), { interval: 50 }, () => {
     websockets.forEach((socket) => socket.send("cold"));
   })
 );
 
 const HOT_RELOAD_FILES = ["game.js"];
 HOT_RELOAD_FILES.forEach((file) =>
-  watch(path.join(__dirname, file), { interval: 50 }, () => {
+  watchFile(path.join(__dirname, file), { interval: 50 }, () => {
     websockets.forEach((socket) => socket.send("hot"));
   })
 );
