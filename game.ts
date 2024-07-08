@@ -459,6 +459,7 @@ interface Sprite {
 function cullAndSortSprites(player: Player, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
     const sp = new Vector2();
     const dir = new Vector2().setPolar(player.direction);
+    const fov = player.fovRight.clone().sub(player.fovLeft);
 
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
@@ -469,12 +470,13 @@ function cullAndSortSprites(player: Player, spritePool: SpritePool, visibleSprit
         if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
         if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
 
-        const dot = sp.dot(dir)/spl;
-        // TODO: allow sprites to be slightly outside of FOV to make their edges visible
-        if (!(COS_OF_HALF_FOV <= dot)) continue;  // Sprite is outside of the Field of View
-        sprite.dist = NEAR_CLIPPING_PLANE/dot;
-        sp.norm().scale(sprite.dist).add(player.position);
-        sprite.t = player.fovLeft.distanceTo(sp)/player.fovLeft.distanceTo(player.fovRight);
+        const cos = sp.dot(dir)/spl;
+        // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
+        // It may or may not impact the performance of renderSprites()
+        if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
+        sprite.dist = NEAR_CLIPPING_PLANE/cos;
+        sp.norm().scale(sprite.dist).add(player.position).sub(player.fovLeft);
+        sprite.t = sp.length()/fov.length()*Math.sign(sp.dot(fov));
         sprite.pdist = sprite.position.clone().sub(player.position).dot(dir);
 
         // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above

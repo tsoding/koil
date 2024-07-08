@@ -337,6 +337,7 @@ function displaySwapBackImageData(display) {
 function cullAndSortSprites(player, spritePool, visibleSprites) {
     const sp = new Vector2();
     const dir = new Vector2().setPolar(player.direction);
+    const fov = player.fovRight.clone().sub(player.fovLeft);
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
         const sprite = spritePool.items[i];
@@ -346,12 +347,12 @@ function cullAndSortSprites(player, spritePool, visibleSprites) {
             continue;
         if (spl >= FAR_CLIPPING_PLANE)
             continue;
-        const dot = sp.dot(dir) / spl;
-        if (!(COS_OF_HALF_FOV <= dot))
+        const cos = sp.dot(dir) / spl;
+        if (cos < 0)
             continue;
-        sprite.dist = NEAR_CLIPPING_PLANE / dot;
-        sp.norm().scale(sprite.dist).add(player.position);
-        sprite.t = player.fovLeft.distanceTo(sp) / player.fovLeft.distanceTo(player.fovRight);
+        sprite.dist = NEAR_CLIPPING_PLANE / cos;
+        sp.norm().scale(sprite.dist).add(player.position).sub(player.fovLeft);
+        sprite.t = sp.length() / fov.length() * Math.sign(sp.dot(fov));
         sprite.pdist = sprite.position.clone().sub(player.position).dot(dir);
         if (sprite.pdist < NEAR_CLIPPING_PLANE)
             continue;
