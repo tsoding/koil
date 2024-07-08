@@ -95,7 +95,7 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
     // dx = x2 - x1
     // c = y1 - k*x1
     // k = dy/dx
-    let p3 = p2;
+    let p3 = p2.clone();
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
     if (dx !== 0) {
@@ -105,21 +105,21 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
         {
             const x3 = snap(p2.x, dx);
             const y3 = x3*k + c;
-            p3 = new Vector2().set(x3, y3);
+            p3.set(x3, y3);
         }
 
         if (k !== 0) {
             const y3 = snap(p2.y, dy);
             const x3 = (y3 - c)/k;
-            const p3t = new Vector2().set(x3, y3);
+            const p3t = new Vector2(x3, y3);
             if (p2.sqrDistanceTo(p3t) < p2.sqrDistanceTo(p3)) {
-                p3 = p3t;
+                p3.copy(p3t);
             }
         }
     } else {
         const y3 = snap(p2.y, dy);
         const x3 = p2.x;
-        p3 = new Vector2().set(x3, y3);
+        p3.set(x3, y3);
     }
 
     return p3;
@@ -149,10 +149,6 @@ function createScene(walls: Array<Array<Tile>>): Scene {
         }
     }
     return scene;
-}
-
-function sceneSize(scene: Scene): Vector2 {
-    return new Vector2().set(scene.width, scene.height);
 }
 
 function sceneContains(scene: Scene, p: Vector2): boolean {
@@ -192,7 +188,7 @@ function sceneCanRectangleFitHere(scene: Scene, px: number, py: number, sx: numb
     const y2 = Math.floor(py + sy*0.5);
     for (let x = x1; x <= x2; ++x) {
         for (let y = y1; y <= y2; ++y) {
-            if (sceneIsWall(scene, new Vector2().set(x, y))) {
+            if (sceneIsWall(scene, new Vector2(x, y))) {
                 return false;
             }
         }
@@ -242,19 +238,22 @@ function createPlayer(position: Vector2, direction: number): Player {
 function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Scene, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
     ctx.save();
 
+    // A couple of temporary vectors
+    const p1 = new Vector2();
+    const p2 = new Vector2();
+
     const cellSize = ctx.canvas.width*MINIMAP_SCALE;
-    const gridSize = sceneSize(scene);
 
     ctx.translate(ctx.canvas.width*0.03, ctx.canvas.height*0.03);
     ctx.scale(cellSize, cellSize);
 
     ctx.fillStyle = "#181818";
-    ctx.fillRect(0, 0, gridSize.x, gridSize.y);
+    ctx.fillRect(0, 0, scene.width, scene.height);
 
     ctx.lineWidth = 0.05;
-    for (let y = 0; y < gridSize.y; ++y) {
-        for (let x = 0; x < gridSize.x; ++x) {
-            const cell = sceneGetTile(scene, new Vector2().set(x, y));
+    for (let y = 0; y < scene.height; ++y) {
+        for (let x = 0; x < scene.width; ++x) {
+            const cell = sceneGetTile(scene, p1.set(x, y));
             if (cell instanceof RGBA) {
                 ctx.fillStyle = cell.toStyle();
                 ctx.fillRect(x, y, 1, 1);
@@ -265,12 +264,13 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
         }
     }
 
+    // Grid
     ctx.strokeStyle = "#303030";
-    for (let x = 0; x <= gridSize.x; ++x) {
-        strokeLine(ctx, new Vector2().set(x, 0), new Vector2().set(x, gridSize.y));
+    for (let x = 0; x <= scene.width; ++x) {
+        strokeLine(ctx, p1.set(x, 0), p2.set(x, scene.height));
     }
-    for (let y = 0; y <= gridSize.y; ++y) {
-        strokeLine(ctx, new Vector2().set(0, y), new Vector2().set(gridSize.x, y));
+    for (let y = 0; y <= scene.height; ++y) {
+        strokeLine(ctx, p1.set(0, y), p2.set(scene.width, y));
     }
 
     ctx.fillStyle = "magenta";
@@ -678,7 +678,7 @@ function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene
 
             const nx = particle.position.x + particle.velocity.x*deltaTime;
             const ny = particle.position.y + particle.velocity.y*deltaTime;
-            if (sceneIsWall(scene, new Vector2().set(nx, ny))) {
+            if (sceneIsWall(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
                 
@@ -698,9 +698,8 @@ function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene
                 particle.position.z = nz;
             }
 
-            if (particle.lifetime <= 0) {
-            } else {
-                pushSprite(spritePool, PARTICLE_COLOR, new Vector2().set(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE)
+            if (particle.lifetime > 0) {
+                pushSprite(spritePool, PARTICLE_COLOR, new Vector2(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE)
             }
         }
     }
@@ -741,7 +740,7 @@ function updateBombs(spritePool: SpritePool, player: Player, bombs: Array<Bomb>,
 
             const nx = bomb.position.x + bomb.velocity.x*deltaTime;
             const ny = bomb.position.y + bomb.velocity.y*deltaTime;
-            if (sceneIsWall(scene, new Vector2().set(nx, ny))) {
+            if (sceneIsWall(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
                 
@@ -773,7 +772,7 @@ function updateBombs(spritePool: SpritePool, player: Player, bombs: Array<Bomb>,
                     emitParticle(bomb.position, particles);
                 }
             } else {
-                pushSprite(spritePool, assets.bombImageData, new Vector2().set(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE)
+                pushSprite(spritePool, assets.bombImageData, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE)
             }
         }
     }
@@ -912,3 +911,6 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
 // TODO: Bomb collision should take into account its size
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Try cel shading the walls (using normals and stuff)
+// TODO: sound don't mix properly
+//   Right now same sounds are just stopped and replaced instantly. Which generally does not sound good.
+//   We need to fix them properly
