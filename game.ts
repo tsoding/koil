@@ -1,35 +1,14 @@
 // This module is the main logic of the game and when served via `npm run watch` should be
 // hot-reloadable without losing the state of the game. Anything outside of this module
-// is only cold-reloadable by simply refreshing the whole page.
+// is only "cold"-reloadable (by simply refreshing the whole page).
 //
 // The way we hot-reload modules is rather limited and does not allow to reload for instance
 // classes. In case of Vector2 and RGBA we don't really care because they are not modified very
 // often.
 //
-// TODO: maybe Vector2 and RBGA should be moved outside of this module for the above reason.
-//
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are State and Player which we defined as interfaces.
-
-export class RGBA {
-    r: number;
-    g: number;
-    b: number;
-    a: number;
-    constructor(r: number, g: number, b: number, a: number) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
-    }
-    toStyle(): string {
-        return `rgba(`
-            +`${Math.floor(this.r*255)}, `
-            +`${Math.floor(this.g*255)}, `
-            +`${Math.floor(this.b*255)}, `
-            +`${this.a})`;
-    }
-}
+import { Vector2, Vector3, RGBA } from './vector.js';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
@@ -75,199 +54,6 @@ function createSpritePool(): SpritePool {
 
 function resetSpritePool(spritePool: SpritePool) {
     spritePool.length = 0;
-}
-
-export class Vector2 {
-    x: number;
-    y: number;
-    constructor(x: number = 0, y: number = 0) {
-        this.x = x;
-        this.y = y;
-    }
-    setPolar(angle: number, len: number = 1): this {
-        this.x = Math.cos(angle)*len;
-        this.y = Math.sin(angle)*len;
-        return this;
-    }
-    clone(): Vector2 {
-        return new Vector2(this.x, this.y)
-    }
-    copy(that: Vector2): this {
-        this.x = that.x;
-        this.y = that.y;
-        return this;
-    }
-    set(x: number, y: number): this {
-        this.x = x;
-        this.y = y;
-        return this;
-    }
-    setScalar(scalar: number): this {
-        this.x = scalar;
-        this.y = scalar;
-        return this;
-    }
-    add(that: Vector2): this {
-        this.x += that.x;
-        this.y += that.y;
-        return this;
-    }
-    sub(that: Vector2): this {
-        this.x -= that.x;
-        this.y -= that.y;
-        return this;
-    }
-    div(that: Vector2): this {
-        this.x /= that.x;
-        this.y /= that.y;
-        return this;
-    }
-    mul(that: Vector2): this {
-        this.x *= that.x;
-        this.y *= that.y;
-        return this;
-    }
-    sqrLength(): number {
-        return this.x*this.x + this.y*this.y;
-    }
-    length(): number {
-        return Math.sqrt(this.sqrLength());
-    }
-    scale(value: number): this {
-        this.x *= value;
-        this.y *= value;
-        return this;
-    }
-    norm(): this {
-        const l = this.length();
-        return l === 0 ? this : this.scale(1/l);
-    }
-    rot90(): this {
-        const oldX = this.x;
-        this.x = -this.y;
-        this.y = oldX;
-        return this;
-    }
-    sqrDistanceTo(that: Vector2): number {
-        const dx = that.x - this.x;
-        const dy = that.y - this.y;
-        return dx*dx + dy*dy;
-    }
-    distanceTo(that: Vector2): number {
-        return Math.sqrt(this.sqrDistanceTo(that));
-    }
-    lerp(that: Vector2, t: number): this {
-        this.x += (that.x - this.x)*t;
-        this.y += (that.y - this.y)*t;
-        return this;
-    }
-    dot(that: Vector2): number {
-        return this.x*that.x + this.y*that.y;
-    }
-    map(f: (x: number) => number): this {
-        this.x = f(this.x);
-        this.y = f(this.y);
-        return this;
-    }
-}
-
-export class Vector3 {
-    x: number;
-    y: number;
-    z: number;
-    constructor(x: number = 0, y: number = 0, z: number = 0) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-    clone(): Vector3 {
-        return new Vector3(this.x, this.y, this.z)
-    }
-    clone2(): Vector2 {
-        return new Vector2(this.x, this.y)
-    }
-    copy(that: Vector3): this {
-        this.x = that.x;
-        this.y = that.y;
-        this.z = that.z;
-        return this;
-    }
-    copy2(that: Vector2, z: number): this {
-        this.x = that.x;
-        this.y = that.y;
-        this.z = z;
-        return this;
-    }
-    setScalar(scalar: number): this {
-        this.x = scalar;
-        this.y = scalar;
-        this.z = scalar;
-        return this;
-    }
-    add(that: Vector3): this {
-        this.x += that.x;
-        this.y += that.y;
-        this.z += that.z;
-        return this;
-    }
-    sub(that: Vector3): this {
-        this.x -= that.x;
-        this.y -= that.y;
-        this.z -= that.z;
-        return this;
-    }
-    div(that: Vector3): this {
-        this.x /= that.x;
-        this.y /= that.y;
-        this.z /= that.z;
-        return this;
-    }
-    mul(that: Vector3): this {
-        this.x *= that.x;
-        this.y *= that.y;
-        this.z *= that.z;
-        return this;
-    }
-    sqrLength(): number {
-        return this.x*this.x + this.y*this.y + this.z*this.z;
-    }
-    length(): number {
-        return Math.sqrt(this.sqrLength());
-    }
-    scale(value: number): this {
-        this.x *= value;
-        this.y *= value;
-        this.z *= value;
-        return this;
-    }
-    norm(): this {
-        const l = this.length();
-        return l === 0 ? this : this.scale(1/l);
-    }
-    sqrDistanceTo(that: Vector3): number {
-        const dx = that.x - this.x;
-        const dy = that.y - this.y;
-        const dz = that.z - this.z;
-        return dx*dx + dy*dy + dz*dz;
-    }
-    distanceTo(that: Vector3): number {
-        return Math.sqrt(this.sqrDistanceTo(that));
-    }
-    lerp(that: Vector3, t: number): this {
-        this.x += (that.x - this.x)*t;
-        this.y += (that.y - this.y)*t;
-        this.z += (that.z - this.z)*t;
-        return this;
-    }
-    dot(that: Vector3): number {
-        return this.x*that.x + this.y*that.y + this.z*that.z;
-    }
-    map(f: (x: number) => number): this {
-        this.x = f(this.x);
-        this.y = f(this.y);
-        this.z = f(this.z);
-        return this;
-    }
 }
 
 function strokeLine(ctx: CanvasRenderingContext2D, p1: Vector2, p2: Vector2) {
@@ -341,13 +127,13 @@ const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
 const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
 const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 
-export interface Scene {
+interface Scene {
     walls: Array<Tile>;
     width: number;
     height: number;
 }
 
-export function createScene(walls: Array<Array<Tile>>): Scene {
+function createScene(walls: Array<Array<Tile>>): Scene {
     const scene: Scene = {
         height: walls.length,
         width: Number.MIN_VALUE,
@@ -427,7 +213,7 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
 }
 
 
-export interface Player {
+interface Player {
     position: Vector2;
     controlVelocity: Vector2;
     fovLeft: Vector2;
@@ -439,7 +225,7 @@ export interface Player {
     turningRight: boolean;
 }
 
-export function createPlayer(position: Vector2, direction: number): Player {
+function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
         controlVelocity: new Vector2(),
@@ -643,12 +429,27 @@ interface Display {
     zBuffer: Array<number>;
 }
 
+export function createDisplay(ctx: CanvasRenderingContext2D, width: number, height: number): Display {
+    const backImageData = new ImageData(width, height);
+    backImageData.data.fill(255);
+    const backCanvas = new OffscreenCanvas(width, height);
+    const backCtx = backCanvas.getContext("2d");
+    if (backCtx === null) throw new Error("2D context is not supported");
+    backCtx.imageSmoothingEnabled = false;
+    return {
+        ctx,
+        backCtx,
+        backImageData,
+        zBuffer: Array(width).fill(0),
+    };
+}
+
 function displaySwapBackImageData(display: Display) {
     display.backCtx.putImageData(display.backImageData, 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
-export interface Sprite {
+interface Sprite {
     image: ImageData | RGBA;
     position: Vector2;
     z: number;
@@ -759,21 +560,21 @@ function pushSprite(image: RGBA | ImageData, position: Vector2, z: number, scale
     }
 }
 
-export type ItemKind = "key" | "bomb";
+type ItemKind = "key" | "bomb";
 
-export interface Item {
+interface Item {
     alive: boolean,
     kind: ItemKind,
     position: Vector2,
 }
 
-export interface Bomb {
+interface Bomb {
     position: Vector3,
     velocity: Vector3,
     lifetime: number,
 }
 
-export function allocateBombs(capacity: number): Array<Bomb> {
+function allocateBombs(capacity: number): Array<Bomb> {
     let bomb: Array<Bomb> = []
     for (let i = 0; i < capacity; ++i) {
         bomb.push({
@@ -858,7 +659,7 @@ interface Particle {
     velocity: Vector3,
 }
 
-export function allocateParticles(capacity: number): Array<Particle> {
+function allocateParticles(capacity: number): Array<Particle> {
     let bomb: Array<Particle> = []
     for (let i = 0; i < capacity; ++i) {
         bomb.push({
@@ -870,7 +671,7 @@ export function allocateParticles(capacity: number): Array<Particle> {
     return bomb
 }
 
-function updateParticles(deltaTime: number, scene: Scene, particles: Array<Particle>, assets: Assets) {
+function updateParticles(deltaTime: number, scene: Scene, particles: Array<Particle>) {
     for (let particle of particles) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
@@ -979,7 +780,7 @@ function updateBombs(player: Player, bombs: Array<Bomb>, particles: Array<Partic
     }
 }
 
-export interface Assets {
+interface Assets {
     keyImageData: ImageData,
     bombImageData: ImageData,
     bombRicochetSound: HTMLAudioElement,
@@ -987,20 +788,117 @@ export interface Assets {
     bombBlastSound: HTMLAudioElement
 }
 
-export function renderGame(display: Display, deltaTime: number, time: number, player: Player, scene: Scene, items: Array<Item>, bombs: Array<Bomb>, particles: Array<Particle>, assets: Assets) {
+interface Game {
+    player: Player,
+    scene: Scene,
+    items: Array<Item>,
+    bombs: Array<Bomb>,
+    particles: Array<Particle>,
+    assets: Assets,
+}
+
+async function loadImage(url: string): Promise<HTMLImageElement> {
+    const image = new Image();
+    image.src = url;
+    return new Promise((resolve, reject) => {
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+    });
+}
+
+async function loadImageData(url: string): Promise<ImageData> {
+    const image = await loadImage(url);
+    const canvas = new OffscreenCanvas(image.width, image.height);
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) throw new Error("2d canvas is not supported");
+    ctx.drawImage(image, 0, 0);
+    return ctx.getImageData(0, 0, image.width, image.height);
+}
+
+export async function createGame(): Promise<Game> {
+    const [wall, keyImageData, bombImageData] = await Promise.all([
+        loadImageData("assets/images/custom/wall.png"),
+        loadImageData("assets/images/custom/key.png"),
+        loadImageData("assets/images/custom/bomb.png"),
+    ]);
+    const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
+    const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
+    const bombBlastSound = new Audio("assets/sounds/blast.ogg");
+    const assets = {
+        keyImageData,
+        bombImageData,
+        bombRicochetSound,
+        itemPickupSound,
+        bombBlastSound,
+    }
+
+    const scene = createScene([
+        [ null, null, wall, wall, wall, null, null],
+        [ null, null, null, null, null, wall, null],
+        [ wall, null, null, null, null, wall, null],
+        [ wall,  null, null, null, null, wall, null],
+        [ wall],
+        [  null,  wall, wall, wall, null, null, null],
+        [  null,  null, null, null, null, null, null],
+    ]);
+
+    const player = createPlayer(
+        new Vector2(scene.width, scene.height).scale(1.2),
+        Math.PI*1.25);
+
+    const items: Array<Item> = [
+        {
+            kind: "bomb",
+            position: new Vector2(1.5, 2.5),
+            alive: true,
+        },
+        {
+            kind: "key",
+            position: new Vector2(2.5, 1.5),
+            alive: true,
+        },
+        {
+            kind: "key",
+            position: new Vector2(3, 1.5),
+            alive: true,
+        },
+        {
+            kind: "key",
+            position: new Vector2(3.5, 1.5),
+            alive: true,
+        },
+        {
+            kind: "key",
+            position: new Vector2(4.0, 1.5),
+            alive: true,
+        },
+        {
+            kind: "key",
+            position: new Vector2(4.5, 1.5),
+            alive: true,
+        },
+    ]
+
+    const bombs = allocateBombs(10);
+    const particles = allocateParticles(1000);
+
+    return {player, scene, items, bombs, particles, assets}
+}
+
+export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
     resetSpritePool(spritePool);
 
-    updatePlayer(player, scene, deltaTime);
-    updateItems(time, player, items, assets);
-    updateBombs(player, bombs, particles, scene, deltaTime, assets);
-    updateParticles(deltaTime, scene, particles, assets)
+    updatePlayer(game.player, game.scene, deltaTime);
+    updateItems(time, game.player, game.items, game.assets);
+    updateBombs(game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
+    updateParticles(deltaTime, game.scene, game.particles)
 
-    renderFloorAndCeiling(display.backImageData, player);
-    renderWalls(display, player, scene);
-    renderSprites(display, player);
+    renderFloorAndCeiling(display.backImageData, game.player);
+    renderWalls(display, game.player, game.scene);
+    renderSprites(display, game.player);
     displaySwapBackImageData(display);
 
-    if (MINIMAP) renderMinimap(display.ctx, player, scene);
+    if (MINIMAP) renderMinimap(display.ctx, game.player, game.scene);
     renderFPS(display.ctx, deltaTime);
 }
 
