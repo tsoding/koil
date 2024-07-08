@@ -50,14 +50,14 @@ async function loadImageData(url) {
     let game = await import("./game.js");
     const scene = game.createScene([
         [null, null, wall, wall, wall, null, null],
-        [null, null, null, null, null, null, null],
-        [wall, null, null, null, null, null, null],
-        [wall, null, null, null, null, null, null],
+        [null, null, null, null, null, wall, null],
+        [wall, null, null, null, null, wall, null],
+        [wall, null, null, null, null, wall, null],
         [wall],
-        [null, null, null, null, null, null, null],
+        [null, wall, wall, wall, null, null, null],
         [null, null, null, null, null, null, null],
     ]);
-    const player = game.createPlayer(new game.Vector2(scene.width, scene.height).scale(0.63), Math.PI * 1.25);
+    const player = game.createPlayer(new game.Vector2(scene.width, scene.height).scale(1.2), Math.PI * 1.25);
     const items = [
         {
             kind: "bomb",
