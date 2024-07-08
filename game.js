@@ -42,24 +42,6 @@ export class RGBA {
         this.b = b;
         this.a = a;
     }
-    static red() {
-        return new RGBA(1, 0, 0, 1);
-    }
-    static green() {
-        return new RGBA(0, 1, 0, 1);
-    }
-    static blue() {
-        return new RGBA(0, 0, 1, 1);
-    }
-    static yellow() {
-        return new RGBA(1, 1, 0, 1);
-    }
-    static purple() {
-        return new RGBA(1, 0, 1, 1);
-    }
-    static cyan() {
-        return new RGBA(0, 1, 1, 1);
-    }
     toStyle() {
         return `rgba(`
             + `${Math.floor(this.r * 255)}, `
