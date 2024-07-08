@@ -456,7 +456,7 @@ interface Sprite {
     t: number;     // Normalized horizontal position on the screen
 }
 
-function cullSprites(player: Player, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
+function cullAndSortSprites(player: Player, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
     const sp = new Vector2();
     const dir = new Vector2().setPolar(player.direction);
 
@@ -898,7 +898,7 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
 
     renderFloorAndCeiling(display.backImageData, game.player);
     renderWalls(display, game.player, game.scene);
-    cullSprites(game.player, game.spritePool, game.visibleSprites);
+    cullAndSortSprites(game.player, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
 
