@@ -1,4 +1,4 @@
-const SCREEN_FACTOR = 20;
+const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 
