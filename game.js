@@ -382,9 +382,9 @@ function renderSprites(display, sprites) {
             for (let x = bx1; x <= bx2; ++x) {
                 if (sprite.pdist < display.zBuffer[x]) {
                     for (let y = by1; y <= by2; ++y) {
-                        const tx = Math.floor((x - x1) / spriteSize * sprite.image.width);
-                        const ty = Math.floor((y - y1) / spriteSize * sprite.image.height);
-                        const srcP = (ty * sprite.image.width + tx) * 4;
+                        const tx = Math.floor((x - x1) / spriteSize * sprite.cropSize.x);
+                        const ty = Math.floor((y - y1) / spriteSize * sprite.cropSize.y);
+                        const srcP = ((ty + sprite.cropPosition.y) * sprite.image.width + (tx + sprite.cropPosition.x)) * 4;
                         const destP = (y * display.backImageData.width + x) * 4;
                         const alpha = src[srcP + 3] / 255;
                         dest[destP + 0] = dest[destP + 0] * (1 - alpha) + src[srcP + 0] * alpha;
@@ -410,26 +410,48 @@ function renderSprites(display, sprites) {
         }
     }
 }
-function pushSprite(spritePool, image, position, z, scale) {
+function pushSprite(spritePool, image, position, z, scale, cropPosition, cropSize) {
     if (spritePool.length >= spritePool.items.length) {
         spritePool.items.push({
             image,
-            position: position.clone(),
+            position: new Vector2(),
             z,
             scale,
             pdist: 0,
             dist: 0,
             t: 0,
+            cropPosition: new Vector2(),
+            cropSize: new Vector2(),
         });
     }
+    const last = spritePool.length;
+    spritePool.items[last].image = image;
+    spritePool.items[last].position.copy(position);
+    spritePool.items[last].z = z;
+    spritePool.items[last].scale = scale;
+    spritePool.items[last].pdist = 0;
+    spritePool.items[last].dist = 0;
+    spritePool.items[last].t = 0;
+    if (image instanceof ImageData) {
+        if (cropPosition === undefined) {
+            spritePool.items[last].cropPosition.set(0, 0);
+        }
+        else {
+            spritePool.items[last].cropPosition.copy(cropPosition);
+        }
+        if (cropSize === undefined) {
+            spritePool.items[last]
+                .cropSize
+                .set(image.width, image.height)
+                .sub(spritePool.items[last].cropPosition);
+        }
+        else {
+            spritePool.items[last].cropSize.copy(cropSize);
+        }
+    }
     else {
-        spritePool.items[spritePool.length].image = image;
-        spritePool.items[spritePool.length].position.copy(position);
-        spritePool.items[spritePool.length].z = z;
-        spritePool.items[spritePool.length].scale = scale;
-        spritePool.items[spritePool.length].pdist = 0;
-        spritePool.items[spritePool.length].dist = 0;
-        spritePool.items[spritePool.length].t = 0;
+        spritePool.items[last].cropPosition.set(0, 0);
+        spritePool.items[last].cropSize.set(0, 0);
     }
     spritePool.length += 1;
 }
@@ -638,10 +660,11 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, image.width, image.height);
 }
 export async function createGame() {
-    const [wall, keyImageData, bombImageData] = await Promise.all([
+    const [wall, keyImageData, bombImageData, playerImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
+        loadImageData("assets/images/custom/player.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -649,6 +672,7 @@ export async function createGame() {
     const assets = {
         keyImageData,
         bombImageData,
+        playerImageData,
         bombRicochetSound,
         itemPickupSound,
         bombBlastSound,
@@ -666,7 +690,7 @@ export async function createGame() {
     const items = [
         {
             kind: "bomb",
-            position: new Vector2(1.5, 2.5),
+            position: new Vector2(1.5, 3.5),
             alive: true,
         },
         {
@@ -701,12 +725,48 @@ export async function createGame() {
     const spritePool = createSpritePool();
     return { player, scene, items, bombs, particles, assets, spritePool, visibleSprites };
 }
+function properMod(a, b) {
+    return (a % b + b) % b;
+}
+const SPRITE_ANGLES_COUNT = 8;
+function spriteAngleIndex(player, entity) {
+    return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(player.position).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
+}
+function renderEnemy(game, enemy) {
+    const index = spriteAngleIndex(game.player, enemy);
+    pushSprite(game.spritePool, game.assets.playerImageData, enemy.position, enemy.z, enemy.scale, new Vector2(55 * index, 0), new Vector2(55, 55));
+}
 export function renderGame(display, deltaTime, time, game) {
     resetSpritePool(game.spritePool);
     updatePlayer(game.player, game.scene, deltaTime);
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
     updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.scene, game.particles);
+    const crazyFactor = 10;
+    const scale = 0.75;
+    const entities = [
+        {
+            position: new Vector2(1.5, 1.5),
+            direction: time * crazyFactor,
+            scale,
+            z: (Math.sin(time * crazyFactor) + 1) / 2 * (1 - scale) + scale,
+        },
+        {
+            position: new Vector2(2.5, 1.5),
+            direction: Math.PI,
+            scale: 1,
+            z: 1,
+        },
+        {
+            position: new Vector2(1.5, 2.5),
+            direction: -Math.PI / 2,
+            scale: 1,
+            z: 1,
+        }
+    ];
+    for (const entity of entities) {
+        renderEnemy(game, entity);
+    }
     renderFloorAndCeiling(display.backImageData, game.player);
     renderWalls(display, game.player, game.scene);
     cullAndSortSprites(game.player, game.spritePool, game.visibleSprites);

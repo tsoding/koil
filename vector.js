@@ -73,6 +73,9 @@ export class Vector2 {
     length() {
         return Math.sqrt(this.sqrLength());
     }
+    angle() {
+        return Math.atan2(this.y, this.x);
+    }
     scale(value) {
         this.x *= value;
         this.y *= value;
