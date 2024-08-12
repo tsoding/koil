@@ -5,13 +5,17 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "watch": "node watch.js"
+    "watch": "node watch.js",
+    "serve": "node serve.js"
   },
   "author": "Alexey Kutepov <reximkut@gmail.com>",
   "license": "MIT",
+  "dependencies": {
+    "ws": "^8.17.1"
+  },
   "devDependencies": {
     "http-server": "^14.1.1",
     "typescript": "^5.4.5",
-    "ws": "^8.17.1"
+    "@types/ws": "^8.5.10"
   }
 }
