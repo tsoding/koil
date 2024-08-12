@@ -207,11 +207,6 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     return p2;
 }
 
-interface Entity {
-    position: Vector2;
-    direction: number;
-}
-
 interface Player {
     position: Vector2;
     fovLeft: Vector2;
@@ -818,7 +813,8 @@ interface Assets {
 }
 
 interface Game {
-    player: Player,
+    player: Player,             // TODO: rename Game.player to Game.me (like in multiplayer prototype)
+    players: Map<number, Player>,
     scene: Scene,
     items: Array<Item>,
     bombs: Array<Bomb>,
@@ -917,8 +913,9 @@ export async function createGame(): Promise<Game> {
     const visibleSprites: Array<Sprite> = [];
     const spritePool = createSpritePool();
 
+    const players = new Map<number, Player>();
 
-    return {player, scene, items, bombs, particles, assets, spritePool, visibleSprites}
+    return {player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites}
 }
 
 function properMod(a: number, b: number): number {
@@ -927,19 +924,8 @@ function properMod(a: number, b: number): number {
 
 const SPRITE_ANGLES_COUNT = 8;
 
-function spriteAngleIndex(player: Entity, entity: Entity): number {
-    return Math.floor(properMod(properMod(entity.direction, 2*Math.PI) - properMod(entity.position.clone().sub(player.position).angle(), 2*Math.PI) - Math.PI + Math.PI/8, 2*Math.PI)/(2*Math.PI)*SPRITE_ANGLES_COUNT);
-}
-
-interface Enemy extends Entity {
-    scale: number;
-    z: number;
-}
-
-function renderEnemy(game: Game, enemy: Enemy) {
-    const index = spriteAngleIndex(game.player, enemy);
-    pushSprite(game.spritePool, game.assets.playerImageData, enemy.position, enemy.z, enemy.scale,
-               new Vector2(55*index, 0), new Vector2(55, 55));
+function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
+    return Math.floor(properMod(properMod(entity.direction, 2*Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2*Math.PI) - Math.PI + Math.PI/8, 2*Math.PI)/(2*Math.PI)*SPRITE_ANGLES_COUNT);
 }
 
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
@@ -949,32 +935,6 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
     updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.scene, game.particles)
-
-    const crazyFactor = 10;
-    const scale = 0.75
-    const entities = [
-        {
-            position: new Vector2(1.5, 1.5),
-            direction: time*crazyFactor,
-            scale,
-            z: (Math.sin(time*crazyFactor) + 1)/2*(1 - scale) + scale,
-        },
-        {
-            position: new Vector2(2.5, 1.5),
-            direction: Math.PI,
-            scale: 1,
-            z: 1,
-        },
-        {
-            position: new Vector2(1.5, 2.5),
-            direction: -Math.PI/2,
-            scale: 1,
-            z: 1,
-        }
-    ];
-    for (const entity of entities) {
-        renderEnemy(game, entity);
-    }
 
     renderFloorAndCeiling(display.backImageData, game.player);
     renderWalls(display, game.player, game.scene);

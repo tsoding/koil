@@ -722,18 +722,15 @@ export async function createGame() {
     const particles = allocateParticles(1000);
     const visibleSprites = [];
     const spritePool = createSpritePool();
-    return { player, scene, items, bombs, particles, assets, spritePool, visibleSprites };
+    const players = new Map();
+    return { player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites };
 }
 function properMod(a, b) {
     return (a % b + b) % b;
 }
 const SPRITE_ANGLES_COUNT = 8;
-function spriteAngleIndex(player, entity) {
-    return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(player.position).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
-}
-function renderEnemy(game, enemy) {
-    const index = spriteAngleIndex(game.player, enemy);
-    pushSprite(game.spritePool, game.assets.playerImageData, enemy.position, enemy.z, enemy.scale, new Vector2(55 * index, 0), new Vector2(55, 55));
+function spriteAngleIndex(cameraPosition, entity) {
+    return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
 }
 export function renderGame(display, deltaTime, time, game) {
     resetSpritePool(game.spritePool);
@@ -741,31 +738,6 @@ export function renderGame(display, deltaTime, time, game) {
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
     updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.scene, game.particles);
-    const crazyFactor = 10;
-    const scale = 0.75;
-    const entities = [
-        {
-            position: new Vector2(1.5, 1.5),
-            direction: time * crazyFactor,
-            scale,
-            z: (Math.sin(time * crazyFactor) + 1) / 2 * (1 - scale) + scale,
-        },
-        {
-            position: new Vector2(2.5, 1.5),
-            direction: Math.PI,
-            scale: 1,
-            z: 1,
-        },
-        {
-            position: new Vector2(1.5, 2.5),
-            direction: -Math.PI / 2,
-            scale: 1,
-            z: 1,
-        }
-    ];
-    for (const entity of entities) {
-        renderEnemy(game, entity);
-    }
     renderFloorAndCeiling(display.backImageData, game.player);
     renderWalls(display, game.player, game.scene);
     cullAndSortSprites(game.player, game.spritePool, game.visibleSprites);
