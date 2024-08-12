@@ -193,7 +193,7 @@ export function updatePlayer(player, deltaTime) {
         dx /= l;
         dy /= l;
     }
-    player.x = properMod(player.x + dx * PLAYER_SPEED * deltaTime, WORLD_WIDTH);
-    player.y = properMod(player.y + dy * PLAYER_SPEED * deltaTime, WORLD_HEIGHT);
+    player.position.x = properMod(player.position.x + dx * PLAYER_SPEED * deltaTime, WORLD_WIDTH);
+    player.position.y = properMod(player.position.y + dy * PLAYER_SPEED * deltaTime, WORLD_HEIGHT);
 }
 //# sourceMappingURL=common.mjs.map

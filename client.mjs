@@ -1,4 +1,5 @@
 import * as common from './common.mjs';
+import { Vector2 } from './vector.mjs';
 const DIRECTION_KEYS = {
     'ArrowLeft': common.Direction.Left,
     'ArrowRight': common.Direction.Right,
@@ -40,8 +41,7 @@ const DIRECTION_KEYS = {
             if (common.HelloStruct.verify(view)) {
                 me = {
                     id: common.HelloStruct.id.read(view),
-                    x: common.HelloStruct.x.read(view),
-                    y: common.HelloStruct.y.read(view),
+                    position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
                     moving: 0,
                     hue: common.HelloStruct.hue.read(view) / 256 * 360,
                 };
@@ -60,16 +60,17 @@ const DIRECTION_KEYS = {
                     const id = common.PlayerStruct.id.read(playerView);
                     const player = players.get(id);
                     if (player !== undefined) {
-                        player.x = common.PlayerStruct.x.read(playerView);
-                        player.y = common.PlayerStruct.y.read(playerView);
+                        player.position.x = common.PlayerStruct.x.read(playerView);
+                        player.position.y = common.PlayerStruct.y.read(playerView);
                         player.moving = common.PlayerStruct.moving.read(playerView);
                         player.hue = common.PlayerStruct.hue.read(playerView) / 256 * 360;
                     }
                     else {
+                        const x = common.PlayerStruct.x.read(playerView);
+                        const y = common.PlayerStruct.y.read(playerView);
                         players.set(id, {
                             id,
-                            x: common.PlayerStruct.x.read(playerView),
-                            y: common.PlayerStruct.y.read(playerView),
+                            position: new Vector2(x, y),
                             moving: common.PlayerStruct.moving.read(playerView),
                             hue: common.PlayerStruct.hue.read(playerView) / 256 * 360,
                         });
@@ -95,8 +96,8 @@ const DIRECTION_KEYS = {
                         return;
                     }
                     player.moving = common.PlayerStruct.moving.read(playerView);
-                    player.x = common.PlayerStruct.x.read(playerView);
-                    player.y = common.PlayerStruct.y.read(playerView);
+                    player.position.x = common.PlayerStruct.x.read(playerView);
+                    player.position.y = common.PlayerStruct.y.read(playerView);
                 }
             }
             else if (common.PongStruct.verify(view)) {
@@ -131,17 +132,17 @@ const DIRECTION_KEYS = {
                 if (me !== undefined && me.id !== player.id) {
                     common.updatePlayer(player, deltaTime);
                     ctx.fillStyle = `hsl(${player.hue} 70% 40%)`;
-                    ctx.fillRect(player.x, player.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                    ctx.fillRect(player.position.x, player.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
                 }
             });
             if (me !== undefined) {
                 common.updatePlayer(me, deltaTime);
                 ctx.fillStyle = `hsl(${me.hue} 100% 40%)`;
-                ctx.fillRect(me.x, me.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                ctx.fillRect(me.position.x, me.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 4;
                 ctx.beginPath();
-                ctx.strokeRect(me.x, me.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                ctx.strokeRect(me.position.x, me.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
                 ctx.stroke();
             }
             ctx.font = "18px bold";

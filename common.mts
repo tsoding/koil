@@ -1,3 +1,5 @@
+import {Vector2} from 'vector.mjs';
+
 export const SERVER_PORT = 6970;
 export const WORLD_FACTOR = 200;
 export const WORLD_WIDTH = 4*WORLD_FACTOR;
@@ -13,7 +15,6 @@ export enum Direction {
     Count,
 }
 
-export type Vector2 = {x: number, y: number};
 export const DIRECTION_VECTORS: Vector2[] = (() => {
     console.assert(Direction.Count == 4, "The definition of Direction have changed");
     const vectors = Array(Direction.Count);
@@ -26,8 +27,7 @@ export const DIRECTION_VECTORS: Vector2[] = (() => {
 
 export interface Player {
     id: number,
-    x: number,
-    y: number,
+    position: Vector2,
     moving: number,
     hue: number,
 }
@@ -233,6 +233,6 @@ export function updatePlayer(player: Player, deltaTime: number) {
         dx /= l;
         dy /= l;
     }
-    player.x = properMod(player.x + dx*PLAYER_SPEED*deltaTime, WORLD_WIDTH);
-    player.y = properMod(player.y + dy*PLAYER_SPEED*deltaTime, WORLD_HEIGHT);
+    player.position.x = properMod(player.position.x + dx*PLAYER_SPEED*deltaTime, WORLD_WIDTH);
+    player.position.y = properMod(player.position.y + dy*PLAYER_SPEED*deltaTime, WORLD_HEIGHT);
 }

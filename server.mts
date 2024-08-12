@@ -1,6 +1,7 @@
 import {WebSocketServer, WebSocket} from 'ws';
 import * as common from './common.mjs'
 import {Player} from './common.mjs';
+import {Vector2} from './vector.mjs';
 
 namespace Stats {
     const AVERAGE_CAPACITY = 30;
@@ -173,13 +174,13 @@ wss.on("connection", (ws, req) => {
     const id = idCounter++;
     const x = Math.random()*(common.WORLD_WIDTH - common.PLAYER_SIZE);
     const y = Math.random()*(common.WORLD_HEIGHT - common.PLAYER_SIZE);
+    const position = new Vector2(x, y);
     const hue = Math.floor(Math.random()*360);
     const player = {
         ws,
         remoteAddress,
         id,
-        x,
-        y,
+        position,
         moving: 0,
         newMoving: 0,
         hue,
@@ -263,8 +264,8 @@ function tick() {
             players.forEach((player) => {
                 const playerView = new DataView(buffer, common.PlayersJoinedHeaderStruct.size + index*common.PlayerStruct.size);
                 common.PlayerStruct.id.write(playerView, player.id);
-                common.PlayerStruct.x.write(playerView, player.x);
-                common.PlayerStruct.y.write(playerView, player.y);
+                common.PlayerStruct.x.write(playerView, player.position.x);
+                common.PlayerStruct.y.write(playerView, player.position.y);
                 common.PlayerStruct.hue.write(playerView, player.hue/360*256);
                 common.PlayerStruct.moving.write(playerView, player.moving);
                 index += 1;
@@ -278,8 +279,8 @@ function tick() {
                     const view = new DataView(new ArrayBuffer(common.HelloStruct.size));
                     common.HelloStruct.kind.write(view, common.MessageKind.Hello);
                     common.HelloStruct.id.write(view, joinedPlayer.id);
-                    common.HelloStruct.x.write(view, joinedPlayer.x);
-                    common.HelloStruct.y.write(view, joinedPlayer.y);
+                    common.HelloStruct.x.write(view, joinedPlayer.position.x);
+                    common.HelloStruct.y.write(view, joinedPlayer.position.y);
                     common.HelloStruct.hue.write(view, Math.floor(joinedPlayer.hue/360*256));
                     joinedPlayer.ws.send(view);
                     bytesSentCounter += view.byteLength;
@@ -306,8 +307,8 @@ function tick() {
                 if (joinedPlayer !== undefined) { // This should never happen, but we handling none existing ids for more robustness
                     const playerView = new DataView(buffer, common.PlayersJoinedHeaderStruct.size + index*common.PlayerStruct.size);
                     common.PlayerStruct.id.write(playerView, joinedPlayer.id);
-                    common.PlayerStruct.x.write(playerView, joinedPlayer.x);
-                    common.PlayerStruct.y.write(playerView, joinedPlayer.y);
+                    common.PlayerStruct.x.write(playerView, joinedPlayer.position.x);
+                    common.PlayerStruct.y.write(playerView, joinedPlayer.position.y);
                     common.PlayerStruct.hue.write(playerView, joinedPlayer.hue/360*256);
                     common.PlayerStruct.moving.write(playerView, joinedPlayer.moving);
                     index += 1;
@@ -359,8 +360,8 @@ function tick() {
                     player.moving = player.newMoving;
                     const playerView = new DataView(buffer, common.PlayersMovingHeaderStruct.size + index*common.PlayerStruct.size);
                     common.PlayerStruct.id.write(playerView, player.id);
-                    common.PlayerStruct.x.write(playerView, player.x);
-                    common.PlayerStruct.y.write(playerView, player.y);
+                    common.PlayerStruct.x.write(playerView, player.position.x);
+                    common.PlayerStruct.y.write(playerView, player.position.y);
                     common.PlayerStruct.moving.write(playerView, player.moving);
                     index += 1;
                 }

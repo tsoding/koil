@@ -820,16 +820,19 @@ interface Assets {
 }
 
 interface Game {
+    // Client Side Only
     camera: Camera,
     player: Player,             // TODO: rename Game.player to Game.me (like in multiplayer prototype)
-    players: Map<number, Player>,
-    scene: Scene,
-    items: Array<Item>,
     bombs: Array<Bomb>,
     visibleSprites: Array<Sprite>,
     spritePool: SpritePool,
     particles: Array<Particle>,
     assets: Assets,
+
+    // Shared
+    scene: Scene,
+    items: Array<Item>,
+    players: Map<number, Player>,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
