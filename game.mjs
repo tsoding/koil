@@ -156,8 +156,6 @@ function castRay(scene, p1, p2) {
 function createPlayer(position, direction) {
     return {
         position: position,
-        fovLeft: new Vector2(),
-        fovRight: new Vector2(),
         direction: direction,
         movingForward: false,
         movingBackward: false,
@@ -165,7 +163,7 @@ function createPlayer(position, direction) {
         turningRight: false,
     };
 }
-function renderMinimap(ctx, player, scene, spritePool, visibleSprites) {
+function renderMinimap(ctx, camera, player, scene, spritePool, visibleSprites) {
     ctx.save();
     const p1 = new Vector2();
     const p2 = new Vector2();
@@ -198,9 +196,9 @@ function renderMinimap(ctx, player, scene, spritePool, visibleSprites) {
     ctx.fillStyle = "magenta";
     ctx.fillRect(player.position.x - MINIMAP_PLAYER_SIZE * 0.5, player.position.y - MINIMAP_PLAYER_SIZE * 0.5, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
     ctx.strokeStyle = "magenta";
-    strokeLine(ctx, player.fovLeft, player.fovRight);
-    strokeLine(ctx, player.position, player.fovLeft);
-    strokeLine(ctx, player.position, player.fovRight);
+    strokeLine(ctx, camera.fovLeft, camera.fovRight);
+    strokeLine(ctx, camera.position, camera.fovLeft);
+    strokeLine(ctx, camera.position, camera.fovRight);
     if (MINIMAP_SPRITES) {
         ctx.strokeStyle = "yellow";
         ctx.fillStyle = "white";
@@ -227,13 +225,13 @@ function renderFPS(ctx, deltaTime) {
     const dtAvg = dts.reduce((a, b) => a + b, 0) / dts.length;
     ctx.fillText(`${Math.floor(1 / dtAvg)}`, 100, 100);
 }
-function renderWalls(display, player, scene) {
-    const d = new Vector2().setPolar(player.direction);
+function renderWalls(display, camera, scene) {
+    const d = new Vector2().setPolar(camera.direction);
     for (let x = 0; x < display.backImageData.width; ++x) {
-        const p = castRay(scene, player.position, player.fovLeft.clone().lerp(player.fovRight, x / display.backImageData.width));
-        const c = hittingCell(player.position, p);
+        const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x / display.backImageData.width));
+        const c = hittingCell(camera.position, p);
         const cell = sceneGetTile(scene, c);
-        const v = p.clone().sub(player.position);
+        const v = p.clone().sub(camera.position);
         display.zBuffer[x] = v.dot(d);
         if (cell instanceof RGBA) {
             const stripHeight = display.backImageData.height / display.zBuffer[x];
@@ -281,24 +279,24 @@ function renderWalls(display, player, scene) {
         }
     }
 }
-function renderFloorAndCeiling(imageData, player) {
+function renderFloorAndCeiling(imageData, camera) {
     const pz = imageData.height / 2;
     const t = new Vector2();
     const t1 = new Vector2();
     const t2 = new Vector2();
-    const bp = t1.copy(player.fovLeft).sub(player.position).length();
+    const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
     for (let y = Math.floor(imageData.height / 2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
         const ap = pz - sz;
         const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        t1.copy(player.fovLeft).sub(player.position).norm().scale(b).add(player.position);
-        t2.copy(player.fovRight).sub(player.position).norm().scale(b).add(player.position);
+        t1.copy(camera.fovLeft).sub(camera.position).norm().scale(b).add(camera.position);
+        t2.copy(camera.fovRight).sub(camera.position).norm().scale(b).add(camera.position);
         for (let x = 0; x < imageData.width; ++x) {
             t.copy(t1).lerp(t2, x / imageData.width);
             const floorTile = sceneGetFloor(t);
             if (floorTile instanceof RGBA) {
                 const destP = (y * imageData.width + x) * 4;
-                const shadow = player.position.distanceTo(t) * 255;
+                const shadow = camera.position.distanceTo(t) * 255;
                 imageData.data[destP + 0] = floorTile.r * shadow;
                 imageData.data[destP + 1] = floorTile.g * shadow;
                 imageData.data[destP + 2] = floorTile.b * shadow;
@@ -306,7 +304,7 @@ function renderFloorAndCeiling(imageData, player) {
             const ceilingTile = sceneGetCeiling(t);
             if (ceilingTile instanceof RGBA) {
                 const destP = (sz * imageData.width + x) * 4;
-                const shadow = player.position.distanceTo(t) * 255;
+                const shadow = camera.position.distanceTo(t) * 255;
                 imageData.data[destP + 0] = ceilingTile.r * shadow;
                 imageData.data[destP + 1] = ceilingTile.g * shadow;
                 imageData.data[destP + 2] = ceilingTile.b * shadow;
@@ -333,14 +331,14 @@ function displaySwapBackImageData(display) {
     display.backCtx.putImageData(display.backImageData, 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
-function cullAndSortSprites(player, spritePool, visibleSprites) {
+function cullAndSortSprites(camera, spritePool, visibleSprites) {
     const sp = new Vector2();
-    const dir = new Vector2().setPolar(player.direction);
-    const fov = player.fovRight.clone().sub(player.fovLeft);
+    const dir = new Vector2().setPolar(camera.direction);
+    const fov = camera.fovRight.clone().sub(camera.fovLeft);
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
         const sprite = spritePool.items[i];
-        sp.copy(sprite.position).sub(player.position);
+        sp.copy(sprite.position).sub(camera.position);
         const spl = sp.length();
         if (spl <= NEAR_CLIPPING_PLANE)
             continue;
@@ -350,9 +348,9 @@ function cullAndSortSprites(player, spritePool, visibleSprites) {
         if (cos < 0)
             continue;
         sprite.dist = NEAR_CLIPPING_PLANE / cos;
-        sp.norm().scale(sprite.dist).add(player.position).sub(player.fovLeft);
+        sp.norm().scale(sprite.dist).add(camera.position).sub(camera.fovLeft);
         sprite.t = sp.length() / fov.length() * Math.sign(sp.dot(fov));
-        sprite.pdist = sprite.position.clone().sub(player.position).dot(dir);
+        sprite.pdist = sprite.position.clone().sub(camera.position).dot(dir);
         if (sprite.pdist < NEAR_CLIPPING_PLANE)
             continue;
         if (sprite.pdist >= FAR_CLIPPING_PLANE)
@@ -478,7 +476,7 @@ export function throwBomb(player, bombs) {
         }
     }
 }
-function updatePlayer(player, scene, deltaTime) {
+function updatePlayer(player, camera, scene, deltaTime) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if (player.movingForward) {
@@ -504,8 +502,10 @@ function updatePlayer(player, scene, deltaTime) {
     }
     const halfFov = FOV * 0.5;
     const fovLen = NEAR_CLIPPING_PLANE / Math.cos(halfFov);
-    player.fovLeft.setPolar(player.direction - halfFov, fovLen).add(player.position);
-    player.fovRight.setPolar(player.direction + halfFov, fovLen).add(player.position);
+    camera.position.copy(player.position);
+    camera.direction = player.direction;
+    camera.fovLeft.setPolar(camera.direction - halfFov, fovLen).add(camera.position);
+    camera.fovRight.setPolar(camera.direction + halfFov, fovLen).add(camera.position);
 }
 function spriteOfItemKind(itemKind, assets) {
     switch (itemKind) {
@@ -723,7 +723,13 @@ export async function createGame() {
     const visibleSprites = [];
     const spritePool = createSpritePool();
     const players = new Map();
-    return { player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites };
+    const camera = {
+        position: new Vector2(),
+        direction: 0,
+        fovLeft: new Vector2(),
+        fovRight: new Vector2(),
+    };
+    return { camera, player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites };
 }
 function properMod(a, b) {
     return (a % b + b) % b;
@@ -734,17 +740,17 @@ function spriteAngleIndex(cameraPosition, entity) {
 }
 export function renderGame(display, deltaTime, time, game) {
     resetSpritePool(game.spritePool);
-    updatePlayer(game.player, game.scene, deltaTime);
+    updatePlayer(game.player, game.camera, game.scene, deltaTime);
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
     updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.scene, game.particles);
-    renderFloorAndCeiling(display.backImageData, game.player);
-    renderWalls(display, game.player, game.scene);
-    cullAndSortSprites(game.player, game.spritePool, game.visibleSprites);
+    renderFloorAndCeiling(display.backImageData, game.camera);
+    renderWalls(display, game.camera, game.scene);
+    cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
     if (MINIMAP)
-        renderMinimap(display.ctx, game.player, game.scene, game.spritePool, game.visibleSprites);
+        renderMinimap(display.ctx, game.camera, game.player, game.scene, game.spritePool, game.visibleSprites);
     renderFPS(display.ctx, deltaTime);
 }
 //# sourceMappingURL=game.mjs.map

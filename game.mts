@@ -207,10 +207,15 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     return p2;
 }
 
-interface Player {
+interface Camera {
     position: Vector2;
+    direction: number;
     fovLeft: Vector2;
     fovRight: Vector2;
+}
+
+interface Player {
+    position: Vector2;
     direction: number;
     movingForward: boolean;
     movingBackward: boolean;
@@ -221,8 +226,6 @@ interface Player {
 function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
-        fovLeft: new Vector2(),
-        fovRight: new Vector2(),
         direction: direction,
         movingForward: false,
         movingBackward: false,
@@ -231,7 +234,7 @@ function createPlayer(position: Vector2, direction: number): Player {
     }
 }
 
-function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Scene, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
+function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Player, scene: Scene, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
     ctx.save();
 
     // A couple of temporary vectors
@@ -275,9 +278,9 @@ function renderMinimap(ctx: CanvasRenderingContext2D, player: Player, scene: Sce
                  MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
 
     ctx.strokeStyle = "magenta";
-    strokeLine(ctx, player.fovLeft, player.fovRight);
-    strokeLine(ctx, player.position, player.fovLeft);
-    strokeLine(ctx, player.position, player.fovRight);
+    strokeLine(ctx, camera.fovLeft, camera.fovRight);
+    strokeLine(ctx, camera.position, camera.fovLeft);
+    strokeLine(ctx, camera.position, camera.fovRight);
 
     if (MINIMAP_SPRITES) {
         ctx.strokeStyle = "yellow";
@@ -317,13 +320,13 @@ function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
     ctx.fillText(`${Math.floor(1/dtAvg)}`, 100, 100);
 }
 
-function renderWalls(display: Display, player: Player, scene: Scene) {
-    const d = new Vector2().setPolar(player.direction)
+function renderWalls(display: Display, camera: Camera, scene: Scene) {
+    const d = new Vector2().setPolar(camera.direction)
     for (let x = 0; x < display.backImageData.width; ++x) {
-        const p = castRay(scene, player.position, player.fovLeft.clone().lerp(player.fovRight, x/display.backImageData.width));
-        const c = hittingCell(player.position, p);
+        const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageData.width));
+        const c = hittingCell(camera.position, p);
         const cell = sceneGetTile(scene, c);
-        const v = p.clone().sub(player.position);
+        const v = p.clone().sub(camera.position);
         display.zBuffer[x] = v.dot(d);
         if (cell instanceof RGBA) {
             const stripHeight = display.backImageData.height/display.zBuffer[x];
@@ -370,19 +373,19 @@ function renderWalls(display: Display, player: Player, scene: Scene) {
     }
 }
 
-function renderFloorAndCeiling(imageData: ImageData, player: Player) {
+function renderFloorAndCeiling(imageData: ImageData, camera: Camera) {
     const pz = imageData.height/2;
     const t = new Vector2();
     const t1 = new Vector2();
     const t2 = new Vector2();
-    const bp = t1.copy(player.fovLeft).sub(player.position).length();
+    const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
     for (let y = Math.floor(imageData.height/2); y < imageData.height; ++y) {
         const sz = imageData.height - y - 1;
 
         const ap = pz - sz;
         const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        t1.copy(player.fovLeft).sub(player.position).norm().scale(b).add(player.position);
-        t2.copy(player.fovRight).sub(player.position).norm().scale(b).add(player.position);
+        t1.copy(camera.fovLeft).sub(camera.position).norm().scale(b).add(camera.position);
+        t2.copy(camera.fovRight).sub(camera.position).norm().scale(b).add(camera.position);
 
         // TODO: Render rows up until FAR_CLIPPING_PLANE
         //   There is a small bug with how we are projecting the floor and ceiling which makes it non-trivial.
@@ -398,7 +401,7 @@ function renderFloorAndCeiling(imageData: ImageData, player: Player) {
             const floorTile = sceneGetFloor(t);
             if (floorTile instanceof RGBA) {
                 const destP = (y*imageData.width + x)*4;
-                const shadow = player.position.distanceTo(t)*255;
+                const shadow = camera.position.distanceTo(t)*255;
                 imageData.data[destP + 0] = floorTile.r*shadow;
                 imageData.data[destP + 1] = floorTile.g*shadow;
                 imageData.data[destP + 2] = floorTile.b*shadow;
@@ -406,7 +409,7 @@ function renderFloorAndCeiling(imageData: ImageData, player: Player) {
             const ceilingTile = sceneGetCeiling(t);
             if (ceilingTile instanceof RGBA) {
                 const destP = (sz*imageData.width + x)*4;
-                const shadow = player.position.distanceTo(t)*255;
+                const shadow = camera.position.distanceTo(t)*255;
                 imageData.data[destP + 0] = ceilingTile.r*shadow;
                 imageData.data[destP + 1] = ceilingTile.g*shadow;
                 imageData.data[destP + 2] = ceilingTile.b*shadow;
@@ -455,16 +458,16 @@ interface Sprite {
     t: number;     // Normalized horizontal position on the screen
 }
 
-function cullAndSortSprites(player: Player, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
+function cullAndSortSprites(camera: Camera, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
     const sp = new Vector2();
-    const dir = new Vector2().setPolar(player.direction);
-    const fov = player.fovRight.clone().sub(player.fovLeft);
+    const dir = new Vector2().setPolar(camera.direction);
+    const fov = camera.fovRight.clone().sub(camera.fovLeft);
 
     visibleSprites.length = 0;
     for (let i = 0; i < spritePool.length; ++i) {
         const sprite = spritePool.items[i];
 
-        sp.copy(sprite.position).sub(player.position);
+        sp.copy(sprite.position).sub(camera.position);
         const spl = sp.length();
         if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
         if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
@@ -474,9 +477,9 @@ function cullAndSortSprites(player: Player, spritePool: SpritePool, visibleSprit
         // It may or may not impact the performance of renderSprites()
         if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
         sprite.dist = NEAR_CLIPPING_PLANE/cos;
-        sp.norm().scale(sprite.dist).add(player.position).sub(player.fovLeft);
+        sp.norm().scale(sprite.dist).add(camera.position).sub(camera.fovLeft);
         sprite.t = sp.length()/fov.length()*Math.sign(sp.dot(fov));
-        sprite.pdist = sprite.position.clone().sub(player.position).dot(dir);
+        sprite.pdist = sprite.position.clone().sub(camera.position).dot(dir);
 
         // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
         if (sprite.pdist < NEAR_CLIPPING_PLANE) continue;
@@ -624,7 +627,7 @@ export function throwBomb(player: Player, bombs: Array<Bomb>) {
     }
 }
 
-function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
+function updatePlayer(player: Player, camera: Camera, scene: Scene, deltaTime: number) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if (player.movingForward) {
@@ -651,8 +654,10 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
 
     const halfFov = FOV*0.5;
     const fovLen = NEAR_CLIPPING_PLANE/Math.cos(halfFov);
-    player.fovLeft.setPolar(player.direction-halfFov, fovLen).add(player.position);
-    player.fovRight.setPolar(player.direction+halfFov, fovLen).add(player.position);
+    camera.position.copy(player.position);
+    camera.direction = player.direction;
+    camera.fovLeft.setPolar(camera.direction-halfFov, fovLen).add(camera.position);
+    camera.fovRight.setPolar(camera.direction+halfFov, fovLen).add(camera.position);
 }
 
 function spriteOfItemKind(itemKind: ItemKind, assets: Assets): ImageData {
@@ -813,6 +818,7 @@ interface Assets {
 }
 
 interface Game {
+    camera: Camera,
     player: Player,             // TODO: rename Game.player to Game.me (like in multiplayer prototype)
     players: Map<number, Player>,
     scene: Scene,
@@ -915,7 +921,13 @@ export async function createGame(): Promise<Game> {
 
     const players = new Map<number, Player>();
 
-    return {player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites}
+    const camera: Camera = {
+        position: new Vector2(),
+        direction: 0,
+        fovLeft: new Vector2(),
+        fovRight: new Vector2(),
+    };
+    return {camera, player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites}
 }
 
 function properMod(a: number, b: number): number {
@@ -931,18 +943,18 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
     resetSpritePool(game.spritePool);
 
-    updatePlayer(game.player, game.scene, deltaTime);
+    updatePlayer(game.player, game.camera, game.scene, deltaTime);
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
     updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.scene, game.particles)
 
-    renderFloorAndCeiling(display.backImageData, game.player);
-    renderWalls(display, game.player, game.scene);
-    cullAndSortSprites(game.player, game.spritePool, game.visibleSprites);
+    renderFloorAndCeiling(display.backImageData, game.camera);
+    renderWalls(display, game.camera, game.scene);
+    cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
 
-    if (MINIMAP) renderMinimap(display.ctx, game.player, game.scene, game.spritePool, game.visibleSprites);
+    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.player, game.scene, game.spritePool, game.visibleSprites);
     renderFPS(display.ctx, deltaTime);
     // display.ctx.fillText(`${a/Math.PI*180}`, 100, 200);    
 }
