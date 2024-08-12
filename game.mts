@@ -214,7 +214,6 @@ interface Entity {
 
 interface Player {
     position: Vector2;
-    controlVelocity: Vector2;
     fovLeft: Vector2;
     fovRight: Vector2;
     direction: number;
@@ -227,7 +226,6 @@ interface Player {
 function createPlayer(position: Vector2, direction: number): Player {
     return {
         position: position,
-        controlVelocity: new Vector2(),
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
         direction: direction,
@@ -632,13 +630,13 @@ export function throwBomb(player: Player, bombs: Array<Bomb>) {
 }
 
 function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
-    player.controlVelocity.setScalar(0);
+    const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED))
+        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED))
     }
     if (player.movingBackward) {
-        player.controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED))
+        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED))
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -647,11 +645,11 @@ function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
         angularVelocity += Math.PI;
     }
     player.direction = player.direction + angularVelocity*deltaTime;
-    const nx = player.position.x + player.controlVelocity.x*deltaTime;
+    const nx = player.position.x + controlVelocity.x*deltaTime;
     if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.x = nx;
     }
-    const ny = player.position.y + player.controlVelocity.y*deltaTime;
+    const ny = player.position.y + controlVelocity.y*deltaTime;
     if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.y = ny;
     }

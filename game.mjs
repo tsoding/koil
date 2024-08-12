@@ -156,7 +156,6 @@ function castRay(scene, p1, p2) {
 function createPlayer(position, direction) {
     return {
         position: position,
-        controlVelocity: new Vector2(),
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
         direction: direction,
@@ -480,13 +479,13 @@ export function throwBomb(player, bombs) {
     }
 }
 function updatePlayer(player, scene, deltaTime) {
-    player.controlVelocity.setScalar(0);
+    const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if (player.movingForward) {
-        player.controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED));
+        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED));
     }
     if (player.movingBackward) {
-        player.controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED));
+        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED));
     }
     if (player.turningLeft) {
         angularVelocity -= Math.PI;
@@ -495,11 +494,11 @@ function updatePlayer(player, scene, deltaTime) {
         angularVelocity += Math.PI;
     }
     player.direction = player.direction + angularVelocity * deltaTime;
-    const nx = player.position.x + player.controlVelocity.x * deltaTime;
+    const nx = player.position.x + controlVelocity.x * deltaTime;
     if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.x = nx;
     }
-    const ny = player.position.y + player.controlVelocity.y * deltaTime;
+    const ny = player.position.y + controlVelocity.y * deltaTime;
     if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
         player.position.y = ny;
     }
