@@ -1,26 +1,18 @@
+import { Vector2 } from './vector.mjs';
 export const SERVER_PORT = 6970;
 export const WORLD_FACTOR = 200;
 export const WORLD_WIDTH = 4 * WORLD_FACTOR;
 export const WORLD_HEIGHT = 3 * WORLD_FACTOR;
 export const PLAYER_SIZE = 30;
 export const PLAYER_SPEED = 500;
-export var Direction;
-(function (Direction) {
-    Direction[Direction["Left"] = 0] = "Left";
-    Direction[Direction["Right"] = 1] = "Right";
-    Direction[Direction["Up"] = 2] = "Up";
-    Direction[Direction["Down"] = 3] = "Down";
-    Direction[Direction["Count"] = 4] = "Count";
-})(Direction || (Direction = {}));
-export const DIRECTION_VECTORS = (() => {
-    console.assert(Direction.Count == 4, "The definition of Direction have changed");
-    const vectors = Array(Direction.Count);
-    vectors[Direction.Left] = { x: -1, y: 0 };
-    vectors[Direction.Right] = { x: 1, y: 0 };
-    vectors[Direction.Up] = { x: 0, y: -1 };
-    vectors[Direction.Down] = { x: 0, y: 1 };
-    return vectors;
-})();
+export var Moving;
+(function (Moving) {
+    Moving[Moving["MovingForward"] = 0] = "MovingForward";
+    Moving[Moving["MovingBackward"] = 1] = "MovingBackward";
+    Moving[Moving["TurningLeft"] = 2] = "TurningLeft";
+    Moving[Moving["TurningRight"] = 3] = "TurningRight";
+    Moving[Moving["Count"] = 4] = "Count";
+})(Moving || (Moving = {}));
 export var MessageKind;
 (function (MessageKind) {
     MessageKind[MessageKind["Hello"] = 0] = "Hello";
@@ -103,12 +95,13 @@ export const HelloStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
     const id = allocUint32Field(allocator);
-    const x = allocFloat32Field(allocator);
-    const y = allocFloat32Field(allocator);
+    const x_ = allocFloat32Field(allocator);
+    const y_ = allocFloat32Field(allocator);
+    const direction = allocFloat32Field(allocator);
     const hue = allocUint8Field(allocator);
     const size = allocator.size;
     const verify = verifier(kind, MessageKind.Hello, size);
-    return { kind, id, x, y, hue, size, verify };
+    return { kind, id, x_, y_, direction, hue, size, verify };
 })();
 export const AmmaMovingStruct = (() => {
     const allocator = { size: 0 };
@@ -122,12 +115,13 @@ export const AmmaMovingStruct = (() => {
 export const PlayerStruct = (() => {
     const allocator = { size: 0 };
     const id = allocUint32Field(allocator);
-    const x = allocFloat32Field(allocator);
-    const y = allocFloat32Field(allocator);
+    const x_ = allocFloat32Field(allocator);
+    const y_ = allocFloat32Field(allocator);
+    const direction = allocFloat32Field(allocator);
     const hue = allocUint8Field(allocator);
     const moving = allocUint8Field(allocator);
     const size = allocator.size;
-    return { id, x, y, hue, moving, size };
+    return { id, x_, y_, direction, hue, moving, size };
 })();
 export const PlayersJoinedHeaderStruct = (() => {
     const allocator = { size: 0 };
@@ -180,20 +174,23 @@ function properMod(a, b) {
     return (a % b + b) % b;
 }
 export function updatePlayer(player, deltaTime) {
-    let dx = 0;
-    let dy = 0;
-    for (let dir = 0; dir < Direction.Count; dir += 1) {
-        if ((player.moving >> dir) & 1) {
-            dx += DIRECTION_VECTORS[dir].x;
-            dy += DIRECTION_VECTORS[dir].y;
-        }
+    const controlVelocity = new Vector2();
+    let angularVelocity = 0.0;
+    if ((player.moving >> Moving.MovingForward) & 1) {
+        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED));
     }
-    const l = dx * dx + dy * dy;
-    if (l !== 0) {
-        dx /= l;
-        dy /= l;
+    if ((player.moving >> Moving.MovingBackward) & 1) {
+        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED));
     }
-    player.position.x = properMod(player.position.x + dx * PLAYER_SPEED * deltaTime, WORLD_WIDTH);
-    player.position.y = properMod(player.position.y + dy * PLAYER_SPEED * deltaTime, WORLD_HEIGHT);
+    if ((player.moving >> Moving.TurningLeft) & 1) {
+        angularVelocity -= Math.PI;
+    }
+    if ((player.moving >> Moving.TurningRight) & 1) {
+        angularVelocity += Math.PI;
+    }
+    player.direction = player.direction + angularVelocity * deltaTime;
+    player.position.add(controlVelocity.scale(deltaTime));
+    player.position.x = properMod(player.position.x, WORLD_WIDTH);
+    player.position.y = properMod(player.position.y, WORLD_HEIGHT);
 }
 //# sourceMappingURL=common.mjs.map

@@ -1,15 +1,21 @@
 import * as common from './common.mjs';
 import { Vector2 } from './vector.mjs';
 const DIRECTION_KEYS = {
-    'ArrowLeft': common.Direction.Left,
-    'ArrowRight': common.Direction.Right,
-    'ArrowUp': common.Direction.Up,
-    'ArrowDown': common.Direction.Down,
-    'KeyA': common.Direction.Left,
-    'KeyD': common.Direction.Right,
-    'KeyS': common.Direction.Down,
-    'KeyW': common.Direction.Up,
+    'ArrowLeft': common.Moving.TurningLeft,
+    'ArrowRight': common.Moving.TurningRight,
+    'ArrowUp': common.Moving.MovingForward,
+    'ArrowDown': common.Moving.MovingBackward,
+    'KeyA': common.Moving.TurningLeft,
+    'KeyD': common.Moving.TurningRight,
+    'KeyW': common.Moving.MovingForward,
+    'KeyS': common.Moving.MovingBackward,
 };
+function strokeLine(ctx, p1, p2) {
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+}
 (async () => {
     const gameCanvas = document.getElementById('game');
     if (gameCanvas === null)
@@ -41,7 +47,8 @@ const DIRECTION_KEYS = {
             if (common.HelloStruct.verify(view)) {
                 me = {
                     id: common.HelloStruct.id.read(view),
-                    position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
+                    position: new Vector2(common.HelloStruct.x_.read(view), common.HelloStruct.y_.read(view)),
+                    direction: common.HelloStruct.direction.read(view),
                     moving: 0,
                     hue: common.HelloStruct.hue.read(view) / 256 * 360,
                 };
@@ -60,17 +67,19 @@ const DIRECTION_KEYS = {
                     const id = common.PlayerStruct.id.read(playerView);
                     const player = players.get(id);
                     if (player !== undefined) {
-                        player.position.x = common.PlayerStruct.x.read(playerView);
-                        player.position.y = common.PlayerStruct.y.read(playerView);
+                        player.position.x = common.PlayerStruct.x_.read(playerView);
+                        player.position.y = common.PlayerStruct.y_.read(playerView);
+                        player.direction = common.PlayerStruct.direction.read(playerView);
                         player.moving = common.PlayerStruct.moving.read(playerView);
                         player.hue = common.PlayerStruct.hue.read(playerView) / 256 * 360;
                     }
                     else {
-                        const x = common.PlayerStruct.x.read(playerView);
-                        const y = common.PlayerStruct.y.read(playerView);
+                        const x = common.PlayerStruct.x_.read(playerView);
+                        const y = common.PlayerStruct.y_.read(playerView);
                         players.set(id, {
                             id,
                             position: new Vector2(x, y),
+                            direction: common.PlayerStruct.direction.read(playerView),
                             moving: common.PlayerStruct.moving.read(playerView),
                             hue: common.PlayerStruct.hue.read(playerView) / 256 * 360,
                         });
@@ -96,8 +105,9 @@ const DIRECTION_KEYS = {
                         return;
                     }
                     player.moving = common.PlayerStruct.moving.read(playerView);
-                    player.position.x = common.PlayerStruct.x.read(playerView);
-                    player.position.y = common.PlayerStruct.y.read(playerView);
+                    player.position.x = common.PlayerStruct.x_.read(playerView);
+                    player.position.y = common.PlayerStruct.y_.read(playerView);
+                    player.direction = common.PlayerStruct.direction.read(playerView);
                 }
             }
             else if (common.PongStruct.verify(view)) {
@@ -133,12 +143,20 @@ const DIRECTION_KEYS = {
                     common.updatePlayer(player, deltaTime);
                     ctx.fillStyle = `hsl(${player.hue} 70% 40%)`;
                     ctx.fillRect(player.position.x, player.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                    ctx.strokeStyle = `hsl(${player.hue} 70% 40%)`;
+                    ctx.lineWidth = 4;
+                    const center = player.position.clone().add(new Vector2(common.PLAYER_SIZE * 0.5, common.PLAYER_SIZE * 0.5));
+                    strokeLine(ctx, center, new Vector2().setPolar(player.direction, common.PLAYER_SIZE * 2).add(center));
                 }
             });
             if (me !== undefined) {
                 common.updatePlayer(me, deltaTime);
                 ctx.fillStyle = `hsl(${me.hue} 100% 40%)`;
                 ctx.fillRect(me.position.x, me.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                ctx.strokeStyle = `hsl(${me.hue} 70% 40%)`;
+                ctx.lineWidth = 4;
+                const center = me.position.clone().add(new Vector2(common.PLAYER_SIZE * 0.5, common.PLAYER_SIZE * 0.5));
+                strokeLine(ctx, center, new Vector2().setPolar(me.direction, common.PLAYER_SIZE * 2).add(center));
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 4;
                 ctx.beginPath();
