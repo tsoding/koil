@@ -20,8 +20,8 @@ function strokeLine(ctx, p1, p2) {
     const gameCanvas = document.getElementById('game');
     if (gameCanvas === null)
         throw new Error('No element with id `game`');
-    gameCanvas.width = common.WORLD_WIDTH;
-    gameCanvas.height = common.WORLD_HEIGHT;
+    gameCanvas.width = common.WORLD_WIDTH_;
+    gameCanvas.height = common.WORLD_HEIGHT_;
     const ctx = gameCanvas.getContext("2d");
     if (ctx === null)
         throw new Error('2d canvas is not supported');
@@ -142,25 +142,25 @@ function strokeLine(ctx, p1, p2) {
                 if (me !== undefined && me.id !== player.id) {
                     common.updatePlayer(player, common.SCENE, deltaTime);
                     ctx.fillStyle = `hsl(${player.hue} 70% 40%)`;
-                    ctx.fillRect(player.position.x, player.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                    ctx.fillRect(player.position.x, player.position.y, common.RAYCASTING_PLAYER_SIZE, common.RAYCASTING_PLAYER_SIZE);
                     ctx.strokeStyle = `hsl(${player.hue} 70% 40%)`;
                     ctx.lineWidth = 4;
-                    const center = player.position.clone().add(new Vector2(common.PLAYER_SIZE * 0.5, common.PLAYER_SIZE * 0.5));
-                    strokeLine(ctx, center, new Vector2().setPolar(player.direction, common.PLAYER_SIZE * 2).add(center));
+                    const center = player.position.clone().add(new Vector2(common.RAYCASTING_PLAYER_SIZE * 0.5, common.RAYCASTING_PLAYER_SIZE * 0.5));
+                    strokeLine(ctx, center, new Vector2().setPolar(player.direction, common.RAYCASTING_PLAYER_SIZE * 2).add(center));
                 }
             });
             if (me !== undefined) {
                 common.updatePlayer(me, common.SCENE, deltaTime);
                 ctx.fillStyle = `hsl(${me.hue} 100% 40%)`;
-                ctx.fillRect(me.position.x, me.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                ctx.fillRect(me.position.x, me.position.y, common.RAYCASTING_PLAYER_SIZE, common.RAYCASTING_PLAYER_SIZE);
                 ctx.strokeStyle = `hsl(${me.hue} 70% 40%)`;
                 ctx.lineWidth = 4;
-                const center = me.position.clone().add(new Vector2(common.PLAYER_SIZE * 0.5, common.PLAYER_SIZE * 0.5));
-                strokeLine(ctx, center, new Vector2().setPolar(me.direction, common.PLAYER_SIZE * 2).add(center));
+                const center = me.position.clone().add(new Vector2(common.RAYCASTING_PLAYER_SIZE * 0.5, common.RAYCASTING_PLAYER_SIZE * 0.5));
+                strokeLine(ctx, center, new Vector2().setPolar(me.direction, common.RAYCASTING_PLAYER_SIZE * 2).add(center));
                 ctx.strokeStyle = "white";
                 ctx.lineWidth = 4;
                 ctx.beginPath();
-                ctx.strokeRect(me.position.x, me.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
+                ctx.strokeRect(me.position.x, me.position.y, common.RAYCASTING_PLAYER_SIZE, common.RAYCASTING_PLAYER_SIZE);
                 ctx.stroke();
             }
             ctx.font = "18px bold";

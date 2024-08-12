@@ -9,7 +9,8 @@
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are Scene and Player which we defined as interfaces.
 import { Vector2, Vector3, RGBA } from './vector.mjs';
-import {Player, Scene, SCENE, sceneIsWall, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE} from './common.mjs';
+import {SERVER_PORT, Player, Scene, SCENE, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE} from './common.mjs';
+import * as common from './common.mjs';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
@@ -146,7 +147,7 @@ function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     let start = p1;
     while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE*FAR_CLIPPING_PLANE) {
         const c = hittingCell(p1, p2);
-        if (sceneIsWall(scene, c)) break;
+        if (sceneGetTile(scene, c)) break;
         const p3 = rayStep(p1, p2);
         p1 = p2;
         p2 = p3;
@@ -622,7 +623,7 @@ function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene
 
             const nx = particle.position.x + particle.velocity.x*deltaTime;
             const ny = particle.position.y + particle.velocity.y*deltaTime;
-            if (sceneIsWall(scene, new Vector2(nx, ny))) {
+            if (sceneGetTile(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
                 
@@ -684,7 +685,7 @@ function updateBombs(spritePool: SpritePool, player: Player, bombs: Array<Bomb>,
 
             const nx = bomb.position.x + bomb.velocity.x*deltaTime;
             const ny = bomb.position.y + bomb.velocity.y*deltaTime;
-            if (sceneIsWall(scene, new Vector2(nx, ny))) {
+            if (sceneGetTile(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
                 
@@ -733,18 +734,17 @@ interface Assets {
 }
 
 interface Game {
-    // Client Side Only
     camera: Camera,
-    player: Player,             // TODO: rename Game.player to Game.me (like in multiplayer prototype)
+    ws: WebSocket | undefined
+    me: Player | undefined,             // TODO: rename Game.player to Game.me (like in multiplayer prototype)
+    players: Map<number, Player>,
     bombs: Array<Bomb>,
     visibleSprites: Array<Sprite>,
     spritePool: SpritePool,
     particles: Array<Particle>,
     assets: Assets,
-
-    // Shared
     items: Array<Item>,
-    players: Map<number, Player>,
+    ping: number,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -784,10 +784,6 @@ export async function createGame(): Promise<Game> {
         itemPickupSound,
         bombBlastSound,
     }
-
-    const player = createPlayer(
-        new Vector2(SCENE.width, SCENE.height).scale(1.2),
-        Math.PI*1.25);
 
     const items: Array<Item> = [
         {
@@ -835,7 +831,100 @@ export async function createGame(): Promise<Game> {
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
     };
-    return {camera, player, players, items, bombs, particles, assets, spritePool, visibleSprites}
+    const ws = new WebSocket(`ws://${window.location.hostname}:${SERVER_PORT}`);
+    const game: Game = {camera, ws, me: undefined, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
+
+    ws.binaryType = 'arraybuffer';
+    ws.addEventListener("close", (event) => {
+        console.log("WEBSOCKET CLOSE", event)
+        game.ws = undefined
+    });
+    ws.addEventListener("error", (event) => {
+        // TODO: reconnect on errors
+        console.log("WEBSOCKET ERROR", event)
+    });
+    ws.addEventListener("message", (event) => {
+        // console.log('Received message', event);
+        if (!(event.data instanceof ArrayBuffer)) {
+            console.error("Received bogus-amogus message from server. Expected binary data", event);
+            ws?.close();
+        }
+        const view = new DataView(event.data);
+        if (game.me === undefined) {
+            if (common.HelloStruct.verify(view)) {
+                game.me = {
+                    id: common.HelloStruct.id.read(view),
+                    position: new Vector2(common.HelloStruct.x_.read(view), common.HelloStruct.y_.read(view)),
+                    direction: common.HelloStruct.direction.read(view),
+                    moving: 0,
+                    hue: common.HelloStruct.hue.read(view)/256*360,
+                }
+                players.set(game.me.id, game.me)
+            } else {
+                console.error("Received bogus-amogus message from server. Incorrect `Hello` message.", view)
+                ws?.close();
+            }
+        } else {
+            if (common.PlayersJoinedHeaderStruct.verify(view)) {
+                const count = common.PlayersJoinedHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+                    const id = common.PlayerStruct.id.read(playerView);
+                    const player = players.get(id);
+                    if (player !== undefined) {
+                        player.position.x = common.PlayerStruct.x_.read(playerView);
+                        player.position.y = common.PlayerStruct.y_.read(playerView);
+                        player.direction = common.PlayerStruct.direction.read(playerView);
+                        player.moving = common.PlayerStruct.moving.read(playerView);
+                        player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
+                    } else {
+                        const x = common.PlayerStruct.x_.read(playerView);
+                        const y = common.PlayerStruct.y_.read(playerView);
+                        players.set(id, {
+                            id,
+                            position: new Vector2(x, y),
+                            direction: common.PlayerStruct.direction.read(playerView),
+                            moving: common.PlayerStruct.moving.read(playerView),
+                            hue: common.PlayerStruct.hue.read(playerView)/256*360,
+                        });
+                    }
+                }
+            } else if (common.PlayersLeftHeaderStruct.verify(view)) {
+                const count = common.PlayersLeftHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
+                    players.delete(id);
+                }
+            } else if (common.PlayersMovingHeaderStruct.verify(view)) {
+                const count = common.PlayersMovingHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+
+                    const id = common.PlayerStruct.id.read(playerView);
+                    const player = players.get(id);
+                    if (player === undefined) {
+                        console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`)
+                        ws?.close();
+                        return;
+                    }
+                    player.moving = common.PlayerStruct.moving.read(playerView);
+                    player.position.x = common.PlayerStruct.x_.read(playerView);
+                    player.position.y = common.PlayerStruct.y_.read(playerView);
+                    player.direction = common.PlayerStruct.direction.read(playerView);
+                }
+            } else if (common.PongStruct.verify(view)) {
+                game.ping = performance.now() - common.PongStruct.timestamp.read(view);
+            } else {
+                console.error("Received bogus-amogus message from server.", view)
+                ws?.close();
+            }
+        }
+    });
+    ws.addEventListener("open", (event) => {
+        console.log("WEBSOCKET OPEN", event)
+    });
+    
+    return game;
 }
 
 function properMod(a: number, b: number): number {
@@ -849,23 +938,38 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 }
 
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    resetSpritePool(game.spritePool);
+    if (game.me !== undefined) {
+        resetSpritePool(game.spritePool);
 
-    updatePlayer(game.player, SCENE, deltaTime);
-    updateCamera(game.player, game.camera);
-    updateItems(game.spritePool, time, game.player, game.items, game.assets);
-    updateBombs(game.spritePool, game.player, game.bombs, game.particles, SCENE, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
+        game.players.forEach((player) => updatePlayer(player, SCENE, deltaTime));
+        updateCamera(game.me, game.camera);
+        updateItems(game.spritePool, time, game.me, game.items, game.assets);
+        updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
+        updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
 
-    renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.assets, game.camera, SCENE);
-    cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
-    renderSprites(display, game.visibleSprites);
-    displaySwapBackImageData(display);
+        game.players.forEach((player) => {
+            if (player !== game.me) {
+                const index = spriteAngleIndex(game.camera.position, player);
+                pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
+            }
+        })
 
-    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.player, SCENE, game.spritePool, game.visibleSprites);
-    renderFPS(display.ctx, deltaTime);
-    // display.ctx.fillText(`${a/Math.PI*180}`, 100, 200);    
+        renderFloorAndCeiling(display.backImageData, game.camera);
+        renderWalls(display, game.assets, game.camera, SCENE);
+        cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
+        renderSprites(display, game.visibleSprites);
+        displaySwapBackImageData(display);
+
+        if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
+        renderFPS(display.ctx, deltaTime);
+        // display.ctx.fillText(`${a/Math.PI*180}`, 100, 200);
+    } else {
+        const label = "Disconnected";
+        const size = display.ctx.measureText(label);
+        display.ctx.font = "48px bold";
+        display.ctx.fillStyle = 'white';
+        display.ctx.fillText(label, display.ctx.canvas.width/2 - size.width/2, display.ctx.canvas.height/2);
+    }
 }
 
 // TODO: "magnet" items into the player

@@ -172,8 +172,8 @@ wss.on("connection", (ws, req) => {
     }
 
     const id = idCounter++;
-    const x = Math.random()*(common.WORLD_WIDTH - common.PLAYER_SIZE);
-    const y = Math.random()*(common.WORLD_HEIGHT - common.PLAYER_SIZE);
+    const x = 0;//Math.random()*(common.WORLD_WIDTH - common.PLAYER_SIZE);
+    const y = 0;//Math.random()*(common.WORLD_HEIGHT - common.PLAYER_SIZE);
     const position = new Vector2(x, y);
     const hue = Math.floor(Math.random()*360);
     const player = {

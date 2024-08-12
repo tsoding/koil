@@ -33,19 +33,31 @@ const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
     const gameState = await game.createGame();
 
     window.addEventListener("keydown", (e) => {
-        if (!e.repeat) {
-            const direction = DIRECTION_KEYS[e.code];
-            if (direction !== undefined) {
-                gameState.player.moving |= (1<<direction);
+        if (gameState.ws !== undefined && gameState.me !== undefined) {
+            if (!e.repeat) {
+                const direction = DIRECTION_KEYS[e.code];
+                if (direction !== undefined) {
+                    const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+                    common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
+                    common.AmmaMovingStruct.start.write(view, 1);
+                    common.AmmaMovingStruct.direction.write(view, direction);
+                    gameState.ws.send(view);
+                }
             }
         }
     });
     // TODO: When the window loses the focus, reset all the controls
     window.addEventListener("keyup", (e) => {
-        if (!e.repeat) {
-            const direction = DIRECTION_KEYS[e.code];
-            if (direction !== undefined) {
-                gameState.player.moving &= ~(1<<direction);
+        if (gameState.ws !== undefined && gameState.me !== undefined) {
+            if (!e.repeat) {
+                const direction = DIRECTION_KEYS[e.code];
+                if (direction !== undefined) {
+                    const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+                    common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
+                    common.AmmaMovingStruct.start.write(view, 0);
+                    common.AmmaMovingStruct.direction.write(view, direction);
+                    gameState.ws.send(view);
+                }
             }
         }
     });

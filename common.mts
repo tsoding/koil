@@ -1,11 +1,9 @@
 import {Vector2} from './vector.mjs';
 
 export const SERVER_PORT = 6970;
-export const WORLD_FACTOR = 200;
-export const WORLD_WIDTH = 4*WORLD_FACTOR;
-export const WORLD_HEIGHT = 3*WORLD_FACTOR;
-export const PLAYER_SIZE = 30;
-export const PLAYER_SPEED = 500;
+const WORLD_FACTOR_ = 200;
+export const WORLD_WIDTH_ = 4*WORLD_FACTOR_;
+export const WORLD_HEIGHT_ = 3*WORLD_FACTOR_;
 export const RAYCASTING_PLAYER_SIZE = 0.5;
 export const RAYCASTING_PLAYER_SPEED = 2;
 
@@ -229,11 +227,6 @@ export function sceneGetTile(scene: Scene, p: Vector2): boolean {
     return scene.walls[Math.floor(p.y)*scene.width + Math.floor(p.x)];
 }
 
-export function sceneIsWall(scene: Scene, p: Vector2): boolean {
-    const c = sceneGetTile(scene, p);
-    return c;
-}
-
 export function sceneCanRectangleFitHere(scene: Scene, px: number, py: number, sx: number, sy: number): boolean {
     const x1 = Math.floor(px - sx*0.5);
     const x2 = Math.floor(px + sx*0.5);
@@ -241,7 +234,7 @@ export function sceneCanRectangleFitHere(scene: Scene, px: number, py: number, s
     const y2 = Math.floor(py + sy*0.5);
     for (let x = x1; x <= x2; ++x) {
         for (let y = y1; y <= y2; ++y) {
-            if (sceneIsWall(scene, new Vector2(x, y))) {
+            if (sceneGetTile(scene, new Vector2(x, y))) {
                 return false;
             }
         }
@@ -267,13 +260,22 @@ export function createScene(walls: Array<Array<boolean>>): Scene {
     return scene;
 }
 
+// export const SCENE = createScene([
+//     [ false, false, true, true, true, false, false],
+//     [ false, false, false, false, false, true, false],
+//     [ true, false, false, false, false, true, false],
+//     [ true,  false, false, false, false, true, false],
+//     [ true],
+//     [  false,  true, true, true, false, false, false],
+//     [  false,  false, false, false, false, false, false],
+// ]);
 export const SCENE = createScene([
-    [ false, false, true, true, true, false, false],
-    [ false, false, false, false, false, true, false],
-    [ true, false, false, false, false, true, false],
-    [ true,  false, false, false, false, true, false],
-    [ true],
-    [  false,  true, true, true, false, false, false],
+    [ false, false, false, false, false, false, false],
+    [ false, false, false, false, false, false, false],
+    [ false, false, false, false, false, false, false],
+    [ false,  false, false, false, false, false, false],
+    [ false],
+    [  false,  false, false, false, false, false, false],
     [  false,  false, false, false, false, false, false],
 ]);
 

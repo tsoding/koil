@@ -1,5 +1,6 @@
 import { Vector2, Vector3, RGBA } from './vector.mjs';
-import { SCENE, sceneIsWall, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE } from './common.mjs';
+import { SERVER_PORT, SCENE, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE } from './common.mjs';
+import * as common from './common.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -101,7 +102,7 @@ function castRay(scene, p1, p2) {
     let start = p1;
     while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE * FAR_CLIPPING_PLANE) {
         const c = hittingCell(p1, p2);
-        if (sceneIsWall(scene, c))
+        if (sceneGetTile(scene, c))
             break;
         const p3 = rayStep(p1, p2);
         p1 = p2;
@@ -475,7 +476,7 @@ function updateParticles(spritePool, deltaTime, scene, particles) {
             particle.velocity.z -= BOMB_GRAVITY * deltaTime;
             const nx = particle.position.x + particle.velocity.x * deltaTime;
             const ny = particle.position.y + particle.velocity.y * deltaTime;
-            if (sceneIsWall(scene, new Vector2(nx, ny))) {
+            if (sceneGetTile(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
                 if (dx > 0)
@@ -533,7 +534,7 @@ function updateBombs(spritePool, player, bombs, particles, scene, deltaTime, ass
             bomb.velocity.z -= BOMB_GRAVITY * deltaTime;
             const nx = bomb.position.x + bomb.velocity.x * deltaTime;
             const ny = bomb.position.y + bomb.velocity.y * deltaTime;
-            if (sceneIsWall(scene, new Vector2(nx, ny))) {
+            if (sceneGetTile(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
                 if (dx > 0)
@@ -608,7 +609,6 @@ export async function createGame() {
         itemPickupSound,
         bombBlastSound,
     };
-    const player = createPlayer(new Vector2(SCENE.width, SCENE.height).scale(1.2), Math.PI * 1.25);
     const items = [
         {
             kind: "bomb",
@@ -652,7 +652,102 @@ export async function createGame() {
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
     };
-    return { camera, player, players, items, bombs, particles, assets, spritePool, visibleSprites };
+    const ws = new WebSocket(`ws://${window.location.hostname}:${SERVER_PORT}`);
+    const game = { camera, ws, me: undefined, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites };
+    ws.binaryType = 'arraybuffer';
+    ws.addEventListener("close", (event) => {
+        console.log("WEBSOCKET CLOSE", event);
+        game.ws = undefined;
+    });
+    ws.addEventListener("error", (event) => {
+        console.log("WEBSOCKET ERROR", event);
+    });
+    ws.addEventListener("message", (event) => {
+        if (!(event.data instanceof ArrayBuffer)) {
+            console.error("Received bogus-amogus message from server. Expected binary data", event);
+            ws?.close();
+        }
+        const view = new DataView(event.data);
+        if (game.me === undefined) {
+            if (common.HelloStruct.verify(view)) {
+                game.me = {
+                    id: common.HelloStruct.id.read(view),
+                    position: new Vector2(common.HelloStruct.x_.read(view), common.HelloStruct.y_.read(view)),
+                    direction: common.HelloStruct.direction.read(view),
+                    moving: 0,
+                    hue: common.HelloStruct.hue.read(view) / 256 * 360,
+                };
+                players.set(game.me.id, game.me);
+            }
+            else {
+                console.error("Received bogus-amogus message from server. Incorrect `Hello` message.", view);
+                ws?.close();
+            }
+        }
+        else {
+            if (common.PlayersJoinedHeaderStruct.verify(view)) {
+                const count = common.PlayersJoinedHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
+                    const id = common.PlayerStruct.id.read(playerView);
+                    const player = players.get(id);
+                    if (player !== undefined) {
+                        player.position.x = common.PlayerStruct.x_.read(playerView);
+                        player.position.y = common.PlayerStruct.y_.read(playerView);
+                        player.direction = common.PlayerStruct.direction.read(playerView);
+                        player.moving = common.PlayerStruct.moving.read(playerView);
+                        player.hue = common.PlayerStruct.hue.read(playerView) / 256 * 360;
+                    }
+                    else {
+                        const x = common.PlayerStruct.x_.read(playerView);
+                        const y = common.PlayerStruct.y_.read(playerView);
+                        players.set(id, {
+                            id,
+                            position: new Vector2(x, y),
+                            direction: common.PlayerStruct.direction.read(playerView),
+                            moving: common.PlayerStruct.moving.read(playerView),
+                            hue: common.PlayerStruct.hue.read(playerView) / 256 * 360,
+                        });
+                    }
+                }
+            }
+            else if (common.PlayersLeftHeaderStruct.verify(view)) {
+                const count = common.PlayersLeftHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
+                    players.delete(id);
+                }
+            }
+            else if (common.PlayersMovingHeaderStruct.verify(view)) {
+                const count = common.PlayersMovingHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
+                    const id = common.PlayerStruct.id.read(playerView);
+                    const player = players.get(id);
+                    if (player === undefined) {
+                        console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`);
+                        ws?.close();
+                        return;
+                    }
+                    player.moving = common.PlayerStruct.moving.read(playerView);
+                    player.position.x = common.PlayerStruct.x_.read(playerView);
+                    player.position.y = common.PlayerStruct.y_.read(playerView);
+                    player.direction = common.PlayerStruct.direction.read(playerView);
+                }
+            }
+            else if (common.PongStruct.verify(view)) {
+                game.ping = performance.now() - common.PongStruct.timestamp.read(view);
+            }
+            else {
+                console.error("Received bogus-amogus message from server.", view);
+                ws?.close();
+            }
+        }
+    });
+    ws.addEventListener("open", (event) => {
+        console.log("WEBSOCKET OPEN", event);
+    });
+    return game;
 }
 function properMod(a, b) {
     return (a % b + b) % b;
@@ -662,19 +757,34 @@ function spriteAngleIndex(cameraPosition, entity) {
     return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
 }
 export function renderGame(display, deltaTime, time, game) {
-    resetSpritePool(game.spritePool);
-    updatePlayer(game.player, SCENE, deltaTime);
-    updateCamera(game.player, game.camera);
-    updateItems(game.spritePool, time, game.player, game.items, game.assets);
-    updateBombs(game.spritePool, game.player, game.bombs, game.particles, SCENE, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, SCENE, game.particles);
-    renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.assets, game.camera, SCENE);
-    cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
-    renderSprites(display, game.visibleSprites);
-    displaySwapBackImageData(display);
-    if (MINIMAP)
-        renderMinimap(display.ctx, game.camera, game.player, SCENE, game.spritePool, game.visibleSprites);
-    renderFPS(display.ctx, deltaTime);
+    if (game.me !== undefined) {
+        resetSpritePool(game.spritePool);
+        game.players.forEach((player) => updatePlayer(player, SCENE, deltaTime));
+        updateCamera(game.me, game.camera);
+        updateItems(game.spritePool, time, game.me, game.items, game.assets);
+        updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
+        updateParticles(game.spritePool, deltaTime, SCENE, game.particles);
+        game.players.forEach((player) => {
+            if (player !== game.me) {
+                const index = spriteAngleIndex(game.camera.position, player);
+                pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
+            }
+        });
+        renderFloorAndCeiling(display.backImageData, game.camera);
+        renderWalls(display, game.assets, game.camera, SCENE);
+        cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
+        renderSprites(display, game.visibleSprites);
+        displaySwapBackImageData(display);
+        if (MINIMAP)
+            renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
+        renderFPS(display.ctx, deltaTime);
+    }
+    else {
+        const label = "Disconnected";
+        const size = display.ctx.measureText(label);
+        display.ctx.font = "48px bold";
+        display.ctx.fillStyle = 'white';
+        display.ctx.fillText(label, display.ctx.canvas.width / 2 - size.width / 2, display.ctx.canvas.height / 2);
+    }
 }
 //# sourceMappingURL=game.mjs.map

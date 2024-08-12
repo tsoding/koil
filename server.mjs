@@ -129,8 +129,8 @@ wss.on("connection", (ws, req) => {
         connectionLimits.set(remoteAddress, count + 1);
     }
     const id = idCounter++;
-    const x = Math.random() * (common.WORLD_WIDTH - common.PLAYER_SIZE);
-    const y = Math.random() * (common.WORLD_HEIGHT - common.PLAYER_SIZE);
+    const x = 0;
+    const y = 0;
     const position = new Vector2(x, y);
     const hue = Math.floor(Math.random() * 360);
     const player = {
