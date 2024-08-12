@@ -8,7 +8,7 @@
 //
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are Scene and Player which we defined as interfaces.
-import { Vector2, Vector3, RGBA } from './vector.js';
+import { Vector2, Vector3, RGBA } from './vector.mjs';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;

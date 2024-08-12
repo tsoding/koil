@@ -1,4 +1,4 @@
-"use strict";
+import * as game from './game.mjs';
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
@@ -13,20 +13,6 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    let game = await import("./game.js");
-    const isDev = window.location.hostname === "localhost";
-    if (isDev) {
-        const ws = new WebSocket("ws://localhost:6970");
-        ws.addEventListener("message", async (event) => {
-            if (event.data === "hot") {
-                console.log("Hot reloading module");
-                game = await import("./game.js?date=" + new Date().getTime());
-            }
-            else if (event.data === "cold") {
-                window.location.reload();
-            }
-        });
-    }
     const display = game.createDisplay(ctx, SCREEN_WIDTH, SCREEN_HEIGHT);
     const gameState = await game.createGame();
     window.addEventListener("keydown", (e) => {
@@ -91,4 +77,4 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
         window.requestAnimationFrame(frame);
     });
 })();
-//# sourceMappingURL=index.js.map
+//# sourceMappingURL=index.mjs.map

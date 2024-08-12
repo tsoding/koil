@@ -211,4 +211,4 @@ export class Vector3 {
         return this;
     }
 }
-//# sourceMappingURL=vector.js.map
+//# sourceMappingURL=vector.mjs.map

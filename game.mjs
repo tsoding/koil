@@ -1,4 +1,4 @@
-import { Vector2, Vector3, RGBA } from './vector.js';
+import { Vector2, Vector3, RGBA } from './vector.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -776,4 +776,4 @@ export function renderGame(display, deltaTime, time, game) {
         renderMinimap(display.ctx, game.player, game.scene, game.spritePool, game.visibleSprites);
     renderFPS(display.ctx, deltaTime);
 }
-//# sourceMappingURL=game.js.map
+//# sourceMappingURL=game.mjs.map

@@ -1,3 +1,5 @@
+import * as game from './game.mjs';
+
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
@@ -12,22 +14,8 @@ const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    let game = await import("./game.js");
-
-    const isDev = window.location.hostname === "localhost";
-    if (isDev) {
-        const ws = new WebSocket("ws://localhost:6970");
-
-        ws.addEventListener("message", async (event) => {
-            // TODO: hot reloading should not break if the game crashes
-            if (event.data === "hot") {
-                console.log("Hot reloading module");
-                game = await import("./game.js?date="+new Date().getTime());
-            } else if (event.data === "cold") {
-                window.location.reload()
-            }
-        });
-    }
+    // TODO: bring hotreloading back
+    // TODO: hot reloading should not break if the game crashes
 
     const display = game.createDisplay(ctx, SCREEN_WIDTH, SCREEN_HEIGHT);
     const gameState = await game.createGame();
