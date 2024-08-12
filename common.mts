@@ -6,6 +6,8 @@ export const WORLD_WIDTH = 4*WORLD_FACTOR;
 export const WORLD_HEIGHT = 3*WORLD_FACTOR;
 export const PLAYER_SIZE = 30;
 export const PLAYER_SPEED = 500;
+export const RAYCASTING_PLAYER_SIZE = 0.5;
+export const RAYCASTING_PLAYER_SPEED = 2;
 
 export enum Moving {
     MovingForward,
@@ -212,14 +214,77 @@ function properMod(a: number, b: number): number {
     return (a%b + b)%b;
 }
 
-export function updatePlayer(player: Player, deltaTime: number) {
+export interface Scene {
+    walls: Array<boolean>;
+    width: number;
+    height: number;
+}
+
+export function sceneContains(scene: Scene, p: Vector2): boolean {
+    return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
+}
+
+export function sceneGetTile(scene: Scene, p: Vector2): boolean {
+    if (!sceneContains(scene, p)) return false;
+    return scene.walls[Math.floor(p.y)*scene.width + Math.floor(p.x)];
+}
+
+export function sceneIsWall(scene: Scene, p: Vector2): boolean {
+    const c = sceneGetTile(scene, p);
+    return c;
+}
+
+export function sceneCanRectangleFitHere(scene: Scene, px: number, py: number, sx: number, sy: number): boolean {
+    const x1 = Math.floor(px - sx*0.5);
+    const x2 = Math.floor(px + sx*0.5);
+    const y1 = Math.floor(py - sy*0.5);
+    const y2 = Math.floor(py + sy*0.5);
+    for (let x = x1; x <= x2; ++x) {
+        for (let y = y1; y <= y2; ++y) {
+            if (sceneIsWall(scene, new Vector2(x, y))) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+export function createScene(walls: Array<Array<boolean>>): Scene {
+    const scene: Scene = {
+        height: walls.length,
+        width: Number.MIN_VALUE,
+        walls: [],
+    };
+    for (let row of walls) {
+        scene.width = Math.max(scene.width, row.length);
+    }
+    for (let row of walls) {
+        scene.walls = scene.walls.concat(row);
+        for (let i = 0; i < scene.width - row.length; ++i) {
+            scene.walls.push(false);
+        }
+    }
+    return scene;
+}
+
+export const SCENE = createScene([
+    [ false, false, true, true, true, false, false],
+    [ false, false, false, false, false, true, false],
+    [ true, false, false, false, false, true, false],
+    [ true,  false, false, false, false, true, false],
+    [ true],
+    [  false,  true, true, true, false, false, false],
+    [  false,  false, false, false, false, false, false],
+]);
+
+export function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if ((player.moving>>Moving.MovingForward)&1) {
-        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED))
+        controlVelocity.add(new Vector2().setPolar(player.direction, RAYCASTING_PLAYER_SPEED))
     }
     if ((player.moving>>Moving.MovingBackward)&1) {
-        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED))
+        controlVelocity.sub(new Vector2().setPolar(player.direction, RAYCASTING_PLAYER_SPEED))
     }
     if ((player.moving>>Moving.TurningLeft)&1) {
         angularVelocity -= Math.PI;
@@ -229,15 +294,13 @@ export function updatePlayer(player: Player, deltaTime: number) {
     }
     player.direction = player.direction + angularVelocity*deltaTime;
     player.position.add(controlVelocity.scale(deltaTime));
-    player.position.x = properMod(player.position.x, WORLD_WIDTH);
-    player.position.y = properMod(player.position.y, WORLD_HEIGHT);
 
-    // const nx = player.position.x + controlVelocity.x*deltaTime;
-    // if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
-    //     player.position.x = nx;
-    // }
-    // const ny = player.position.y + controlVelocity.y*deltaTime;
-    // if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
-    //     player.position.y = ny;
-    // }
+    const nx = player.position.x + controlVelocity.x*deltaTime;
+    if (sceneCanRectangleFitHere(scene, nx, player.position.y, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE)) {
+        player.position.x = nx;
+    }
+    const ny = player.position.y + controlVelocity.y*deltaTime;
+    if (sceneCanRectangleFitHere(scene, player.position.x, ny, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE)) {
+        player.position.y = ny;
+    }
 }

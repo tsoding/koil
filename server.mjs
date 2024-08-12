@@ -312,7 +312,7 @@ function tick() {
             });
         }
     }
-    players.forEach((player) => common.updatePlayer(player, deltaTime));
+    players.forEach((player) => common.updatePlayer(player, common.SCENE, deltaTime));
     pingIds.forEach((timestamp, id) => {
         const player = players.get(id);
         if (player !== undefined) {

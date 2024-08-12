@@ -9,12 +9,12 @@
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are Scene and Player which we defined as interfaces.
 import { Vector2, Vector3, RGBA } from './vector.mjs';
+import {Player, Scene, SCENE, sceneIsWall, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE} from './common.mjs';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI*0.5;
-const PLAYER_SPEED = 2;
 const PLAYER_RADIUS = 0.5;
 
 const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
@@ -40,7 +40,6 @@ const PARTICLE_COLOR = new RGBA(1, 0.5, 0.15, 1);
 
 const MINIMAP = false;
 const MINIMAP_SPRITES = true;
-const MINIMAP_PLAYER_SIZE = 0.5;
 const MINIMAP_SPRITE_SIZE = 0.2;
 const MINIMAP_SCALE = 0.07;
 
@@ -126,39 +125,6 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
 
 type Tile = RGBA | ImageData | null;
 
-interface Scene {
-    walls: Array<boolean>;
-    width: number;
-    height: number;
-}
-
-function createScene(walls: Array<Array<boolean>>): Scene {
-    const scene: Scene = {
-        height: walls.length,
-        width: Number.MIN_VALUE,
-        walls: [],
-    };
-    for (let row of walls) {
-        scene.width = Math.max(scene.width, row.length);
-    }
-    for (let row of walls) {
-        scene.walls = scene.walls.concat(row);
-        for (let i = 0; i < scene.width - row.length; ++i) {
-            scene.walls.push(false);
-        }
-    }
-    return scene;
-}
-
-function sceneContains(scene: Scene, p: Vector2): boolean {
-    return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
-}
-
-function sceneGetTile(scene: Scene, p: Vector2): boolean {
-    if (!sceneContains(scene, p)) return false;
-    return scene.walls[Math.floor(p.y)*scene.width + Math.floor(p.x)];
-}
-
 function sceneGetFloor(p: Vector2): Tile | undefined {
     if ((Math.floor(p.x) + Math.floor(p.y))%2 == 0) {
         return SCENE_FLOOR1;
@@ -175,25 +141,6 @@ function sceneGetCeiling(p: Vector2): Tile | undefined {
     }
 }
 
-function sceneIsWall(scene: Scene, p: Vector2): boolean {
-    const c = sceneGetTile(scene, p);
-    return c;
-}
-
-function sceneCanRectangleFitHere(scene: Scene, px: number, py: number, sx: number, sy: number): boolean {
-    const x1 = Math.floor(px - sx*0.5);
-    const x2 = Math.floor(px + sx*0.5);
-    const y1 = Math.floor(py - sy*0.5);
-    const y2 = Math.floor(py + sy*0.5);
-    for (let x = x1; x <= x2; ++x) {
-        for (let y = y1; y <= y2; ++y) {
-            if (sceneIsWall(scene, new Vector2(x, y))) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
 
 function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     let start = p1;
@@ -214,23 +161,13 @@ interface Camera {
     fovRight: Vector2;
 }
 
-interface Player {
-    position: Vector2;
-    direction: number;
-    movingForward: boolean;
-    movingBackward: boolean;
-    turningLeft: boolean;
-    turningRight: boolean;
-}
-
 function createPlayer(position: Vector2, direction: number): Player {
     return {
+        id: 0,
         position: position,
         direction: direction,
-        movingForward: false,
-        movingBackward: false,
-        turningLeft: false,
-        turningRight: false,
+        moving: 0,
+        hue: 0,
     }
 }
 
@@ -269,9 +206,9 @@ function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Pl
     }
 
     ctx.fillStyle = "magenta";
-    ctx.fillRect(player.position.x - MINIMAP_PLAYER_SIZE*0.5,
-                 player.position.y - MINIMAP_PLAYER_SIZE*0.5,
-                 MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
+    ctx.fillRect(player.position.x - RAYCASTING_PLAYER_SIZE*0.5,
+                 player.position.y - RAYCASTING_PLAYER_SIZE*0.5,
+                 RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE);
 
     ctx.strokeStyle = "magenta";
     strokeLine(ctx, camera.fovLeft, camera.fovRight);
@@ -628,31 +565,7 @@ export function throwBomb(player: Player, bombs: Array<Bomb>) {
     }
 }
 
-function updatePlayer(player: Player, camera: Camera, scene: Scene, deltaTime: number) {
-    const controlVelocity = new Vector2();
-    let angularVelocity = 0.0;
-    if (player.movingForward) {
-        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED))
-    }
-    if (player.movingBackward) {
-        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED))
-    }
-    if (player.turningLeft) {
-        angularVelocity -= Math.PI;
-    }
-    if (player.turningRight) {
-        angularVelocity += Math.PI;
-    }
-    player.direction = player.direction + angularVelocity*deltaTime;
-    const nx = player.position.x + controlVelocity.x*deltaTime;
-    if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
-        player.position.x = nx;
-    }
-    const ny = player.position.y + controlVelocity.y*deltaTime;
-    if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
-        player.position.y = ny;
-    }
-
+function updateCamera(player: Player, camera: Camera) {
     const halfFov = FOV*0.5;
     const fovLen = NEAR_CLIPPING_PLANE/Math.cos(halfFov);
     camera.position.copy(player.position);
@@ -830,7 +743,6 @@ interface Game {
     assets: Assets,
 
     // Shared
-    scene: Scene,
     items: Array<Item>,
     players: Map<number, Player>,
 }
@@ -873,18 +785,8 @@ export async function createGame(): Promise<Game> {
         bombBlastSound,
     }
 
-    const scene = createScene([
-        [ false, false, true, true, true, false, false],
-        [ false, false, false, false, false, true, false],
-        [ true, false, false, false, false, true, false],
-        [ true,  false, false, false, false, true, false],
-        [ true],
-        [  false,  true, true, true, false, false, false],
-        [  false,  false, false, false, false, false, false],
-    ]);
-
     const player = createPlayer(
-        new Vector2(scene.width, scene.height).scale(1.2),
+        new Vector2(SCENE.width, SCENE.height).scale(1.2),
         Math.PI*1.25);
 
     const items: Array<Item> = [
@@ -933,7 +835,7 @@ export async function createGame(): Promise<Game> {
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
     };
-    return {camera, player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites}
+    return {camera, player, players, items, bombs, particles, assets, spritePool, visibleSprites}
 }
 
 function properMod(a: number, b: number): number {
@@ -949,18 +851,19 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
     resetSpritePool(game.spritePool);
 
-    updatePlayer(game.player, game.camera, game.scene, deltaTime);
+    updatePlayer(game.player, SCENE, deltaTime);
+    updateCamera(game.player, game.camera);
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
-    updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, game.scene, game.particles)
+    updateBombs(game.spritePool, game.player, game.bombs, game.particles, SCENE, deltaTime, game.assets);
+    updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
 
     renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.assets, game.camera, game.scene);
+    renderWalls(display, game.assets, game.camera, SCENE);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
 
-    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.player, game.scene, game.spritePool, game.visibleSprites);
+    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.player, SCENE, game.spritePool, game.visibleSprites);
     renderFPS(display.ctx, deltaTime);
     // display.ctx.fillText(`${a/Math.PI*180}`, 100, 200);    
 }

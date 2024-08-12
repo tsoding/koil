@@ -1,9 +1,9 @@
 import { Vector2, Vector3, RGBA } from './vector.mjs';
+import { SCENE, sceneIsWall, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE } from './common.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI * 0.5;
-const PLAYER_SPEED = 2;
 const PLAYER_RADIUS = 0.5;
 const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
 const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
@@ -24,7 +24,6 @@ const PARTICLE_MAX_SPEED = 8;
 const PARTICLE_COLOR = new RGBA(1, 0.5, 0.15, 1);
 const MINIMAP = false;
 const MINIMAP_SPRITES = true;
-const MINIMAP_PLAYER_SIZE = 0.5;
 const MINIMAP_SPRITE_SIZE = 0.2;
 const MINIMAP_SCALE = 0.07;
 function createSpritePool() {
@@ -82,31 +81,6 @@ function rayStep(p1, p2) {
     }
     return p3;
 }
-function createScene(walls) {
-    const scene = {
-        height: walls.length,
-        width: Number.MIN_VALUE,
-        walls: [],
-    };
-    for (let row of walls) {
-        scene.width = Math.max(scene.width, row.length);
-    }
-    for (let row of walls) {
-        scene.walls = scene.walls.concat(row);
-        for (let i = 0; i < scene.width - row.length; ++i) {
-            scene.walls.push(false);
-        }
-    }
-    return scene;
-}
-function sceneContains(scene, p) {
-    return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
-}
-function sceneGetTile(scene, p) {
-    if (!sceneContains(scene, p))
-        return false;
-    return scene.walls[Math.floor(p.y) * scene.width + Math.floor(p.x)];
-}
 function sceneGetFloor(p) {
     if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
         return SCENE_FLOOR1;
@@ -123,24 +97,6 @@ function sceneGetCeiling(p) {
         return SCENE_CEILING2;
     }
 }
-function sceneIsWall(scene, p) {
-    const c = sceneGetTile(scene, p);
-    return c;
-}
-function sceneCanRectangleFitHere(scene, px, py, sx, sy) {
-    const x1 = Math.floor(px - sx * 0.5);
-    const x2 = Math.floor(px + sx * 0.5);
-    const y1 = Math.floor(py - sy * 0.5);
-    const y2 = Math.floor(py + sy * 0.5);
-    for (let x = x1; x <= x2; ++x) {
-        for (let y = y1; y <= y2; ++y) {
-            if (sceneIsWall(scene, new Vector2(x, y))) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
 function castRay(scene, p1, p2) {
     let start = p1;
     while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE * FAR_CLIPPING_PLANE) {
@@ -155,12 +111,11 @@ function castRay(scene, p1, p2) {
 }
 function createPlayer(position, direction) {
     return {
+        id: 0,
         position: position,
         direction: direction,
-        movingForward: false,
-        movingBackward: false,
-        turningLeft: false,
-        turningRight: false,
+        moving: 0,
+        hue: 0,
     };
 }
 function renderMinimap(ctx, camera, player, scene, spritePool, visibleSprites) {
@@ -189,7 +144,7 @@ function renderMinimap(ctx, camera, player, scene, spritePool, visibleSprites) {
         strokeLine(ctx, p1.set(0, y), p2.set(scene.width, y));
     }
     ctx.fillStyle = "magenta";
-    ctx.fillRect(player.position.x - MINIMAP_PLAYER_SIZE * 0.5, player.position.y - MINIMAP_PLAYER_SIZE * 0.5, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE);
+    ctx.fillRect(player.position.x - RAYCASTING_PLAYER_SIZE * 0.5, player.position.y - RAYCASTING_PLAYER_SIZE * 0.5, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE);
     ctx.strokeStyle = "magenta";
     strokeLine(ctx, camera.fovLeft, camera.fovRight);
     strokeLine(ctx, camera.position, camera.fovLeft);
@@ -475,30 +430,7 @@ export function throwBomb(player, bombs) {
         }
     }
 }
-function updatePlayer(player, camera, scene, deltaTime) {
-    const controlVelocity = new Vector2();
-    let angularVelocity = 0.0;
-    if (player.movingForward) {
-        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED));
-    }
-    if (player.movingBackward) {
-        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED));
-    }
-    if (player.turningLeft) {
-        angularVelocity -= Math.PI;
-    }
-    if (player.turningRight) {
-        angularVelocity += Math.PI;
-    }
-    player.direction = player.direction + angularVelocity * deltaTime;
-    const nx = player.position.x + controlVelocity.x * deltaTime;
-    if (sceneCanRectangleFitHere(scene, nx, player.position.y, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
-        player.position.x = nx;
-    }
-    const ny = player.position.y + controlVelocity.y * deltaTime;
-    if (sceneCanRectangleFitHere(scene, player.position.x, ny, MINIMAP_PLAYER_SIZE, MINIMAP_PLAYER_SIZE)) {
-        player.position.y = ny;
-    }
+function updateCamera(player, camera) {
     const halfFov = FOV * 0.5;
     const fovLen = NEAR_CLIPPING_PLANE / Math.cos(halfFov);
     camera.position.copy(player.position);
@@ -676,16 +608,7 @@ export async function createGame() {
         itemPickupSound,
         bombBlastSound,
     };
-    const scene = createScene([
-        [false, false, true, true, true, false, false],
-        [false, false, false, false, false, true, false],
-        [true, false, false, false, false, true, false],
-        [true, false, false, false, false, true, false],
-        [true],
-        [false, true, true, true, false, false, false],
-        [false, false, false, false, false, false, false],
-    ]);
-    const player = createPlayer(new Vector2(scene.width, scene.height).scale(1.2), Math.PI * 1.25);
+    const player = createPlayer(new Vector2(SCENE.width, SCENE.height).scale(1.2), Math.PI * 1.25);
     const items = [
         {
             kind: "bomb",
@@ -729,7 +652,7 @@ export async function createGame() {
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
     };
-    return { camera, player, players, scene, items, bombs, particles, assets, spritePool, visibleSprites };
+    return { camera, player, players, items, bombs, particles, assets, spritePool, visibleSprites };
 }
 function properMod(a, b) {
     return (a % b + b) % b;
@@ -740,17 +663,18 @@ function spriteAngleIndex(cameraPosition, entity) {
 }
 export function renderGame(display, deltaTime, time, game) {
     resetSpritePool(game.spritePool);
-    updatePlayer(game.player, game.camera, game.scene, deltaTime);
+    updatePlayer(game.player, SCENE, deltaTime);
+    updateCamera(game.player, game.camera);
     updateItems(game.spritePool, time, game.player, game.items, game.assets);
-    updateBombs(game.spritePool, game.player, game.bombs, game.particles, game.scene, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, game.scene, game.particles);
+    updateBombs(game.spritePool, game.player, game.bombs, game.particles, SCENE, deltaTime, game.assets);
+    updateParticles(game.spritePool, deltaTime, SCENE, game.particles);
     renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.assets, game.camera, game.scene);
+    renderWalls(display, game.assets, game.camera, SCENE);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
     if (MINIMAP)
-        renderMinimap(display.ctx, game.camera, game.player, game.scene, game.spritePool, game.visibleSprites);
+        renderMinimap(display.ctx, game.camera, game.player, SCENE, game.spritePool, game.visibleSprites);
     renderFPS(display.ctx, deltaTime);
 }
 //# sourceMappingURL=game.mjs.map

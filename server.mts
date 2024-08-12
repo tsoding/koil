@@ -381,7 +381,7 @@ function tick() {
     }
 
     // Simulating the world for one server tick.
-    players.forEach((player) => common.updatePlayer(player, deltaTime))
+    players.forEach((player) => common.updatePlayer(player, common.SCENE, deltaTime))
 
     // Sending out pings
     pingIds.forEach((timestamp, id) => {

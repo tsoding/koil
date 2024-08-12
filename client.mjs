@@ -140,7 +140,7 @@ function strokeLine(ctx, p1, p2) {
         else {
             players.forEach((player) => {
                 if (me !== undefined && me.id !== player.id) {
-                    common.updatePlayer(player, deltaTime);
+                    common.updatePlayer(player, common.SCENE, deltaTime);
                     ctx.fillStyle = `hsl(${player.hue} 70% 40%)`;
                     ctx.fillRect(player.position.x, player.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
                     ctx.strokeStyle = `hsl(${player.hue} 70% 40%)`;
@@ -150,7 +150,7 @@ function strokeLine(ctx, p1, p2) {
                 }
             });
             if (me !== undefined) {
-                common.updatePlayer(me, deltaTime);
+                common.updatePlayer(me, common.SCENE, deltaTime);
                 ctx.fillStyle = `hsl(${me.hue} 100% 40%)`;
                 ctx.fillRect(me.position.x, me.position.y, common.PLAYER_SIZE, common.PLAYER_SIZE);
                 ctx.strokeStyle = `hsl(${me.hue} 70% 40%)`;
