@@ -127,12 +127,12 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
 type Tile = RGBA | ImageData | null;
 
 interface Scene {
-    walls: Array<Tile>;
+    walls: Array<boolean>;
     width: number;
     height: number;
 }
 
-function createScene(walls: Array<Array<Tile>>): Scene {
+function createScene(walls: Array<Array<boolean>>): Scene {
     const scene: Scene = {
         height: walls.length,
         width: Number.MIN_VALUE,
@@ -144,7 +144,7 @@ function createScene(walls: Array<Array<Tile>>): Scene {
     for (let row of walls) {
         scene.walls = scene.walls.concat(row);
         for (let i = 0; i < scene.width - row.length; ++i) {
-            scene.walls.push(null);
+            scene.walls.push(false);
         }
     }
     return scene;
@@ -154,8 +154,8 @@ function sceneContains(scene: Scene, p: Vector2): boolean {
     return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
 }
 
-function sceneGetTile(scene: Scene, p: Vector2): Tile | undefined {
-    if (!sceneContains(scene, p)) return undefined;
+function sceneGetTile(scene: Scene, p: Vector2): boolean {
+    if (!sceneContains(scene, p)) return false;
     return scene.walls[Math.floor(p.y)*scene.width + Math.floor(p.x)];
 }
 
@@ -177,7 +177,7 @@ function sceneGetCeiling(p: Vector2): Tile | undefined {
 
 function sceneIsWall(scene: Scene, p: Vector2): boolean {
     const c = sceneGetTile(scene, p);
-    return c !== null && c !== undefined;
+    return c;
 }
 
 function sceneCanRectangleFitHere(scene: Scene, px: number, py: number, sx: number, sy: number): boolean {
@@ -252,11 +252,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Pl
     ctx.lineWidth = 0.05;
     for (let y = 0; y < scene.height; ++y) {
         for (let x = 0; x < scene.width; ++x) {
-            const cell = sceneGetTile(scene, p1.set(x, y));
-            if (cell instanceof RGBA) {
-                ctx.fillStyle = cell.toStyle();
-                ctx.fillRect(x, y, 1, 1);
-            } else if (cell instanceof ImageData) {
+            if (sceneGetTile(scene, p1.set(x, y))) {
                 ctx.fillStyle = "blue";
                 ctx.fillRect(x, y, 1, 1);
             }
@@ -320,55 +316,60 @@ function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
     ctx.fillText(`${Math.floor(1/dtAvg)}`, 100, 100);
 }
 
-function renderWalls(display: Display, camera: Camera, scene: Scene) {
+function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2, c: Vector2) {
+    if (cell instanceof RGBA) {
+        const stripHeight = display.backImageData.height/display.zBuffer[x];
+        const shadow = 1/display.zBuffer[x]*2;
+        for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
+            const y = Math.floor((display.backImageData.height - stripHeight)*0.5) + dy;
+            const destP = (y*display.backImageData.width + x)*4;
+            display.backImageData.data[destP + 0] = cell.r*shadow*255;
+            display.backImageData.data[destP + 1] = cell.g*shadow*255;
+            display.backImageData.data[destP + 2] = cell.b*shadow*255;
+        }
+    } else if (cell instanceof ImageData) {
+        const stripHeight = display.backImageData.height/display.zBuffer[x];
+
+        let u = 0;
+        const t = p.clone().sub(c);
+        if (Math.abs(t.x) < EPS && t.y > 0) {
+            u = t.y;
+        } else if (Math.abs(t.x - 1) < EPS && t.y > 0) {
+            u = 1 - t.y;
+        } else if (Math.abs(t.y) < EPS && t.x > 0) {
+            u = 1 - t.x;
+        } else {
+            u = t.x;
+        }
+
+        const y1f = (display.backImageData.height - stripHeight) * 0.5; 
+        const y1 = Math.ceil(y1f);
+        const y2 = Math.floor(y1 + stripHeight);
+        const by1 = Math.max(0, y1);
+        const by2 = Math.min(display.backImageData.height, y2);
+        const tx = Math.floor(u*cell.width);
+        const sh = cell.height / stripHeight;
+        const shadow = Math.min(1/display.zBuffer[x]*4, 1);
+        for (let y = by1; y < by2; ++y) {
+            const ty = Math.floor((y - y1f)*sh);
+            const destP = (y*display.backImageData.width + x)*4;
+            const srcP = (ty*cell.width + tx)*4;
+            display.backImageData.data[destP + 0] = cell.data[srcP + 0]*shadow;
+            display.backImageData.data[destP + 1] = cell.data[srcP + 1]*shadow;
+            display.backImageData.data[destP + 2] = cell.data[srcP + 2]*shadow;
+        }
+    }
+}
+
+function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Scene) {
     const d = new Vector2().setPolar(camera.direction)
     for (let x = 0; x < display.backImageData.width; ++x) {
         const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageData.width));
         const c = hittingCell(camera.position, p);
-        const cell = sceneGetTile(scene, c);
         const v = p.clone().sub(camera.position);
         display.zBuffer[x] = v.dot(d);
-        if (cell instanceof RGBA) {
-            const stripHeight = display.backImageData.height/display.zBuffer[x];
-            const shadow = 1/display.zBuffer[x]*2;
-            for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
-                const y = Math.floor((display.backImageData.height - stripHeight)*0.5) + dy;
-                const destP = (y*display.backImageData.width + x)*4;
-                display.backImageData.data[destP + 0] = cell.r*shadow*255;
-                display.backImageData.data[destP + 1] = cell.g*shadow*255;
-                display.backImageData.data[destP + 2] = cell.b*shadow*255;
-            }
-        } else if (cell instanceof ImageData) {
-            const stripHeight = display.backImageData.height/display.zBuffer[x];
-
-            let u = 0;
-            const t = p.clone().sub(c);
-            if (Math.abs(t.x) < EPS && t.y > 0) {
-                u = t.y;
-            } else if (Math.abs(t.x - 1) < EPS && t.y > 0) {
-                u = 1 - t.y;
-            } else if (Math.abs(t.y) < EPS && t.x > 0) {
-                u = 1 - t.x;
-            } else {
-                u = t.x;
-            }
-
-            const y1f = (display.backImageData.height - stripHeight) * 0.5; 
-            const y1 = Math.ceil(y1f);
-            const y2 = Math.floor(y1 + stripHeight);
-            const by1 = Math.max(0, y1);
-            const by2 = Math.min(display.backImageData.height, y2);
-            const tx = Math.floor(u*cell.width);
-            const sh = cell.height / stripHeight;
-            const shadow = Math.min(1/display.zBuffer[x]*4, 1);
-            for (let y = by1; y < by2; ++y) {
-                const ty = Math.floor((y - y1f)*sh);
-                const destP = (y*display.backImageData.width + x)*4;
-                const srcP = (ty*cell.width + tx)*4;
-                display.backImageData.data[destP + 0] = cell.data[srcP + 0]*shadow;
-                display.backImageData.data[destP + 1] = cell.data[srcP + 1]*shadow;
-                display.backImageData.data[destP + 2] = cell.data[srcP + 2]*shadow;
-            }
+        if (sceneGetTile(scene, c)) {
+            renderColumnOfWall(display, assets.wallImageData, x, p, c);
         }
     }
 }
@@ -809,6 +810,7 @@ function updateBombs(spritePool: SpritePool, player: Player, bombs: Array<Bomb>,
 }
 
 interface Assets {
+    wallImageData: ImageData,
     keyImageData: ImageData,
     bombImageData: ImageData,
     playerImageData: ImageData,
@@ -849,7 +851,7 @@ async function loadImageData(url: string): Promise<ImageData> {
 }
 
 export async function createGame(): Promise<Game> {
-    const [wall, keyImageData, bombImageData, playerImageData] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
@@ -859,6 +861,7 @@ export async function createGame(): Promise<Game> {
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
     const bombBlastSound = new Audio("assets/sounds/blast.ogg");
     const assets = {
+        wallImageData,
         keyImageData,
         bombImageData,
         playerImageData,
@@ -868,13 +871,13 @@ export async function createGame(): Promise<Game> {
     }
 
     const scene = createScene([
-        [ null, null, wall, wall, wall, null, null],
-        [ null, null, null, null, null, wall, null],
-        [ wall, null, null, null, null, wall, null],
-        [ wall,  null, null, null, null, wall, null],
-        [ wall],
-        [  null,  wall, wall, wall, null, null, null],
-        [  null,  null, null, null, null, null, null],
+        [ false, false, true, true, true, false, false],
+        [ false, false, false, false, false, true, false],
+        [ true, false, false, false, false, true, false],
+        [ true,  false, false, false, false, true, false],
+        [ true],
+        [  false,  true, true, true, false, false, false],
+        [  false,  false, false, false, false, false, false],
     ]);
 
     const player = createPlayer(
@@ -949,7 +952,7 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
     updateParticles(game.spritePool, deltaTime, game.scene, game.particles)
 
     renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.camera, game.scene);
+    renderWalls(display, game.assets, game.camera, game.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
