@@ -757,7 +757,7 @@ function spriteAngleIndex(cameraPosition, entity) {
     return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
 }
 export function renderGame(display, deltaTime, time, game) {
-    if (game.me !== undefined) {
+    if (game.ws !== undefined && game.me !== undefined) {
         resetSpritePool(game.spritePool);
         game.players.forEach((player) => updatePlayer(player, SCENE, deltaTime));
         updateCamera(game.me, game.camera);

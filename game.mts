@@ -938,7 +938,7 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 }
 
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    if (game.me !== undefined) {
+    if (game.ws !== undefined && game.me !== undefined) {
         resetSpritePool(game.spritePool);
 
         game.players.forEach((player) => updatePlayer(player, SCENE, deltaTime));
