@@ -964,10 +964,13 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
         renderFPS(display.ctx, deltaTime);
         // display.ctx.fillText(`${a/Math.PI*180}`, 100, 200);
     } else {
-        const label = "Disconnected";
-        const size = display.ctx.measureText(label);
+        display.ctx.fillStyle = "#181818";
+        display.ctx.fillRect(0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
+
         display.ctx.font = "48px bold";
         display.ctx.fillStyle = 'white';
+        const label = "Disconnected";
+        const size = display.ctx.measureText(label);
         display.ctx.fillText(label, display.ctx.canvas.width/2 - size.width/2, display.ctx.canvas.height/2);
     }
 }
