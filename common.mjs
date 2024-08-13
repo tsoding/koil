@@ -213,12 +213,12 @@ export function createScene(walls) {
     return scene;
 }
 export const SCENE = createScene([
-    [false, false, false, false, false, false, false],
-    [false, false, false, false, false, false, false],
-    [false, false, false, false, false, false, false],
-    [false, false, false, false, false, false, false],
-    [false],
-    [false, false, false, false, false, false, false],
+    [false, false, true, true, true, false, false],
+    [false, false, false, false, false, true, false],
+    [true, false, false, false, false, true, false],
+    [true, false, false, false, false, true, false],
+    [true],
+    [false, true, true, true, false, false, false],
     [false, false, false, false, false, false, false],
 ]);
 export function updatePlayer(player, scene, deltaTime) {
@@ -237,7 +237,6 @@ export function updatePlayer(player, scene, deltaTime) {
         angularVelocity += Math.PI;
     }
     player.direction = player.direction + angularVelocity * deltaTime;
-    player.position.add(controlVelocity.scale(deltaTime));
     const nx = player.position.x + controlVelocity.x * deltaTime;
     if (sceneCanRectangleFitHere(scene, nx, player.position.y, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE)) {
         player.position.x = nx;

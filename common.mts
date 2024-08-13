@@ -260,22 +260,13 @@ export function createScene(walls: Array<Array<boolean>>): Scene {
     return scene;
 }
 
-// export const SCENE = createScene([
-//     [ false, false, true, true, true, false, false],
-//     [ false, false, false, false, false, true, false],
-//     [ true, false, false, false, false, true, false],
-//     [ true,  false, false, false, false, true, false],
-//     [ true],
-//     [  false,  true, true, true, false, false, false],
-//     [  false,  false, false, false, false, false, false],
-// ]);
 export const SCENE = createScene([
-    [ false, false, false, false, false, false, false],
-    [ false, false, false, false, false, false, false],
-    [ false, false, false, false, false, false, false],
-    [ false,  false, false, false, false, false, false],
-    [ false],
-    [  false,  false, false, false, false, false, false],
+    [ false, false, true, true, true, false, false],
+    [ false, false, false, false, false, true, false],
+    [ true, false, false, false, false, true, false],
+    [ true,  false, false, false, false, true, false],
+    [ true],
+    [  false,  true, true, true, false, false, false],
     [  false,  false, false, false, false, false, false],
 ]);
 
@@ -295,7 +286,6 @@ export function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
         angularVelocity += Math.PI;
     }
     player.direction = player.direction + angularVelocity*deltaTime;
-    player.position.add(controlVelocity.scale(deltaTime));
 
     const nx = player.position.x + controlVelocity.x*deltaTime;
     if (sceneCanRectangleFitHere(scene, nx, player.position.y, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE)) {
