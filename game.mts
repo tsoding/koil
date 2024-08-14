@@ -736,14 +736,14 @@ interface Assets {
 interface Game {
     camera: Camera,
     ws: WebSocket | undefined
-    me: Player | undefined,             // TODO: rename Game.player to Game.me (like in multiplayer prototype)
+    me: Player | undefined,
     players: Map<number, Player>,
-    bombs: Array<Bomb>,
+    bombs: Array<Bomb>, // TODO: make bombs part of the server state
     visibleSprites: Array<Sprite>,
     spritePool: SpritePool,
     particles: Array<Particle>,
     assets: Assets,
-    items: Array<Item>,
+    items: Array<Item>, // TODO: make items part of the server state
     ping: number,
 }
 

@@ -37,6 +37,9 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
                     common.AmmaMovingStruct.direction.write(view, direction);
                     gameState.ws.send(view);
                 }
+                else if (e.code === 'Space') {
+                    game.throwBomb(gameState.me, gameState.bombs);
+                }
             }
         }
     });
