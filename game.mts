@@ -850,7 +850,8 @@ export async function createGame(): Promise<Game> {
         fovLeft: new Vector2(),
         fovRight: new Vector2(),
     };
-    const ws = new WebSocket(`ws://${window.location.hostname}:${SERVER_PORT}`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
     const game: Game = {camera, ws, me: undefined, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
 
     ws.binaryType = 'arraybuffer';
