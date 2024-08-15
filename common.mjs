@@ -1,10 +1,7 @@
 import { Vector2 } from './vector.mjs';
 export const SERVER_PORT = 6970;
-const WORLD_FACTOR_ = 200;
-export const WORLD_WIDTH_ = 4 * WORLD_FACTOR_;
-export const WORLD_HEIGHT_ = 3 * WORLD_FACTOR_;
-export const RAYCASTING_PLAYER_SIZE = 0.5;
-export const RAYCASTING_PLAYER_SPEED = 2;
+export const PLAYER_SIZE = 0.5;
+export const PLAYER_SPEED = 2;
 export var Moving;
 (function (Moving) {
     Moving[Moving["MovingForward"] = 0] = "MovingForward";
@@ -225,10 +222,10 @@ export function updatePlayer(player, scene, deltaTime) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if ((player.moving >> Moving.MovingForward) & 1) {
-        controlVelocity.add(new Vector2().setPolar(player.direction, RAYCASTING_PLAYER_SPEED));
+        controlVelocity.add(new Vector2().setPolar(player.direction, PLAYER_SPEED));
     }
     if ((player.moving >> Moving.MovingBackward) & 1) {
-        controlVelocity.sub(new Vector2().setPolar(player.direction, RAYCASTING_PLAYER_SPEED));
+        controlVelocity.sub(new Vector2().setPolar(player.direction, PLAYER_SPEED));
     }
     if ((player.moving >> Moving.TurningLeft) & 1) {
         angularVelocity -= Math.PI;
@@ -238,11 +235,11 @@ export function updatePlayer(player, scene, deltaTime) {
     }
     player.direction = player.direction + angularVelocity * deltaTime;
     const nx = player.position.x + controlVelocity.x * deltaTime;
-    if (sceneCanRectangleFitHere(scene, nx, player.position.y, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE)) {
+    if (sceneCanRectangleFitHere(scene, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.x = nx;
     }
     const ny = player.position.y + controlVelocity.y * deltaTime;
-    if (sceneCanRectangleFitHere(scene, player.position.x, ny, RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE)) {
+    if (sceneCanRectangleFitHere(scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
 }

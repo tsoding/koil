@@ -9,7 +9,7 @@
 // Only simple functions that operate on objects that don't store any functions can be easily
 // hot-reloaded. Examples are Scene and Player which we defined as interfaces.
 import { Vector2, Vector3, RGBA } from './vector.mjs';
-import {SERVER_PORT, Player, Scene, SCENE, sceneGetTile, updatePlayer, RAYCASTING_PLAYER_SIZE} from './common.mjs';
+import {SERVER_PORT, Player, Scene, SCENE, sceneGetTile, updatePlayer, PLAYER_SIZE} from './common.mjs';
 import * as common from './common.mjs';
 
 const EPS = 1e-6;
@@ -207,9 +207,9 @@ function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Pl
     }
 
     ctx.fillStyle = "magenta";
-    ctx.fillRect(player.position.x - RAYCASTING_PLAYER_SIZE*0.5,
-                 player.position.y - RAYCASTING_PLAYER_SIZE*0.5,
-                 RAYCASTING_PLAYER_SIZE, RAYCASTING_PLAYER_SIZE);
+    ctx.fillRect(player.position.x - PLAYER_SIZE*0.5,
+                 player.position.y - PLAYER_SIZE*0.5,
+                 PLAYER_SIZE, PLAYER_SIZE);
 
     ctx.strokeStyle = "magenta";
     strokeLine(ctx, camera.fovLeft, camera.fovRight);
