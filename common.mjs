@@ -379,8 +379,11 @@ export const PlayersLeftHeaderStruct = (() => {
     const count = (view) => (view.byteLength - headerSize) / itemSize;
     return { kind, count, items, itemSize, headerSize, verify, allocateAndInit };
 })();
-function properMod(a, b) {
+export function properMod(a, b) {
     return (a % b + b) % b;
+}
+export function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
 }
 export function sceneContains(scene, p) {
     return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;

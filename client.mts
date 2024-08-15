@@ -1,5 +1,10 @@
 import * as common from './common.mjs';
-import {RGBA, Vector2, Scene, sceneGetTile, Player, PLAYER_SIZE, Vector3, SERVER_PORT, updatePlayer, SCENE} from './common.mjs';
+import {
+    RGBA, Vector2, Vector3, Scene, Player, 
+    sceneGetTile, updatePlayer, 
+    PLAYER_SIZE, SERVER_PORT, SCENE, 
+    clamp, properMod
+} from './common.mjs';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
@@ -683,10 +688,6 @@ function emitParticle(source: Vector3, particles: Array<Particle>) {
     }
 }
 
-function clamp(value: number, min: number, max: number) {
-    return Math.min(Math.max(value, min), max);
-}
-
 function playSound(sound: HTMLAudioElement, playerPosition: Vector2, objectPosition: Vector2) {
     const maxVolume = 1;
     const distanceToPlayer = objectPosition.distanceTo(playerPosition);
@@ -954,10 +955,6 @@ async function createGame(): Promise<Game> {
     });
     
     return game;
-}
-
-function properMod(a: number, b: number): number {
-    return (a%b + b)%b;
 }
 
 function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {

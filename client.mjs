@@ -1,5 +1,5 @@
 import * as common from './common.mjs';
-import { RGBA, Vector2, sceneGetTile, PLAYER_SIZE, Vector3, SERVER_PORT, updatePlayer, SCENE } from './common.mjs';
+import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, SCENE, clamp, properMod } from './common.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -548,9 +548,6 @@ function emitParticle(source, particles) {
         }
     }
 }
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
 function playSound(sound, playerPosition, objectPosition) {
     const maxVolume = 1;
     const distanceToPlayer = objectPosition.distanceTo(playerPosition);
@@ -781,9 +778,6 @@ async function createGame() {
         console.log("WEBSOCKET OPEN", event);
     });
     return game;
-}
-function properMod(a, b) {
-    return (a % b + b) % b;
 }
 function spriteAngleIndex(cameraPosition, entity) {
     return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);

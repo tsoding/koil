@@ -420,8 +420,13 @@ export const PlayersLeftHeaderStruct = (() => {
     return {kind, count, items, itemSize, headerSize, verify, allocateAndInit};
 })();
 
-function properMod(a: number, b: number): number {
+// It's such mod that properMod(-1, 100) === 99
+export function properMod(a: number, b: number): number {
     return (a%b + b)%b;
+}
+
+export function clamp(value: number, min: number, max: number) {
+    return Math.min(Math.max(value, min), max);
 }
 
 export interface Scene {
