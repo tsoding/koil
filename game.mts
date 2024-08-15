@@ -253,11 +253,18 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
 
     const labels = [];
     labels.push(`FPS: ${Math.floor(1/dtAvg)}`)
-    if (game.ws !== undefined) {
-        labels.push(`Ping: ${game.ping.toFixed(2)}ms`);
-        labels.push(`Players: ${game.players.size}`);
-    } else {
-        labels.push(`Offline`)
+    switch (game.ws_.readyState) {
+        case WebSocket.CONNECTING: {
+            labels.push('Connecting...');
+        } break;
+        case WebSocket.OPEN: {
+            labels.push(`Ping: ${game.ping.toFixed(2)}ms`);
+            labels.push(`Players: ${game.players.size}`);
+        } break;
+        case WebSocket.CLOSING:
+        case WebSocket.CLOSED: {
+            labels.push(`Offline`);
+        } break;
     }
 
     const shadowOffset = fontSize*0.06
@@ -751,11 +758,8 @@ interface Assets {
 
 interface Game {
     camera: Camera,
-    // NOTE: when Game.ws is undefined that means the connection was closed.
-    ws: WebSocket | undefined
-    // NOTE: when Game.me is undefined that means the connection was never established.
-    // Because if it was, Game.me would at least point at the copy of the server state player.
-    me: Player | undefined,
+    ws_: WebSocket,
+    me_: Player,
     players: Map<number, Player>,
     bombs: Array<Bomb>, // TODO: make bombs part of the server state
     visibleSprites: Array<Sprite>,
@@ -852,21 +856,18 @@ export async function createGame(): Promise<Game> {
     };
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
-    const game: Game = {camera, ws, me: undefined, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
+    const me = {
+        id: 0,
+        position: new Vector2(),
+        direction: 0,
+        moving: 0,
+        hue: 0,
+    };
+    const game: Game = {camera, ws_: ws, me_: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
 
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event)
-        game.ws = undefined
-        if (game.me === undefined) {
-            game.me = {
-                id: 0,
-                position: new Vector2(),
-                direction: 0,
-                moving: 0,
-                hue: 0,
-            };
-        }
         game.players.clear();
     });
     ws.addEventListener("error", (event) => {
@@ -880,74 +881,67 @@ export async function createGame(): Promise<Game> {
             ws?.close();
         }
         const view = new DataView(event.data);
-        if (game.me === undefined) {
-            if (common.HelloStruct.verify(view)) {
-                game.me = {
-                    id: common.HelloStruct.id.read(view),
-                    position: new Vector2(common.HelloStruct.x_.read(view), common.HelloStruct.y_.read(view)),
-                    direction: common.HelloStruct.direction.read(view),
-                    moving: 0,
-                    hue: common.HelloStruct.hue.read(view)/256*360,
-                }
-                players.set(game.me.id, game.me)
-            } else {
-                console.error("Received bogus-amogus message from server. Incorrect `Hello` message.", view)
-                ws?.close();
+        if (common.HelloStruct.verify(view)) {
+            game.me_ = {
+                id: common.HelloStruct.id.read(view),
+                position: new Vector2(common.HelloStruct.x_.read(view), common.HelloStruct.y_.read(view)),
+                direction: common.HelloStruct.direction.read(view),
+                moving: 0,
+                hue: common.HelloStruct.hue.read(view)/256*360,
             }
-        } else {
-            if (common.PlayersJoinedHeaderStruct.verify(view)) {
-                const count = common.PlayersJoinedHeaderStruct.count(view);
-                for (let i = 0; i < count; ++i) {
-                    const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
-                    const id = common.PlayerStruct.id.read(playerView);
-                    const player = players.get(id);
-                    if (player !== undefined) {
-                        player.position.x = common.PlayerStruct.x_.read(playerView);
-                        player.position.y = common.PlayerStruct.y_.read(playerView);
-                        player.direction = common.PlayerStruct.direction.read(playerView);
-                        player.moving = common.PlayerStruct.moving.read(playerView);
-                        player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
-                    } else {
-                        const x = common.PlayerStruct.x_.read(playerView);
-                        const y = common.PlayerStruct.y_.read(playerView);
-                        players.set(id, {
-                            id,
-                            position: new Vector2(x, y),
-                            direction: common.PlayerStruct.direction.read(playerView),
-                            moving: common.PlayerStruct.moving.read(playerView),
-                            hue: common.PlayerStruct.hue.read(playerView)/256*360,
-                        });
-                    }
-                }
-            } else if (common.PlayersLeftHeaderStruct.verify(view)) {
-                const count = common.PlayersLeftHeaderStruct.count(view);
-                for (let i = 0; i < count; ++i) {
-                    const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
-                    players.delete(id);
-                }
-            } else if (common.PlayersMovingHeaderStruct.verify(view)) {
-                const count = common.PlayersMovingHeaderStruct.count(view);
-                for (let i = 0; i < count; ++i) {
-                    const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
-
-                    const id = common.PlayerStruct.id.read(playerView);
-                    const player = players.get(id);
-                    if (player === undefined) {
-                        console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`)
-                        ws?.close();
-                        return;
-                    }
-                    player.moving = common.PlayerStruct.moving.read(playerView);
+            players.set(game.me_.id, game.me_)
+        } else if (common.PlayersJoinedHeaderStruct.verify(view)) {
+            const count = common.PlayersJoinedHeaderStruct.count(view);
+            for (let i = 0; i < count; ++i) {
+                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+                const id = common.PlayerStruct.id.read(playerView);
+                const player = players.get(id);
+                if (player !== undefined) {
                     player.position.x = common.PlayerStruct.x_.read(playerView);
                     player.position.y = common.PlayerStruct.y_.read(playerView);
                     player.direction = common.PlayerStruct.direction.read(playerView);
+                    player.moving = common.PlayerStruct.moving.read(playerView);
+                    player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
+                } else {
+                    const x = common.PlayerStruct.x_.read(playerView);
+                    const y = common.PlayerStruct.y_.read(playerView);
+                    players.set(id, {
+                        id,
+                        position: new Vector2(x, y),
+                        direction: common.PlayerStruct.direction.read(playerView),
+                        moving: common.PlayerStruct.moving.read(playerView),
+                        hue: common.PlayerStruct.hue.read(playerView)/256*360,
+                    });
                 }
-            } else if (common.PongStruct.verify(view)) {
-                game.ping = performance.now() - common.PongStruct.timestamp.read(view);
-            } else {
-                console.error("Received bogus-amogus message from server.", view)
-                ws?.close();
             }
+        } else if (common.PlayersLeftHeaderStruct.verify(view)) {
+            const count = common.PlayersLeftHeaderStruct.count(view);
+            for (let i = 0; i < count; ++i) {
+                const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
+                players.delete(id);
+            }
+        } else if (common.PlayersMovingHeaderStruct.verify(view)) {
+            const count = common.PlayersMovingHeaderStruct.count(view);
+            for (let i = 0; i < count; ++i) {
+                const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+
+                const id = common.PlayerStruct.id.read(playerView);
+                const player = players.get(id);
+                if (player === undefined) {
+                    console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`)
+                    ws?.close();
+                    return;
+                }
+                player.moving = common.PlayerStruct.moving.read(playerView);
+                player.position.x = common.PlayerStruct.x_.read(playerView);
+                player.position.y = common.PlayerStruct.y_.read(playerView);
+                player.direction = common.PlayerStruct.direction.read(playerView);
+            }
+        } else if (common.PongStruct.verify(view)) {
+            game.ping = performance.now() - common.PongStruct.timestamp.read(view);
+        } else {
+            console.error("Received bogus-amogus message from server.", view)
+            ws?.close();
         }
     });
     ws.addEventListener("open", (event) => {
@@ -968,37 +962,32 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 }
 
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    if (game.me !== undefined) {
-        resetSpritePool(game.spritePool);
+    resetSpritePool(game.spritePool);
 
-        game.players.forEach((player) => {
-            if (player !== game.me) updatePlayer(player, SCENE, deltaTime)
-        });
-        updatePlayer(game.me, SCENE, deltaTime);
-        updateCamera(game.me, game.camera);
-        updateItems(game.spritePool, time, game.me, game.items, game.assets);
-        updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
-        updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
+    game.players.forEach((player) => {
+        if (player !== game.me_) updatePlayer(player, SCENE, deltaTime)
+    });
+    updatePlayer(game.me_, SCENE, deltaTime);
+    updateCamera(game.me_, game.camera);
+    updateItems(game.spritePool, time, game.me_, game.items, game.assets);
+    updateBombs(game.spritePool, game.me_, game.bombs, game.particles, SCENE, deltaTime, game.assets);
+    updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
 
-        game.players.forEach((player) => {
-            if (player !== game.me) {
-                const index = spriteAngleIndex(game.camera.position, player);
-                pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
-            }
-        })
+    game.players.forEach((player) => {
+        if (player !== game.me_) {
+            const index = spriteAngleIndex(game.camera.position, player);
+            pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
+        }
+    })
 
-        renderFloorAndCeiling(display.backImageData, game.camera);
-        renderWalls(display, game.assets, game.camera, SCENE);
-        cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
-        renderSprites(display, game.visibleSprites);
-        displaySwapBackImageData(display);
+    renderFloorAndCeiling(display.backImageData, game.camera);
+    renderWalls(display, game.assets, game.camera, SCENE);
+    cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
+    renderSprites(display, game.visibleSprites);
+    displaySwapBackImageData(display);
 
-        if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
-        renderDebugInfo(display.ctx, deltaTime, game);
-    } else {
-        display.ctx.fillRect(0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
-    }
-
+    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me_, SCENE, game.spritePool, game.visibleSprites);
+    renderDebugInfo(display.ctx, deltaTime, game);
 }
 
 // TODO: "magnet" items into the player
