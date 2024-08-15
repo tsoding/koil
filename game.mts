@@ -835,6 +835,14 @@ export async function createGame(): Promise<Game> {
     };
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
+    // HACK: This application is deployed to GitHub Pages for the demo
+    // purposes. Unfortunately, GitHub Pages only allow hosting static
+    // assets, so we can only operate in Offline Mode. At the same
+    // time, tsoding.github.io accepts WebSocket connection on the
+    // port 6970 and later times out on the shandshake which results
+    // in the client displaying "Connecting..." for the whole time,
+    // which does not look good in the demo. So if we are on
+    // tsoding.github.io we just instantly close the connection.
     if (window.location.hostname === 'tsoding.github.io') ws.close();
     const me = {
         id: 0,
