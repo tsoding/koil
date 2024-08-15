@@ -1,6 +1,6 @@
 import * as game from './game.mjs';
 import * as common from './common.mjs';
-const DIRECTION_KEYS = {
+const CONTROL_KEYS = {
     'ArrowLeft': common.Moving.TurningLeft,
     'ArrowRight': common.Moving.TurningRight,
     'ArrowUp': common.Moving.MovingForward,
@@ -28,7 +28,7 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
     const gameState = await game.createGame();
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
-            const direction = DIRECTION_KEYS[e.code];
+            const direction = CONTROL_KEYS[e.code];
             if (direction !== undefined) {
                 if (gameState.ws.readyState === WebSocket.OPEN) {
                     const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
@@ -48,7 +48,7 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
     });
     window.addEventListener("keyup", (e) => {
         if (!e.repeat) {
-            const direction = DIRECTION_KEYS[e.code];
+            const direction = CONTROL_KEYS[e.code];
             if (direction !== undefined) {
                 if (gameState.ws.readyState === WebSocket.OPEN) {
                     const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
