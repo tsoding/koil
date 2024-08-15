@@ -835,6 +835,7 @@ export async function createGame(): Promise<Game> {
     };
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
+    if (window.location.hostname === 'tsoding.github.io') ws.close();
     const me = {
         id: 0,
         position: new Vector2(),
