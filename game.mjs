@@ -167,14 +167,30 @@ function renderMinimap(ctx, camera, player, scene, spritePool, visibleSprites) {
     ctx.restore();
 }
 const dts = [];
-function renderFPS(ctx, deltaTime) {
-    ctx.font = "48px bold";
-    ctx.fillStyle = "white";
+function renderDebugInfo(ctx, deltaTime, game) {
+    const fontSize = 28;
+    ctx.font = `${fontSize}px bold`;
     dts.push(deltaTime);
     if (dts.length > 60)
         dts.shift();
     const dtAvg = dts.reduce((a, b) => a + b, 0) / dts.length;
-    ctx.fillText(`${Math.floor(1 / dtAvg)}`, 100, 100);
+    const labels = [];
+    labels.push(`FPS: ${Math.floor(1 / dtAvg)}`);
+    if (game.ws !== undefined) {
+        labels.push(`Ping: ${game.ping.toFixed(2)}ms`);
+        labels.push(`Players: ${game.players.size}`);
+    }
+    else {
+        labels.push(`Offline`);
+    }
+    const shadowOffset = fontSize * 0.06;
+    const padding = 70;
+    for (let i = 0; i < labels.length; ++i) {
+        ctx.fillStyle = "black";
+        ctx.fillText(labels[i], padding, padding + fontSize * i);
+        ctx.fillStyle = "white";
+        ctx.fillText(labels[i], padding + shadowOffset, padding - shadowOffset + fontSize * i);
+    }
 }
 function renderColumnOfWall(display, cell, x, p, c) {
     if (cell instanceof RGBA) {
@@ -658,6 +674,16 @@ export async function createGame() {
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event);
         game.ws = undefined;
+        if (game.me === undefined) {
+            game.me = {
+                id: 0,
+                position: new Vector2(),
+                direction: 0,
+                moving: 0,
+                hue: 0,
+            };
+        }
+        game.players.clear();
     });
     ws.addEventListener("error", (event) => {
         console.log("WEBSOCKET ERROR", event);
@@ -757,9 +783,13 @@ function spriteAngleIndex(cameraPosition, entity) {
     return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
 }
 export function renderGame(display, deltaTime, time, game) {
-    if (game.ws !== undefined && game.me !== undefined) {
+    if (game.me !== undefined) {
         resetSpritePool(game.spritePool);
-        game.players.forEach((player) => updatePlayer(player, SCENE, deltaTime));
+        game.players.forEach((player) => {
+            if (player !== game.me)
+                updatePlayer(player, SCENE, deltaTime);
+        });
+        updatePlayer(game.me, SCENE, deltaTime);
         updateCamera(game.me, game.camera);
         updateItems(game.spritePool, time, game.me, game.items, game.assets);
         updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
@@ -777,16 +807,10 @@ export function renderGame(display, deltaTime, time, game) {
         displaySwapBackImageData(display);
         if (MINIMAP)
             renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
-        renderFPS(display.ctx, deltaTime);
+        renderDebugInfo(display.ctx, deltaTime, game);
     }
     else {
-        display.ctx.fillStyle = "#181818";
         display.ctx.fillRect(0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
-        display.ctx.font = "48px bold";
-        display.ctx.fillStyle = 'white';
-        const label = "Disconnected";
-        const size = display.ctx.measureText(label);
-        display.ctx.fillText(label, display.ctx.canvas.width / 2 - size.width / 2, display.ctx.canvas.height / 2);
     }
 }
 //# sourceMappingURL=game.mjs.map

@@ -27,42 +27,63 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
     const display = game.createDisplay(ctx, SCREEN_WIDTH, SCREEN_HEIGHT);
     const gameState = await game.createGame();
     window.addEventListener("keydown", (e) => {
-        if (gameState.ws !== undefined && gameState.me !== undefined) {
-            if (!e.repeat) {
-                const direction = DIRECTION_KEYS[e.code];
-                if (direction !== undefined) {
+        if (!e.repeat) {
+            const direction = DIRECTION_KEYS[e.code];
+            if (direction !== undefined) {
+                if (gameState.ws !== undefined) {
                     const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
                     common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
                     common.AmmaMovingStruct.start.write(view, 1);
                     common.AmmaMovingStruct.direction.write(view, direction);
                     gameState.ws.send(view);
                 }
-                else if (e.code === 'Space') {
-                    game.throwBomb(gameState.me, gameState.bombs);
+                else {
+                    if (gameState.me !== undefined)
+                        gameState.me.moving |= 1 << direction;
                 }
+            }
+            else if (e.code === 'Space') {
+                if (gameState.me !== undefined)
+                    game.throwBomb(gameState.me, gameState.bombs);
             }
         }
     });
     window.addEventListener("keyup", (e) => {
-        if (gameState.ws !== undefined && gameState.me !== undefined) {
-            if (!e.repeat) {
-                const direction = DIRECTION_KEYS[e.code];
-                if (direction !== undefined) {
+        if (!e.repeat) {
+            const direction = DIRECTION_KEYS[e.code];
+            if (direction !== undefined) {
+                if (gameState.ws !== undefined && gameState.me !== undefined) {
                     const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
                     common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
                     common.AmmaMovingStruct.start.write(view, 0);
                     common.AmmaMovingStruct.direction.write(view, direction);
                     gameState.ws.send(view);
                 }
+                else {
+                    if (gameState.me !== undefined)
+                        gameState.me.moving &= ~(1 << direction);
+                }
             }
         }
     });
+    const PING_COOLDOWN = 60;
     let prevTimestamp = 0;
+    let pingCooldown = PING_COOLDOWN;
     const frame = (timestamp) => {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
         game.renderGame(display, deltaTime, time, gameState);
+        if (gameState.ws !== undefined) {
+            pingCooldown -= 1;
+            if (pingCooldown <= 0) {
+                const view = new DataView(new ArrayBuffer(common.PingStruct.size));
+                common.PingStruct.kind.write(view, common.MessageKind.Ping);
+                common.PingStruct.timestamp.write(view, performance.now());
+                gameState.ws.send(view);
+                pingCooldown = PING_COOLDOWN;
+            }
+        }
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {

@@ -241,9 +241,9 @@ function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Pl
 }
 
 const dts: number[] = [];
-function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
-    ctx.font = "48px bold"
-    ctx.fillStyle = "white"
+function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game: Game) {
+    const fontSize = 28;
+    ctx.font = `${fontSize}px bold`
 
     dts.push(deltaTime);
     if (dts.length > 60) // can be any number of frames
@@ -251,7 +251,23 @@ function renderFPS(ctx: CanvasRenderingContext2D, deltaTime: number) {
 
     const dtAvg = dts.reduce((a, b) => a + b, 0)/dts.length;
 
-    ctx.fillText(`${Math.floor(1/dtAvg)}`, 100, 100);
+    const labels = [];
+    labels.push(`FPS: ${Math.floor(1/dtAvg)}`)
+    if (game.ws !== undefined) {
+        labels.push(`Ping: ${game.ping.toFixed(2)}ms`);
+        labels.push(`Players: ${game.players.size}`);
+    } else {
+        labels.push(`Offline`)
+    }
+
+    const shadowOffset = fontSize*0.06
+    const padding = 70
+    for (let i = 0; i < labels.length; ++i) {
+        ctx.fillStyle = "black"
+        ctx.fillText(labels[i], padding, padding + fontSize*i);
+        ctx.fillStyle = "white"
+        ctx.fillText(labels[i], padding + shadowOffset, padding - shadowOffset + fontSize*i);
+    }
 }
 
 function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2, c: Vector2) {
@@ -735,7 +751,10 @@ interface Assets {
 
 interface Game {
     camera: Camera,
+    // NOTE: when Game.ws is undefined that means the connection was closed.
     ws: WebSocket | undefined
+    // NOTE: when Game.me is undefined that means the connection was never established.
+    // Because if it was, Game.me would at least point at the copy of the server state player.
     me: Player | undefined,
     players: Map<number, Player>,
     bombs: Array<Bomb>, // TODO: make bombs part of the server state
@@ -838,6 +857,16 @@ export async function createGame(): Promise<Game> {
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event)
         game.ws = undefined
+        if (game.me === undefined) {
+            game.me = {
+                id: 0,
+                position: new Vector2(),
+                direction: 0,
+                moving: 0,
+                hue: 0,
+            };
+        }
+        game.players.clear();
     });
     ws.addEventListener("error", (event) => {
         // TODO: reconnect on errors
@@ -938,10 +967,13 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 }
 
 export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    if (game.ws !== undefined && game.me !== undefined) {
+    if (game.me !== undefined) {
         resetSpritePool(game.spritePool);
 
-        game.players.forEach((player) => updatePlayer(player, SCENE, deltaTime));
+        game.players.forEach((player) => {
+            if (player !== game.me) updatePlayer(player, SCENE, deltaTime)
+        });
+        updatePlayer(game.me, SCENE, deltaTime);
         updateCamera(game.me, game.camera);
         updateItems(game.spritePool, time, game.me, game.items, game.assets);
         updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
@@ -961,18 +993,11 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
         displaySwapBackImageData(display);
 
         if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
-        renderFPS(display.ctx, deltaTime);
-        // display.ctx.fillText(`${a/Math.PI*180}`, 100, 200);
+        renderDebugInfo(display.ctx, deltaTime, game);
     } else {
-        display.ctx.fillStyle = "#181818";
         display.ctx.fillRect(0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
-
-        display.ctx.font = "48px bold";
-        display.ctx.fillStyle = 'white';
-        const label = "Disconnected";
-        const size = display.ctx.measureText(label);
-        display.ctx.fillText(label, display.ctx.canvas.width/2 - size.width/2, display.ctx.canvas.height/2);
     }
+
 }
 
 // TODO: "magnet" items into the player
