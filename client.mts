@@ -1,11 +1,15 @@
-import {SERVER_PORT, Player, Scene, SCENE, sceneGetTile, updatePlayer, PLAYER_SIZE, RGBA, Vector2, Vector3} from './common.mjs';
 import * as common from './common.mjs';
+import {RGBA, Vector2, Scene, sceneGetTile, Player, PLAYER_SIZE, Vector3, SERVER_PORT, updatePlayer, SCENE} from './common.mjs';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI*0.5;
 const PLAYER_RADIUS = 0.5;
+
+const SCREEN_FACTOR = 30;
+const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
+const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 
 const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
 const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
@@ -32,6 +36,19 @@ const MINIMAP = false;
 const MINIMAP_SPRITES = true;
 const MINIMAP_SPRITE_SIZE = 0.2;
 const MINIMAP_SCALE = 0.07;
+
+const SPRITE_ANGLES_COUNT = 8;
+
+const CONTROL_KEYS: {[key: string]: common.Moving} = {
+    'ArrowLeft'  : common.Moving.TurningLeft,
+    'ArrowRight' : common.Moving.TurningRight,
+    'ArrowUp'    : common.Moving.MovingForward,
+    'ArrowDown'  : common.Moving.MovingBackward,
+    'KeyA'       : common.Moving.TurningLeft,
+    'KeyD'       : common.Moving.TurningRight,
+    'KeyW'       : common.Moving.MovingForward,
+    'KeyS'       : common.Moving.MovingBackward,
+};
 
 interface SpritePool {
     items: Array<Sprite>,
@@ -219,16 +236,15 @@ function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Pl
     ctx.restore();
 }
 
-const dts: number[] = [];
 function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game: Game) {
     const fontSize = 28;
     ctx.font = `${fontSize}px bold`
 
-    dts.push(deltaTime);
-    if (dts.length > 60) // can be any number of frames
-        dts.shift();
+    game.dts.push(deltaTime);
+    if (game.dts.length > 60) // can be any number of frames
+        game.dts.shift();
 
-    const dtAvg = dts.reduce((a, b) => a + b, 0)/dts.length;
+    const dtAvg = game.dts.reduce((a, b) => a + b, 0)/game.dts.length;
 
     const labels = [];
     labels.push(`FPS: ${Math.floor(1/dtAvg)}`)
@@ -366,7 +382,7 @@ interface Display {
     zBuffer: Array<number>;
 }
 
-export function createDisplay(ctx: CanvasRenderingContext2D, width: number, height: number): Display {
+function createDisplay(ctx: CanvasRenderingContext2D, width: number, height: number): Display {
     const backImageData = new ImageData(width, height);
     backImageData.data.fill(255);
     const backCanvas = new OffscreenCanvas(width, height);
@@ -554,7 +570,7 @@ function allocateBombs(capacity: number): Array<Bomb> {
     return bomb
 }
 
-export function throwBomb(player: Player, bombs: Array<Bomb>) {
+function throwBomb(player: Player, bombs: Array<Bomb>) {
     for (let bomb of bombs) {
         if (bomb.lifetime <= 0) {
             bomb.lifetime = BOMB_LIFETIME;
@@ -747,6 +763,7 @@ interface Game {
     assets: Assets,
     items: Array<Item>, // TODO: make items part of the server state
     ping: number,
+    dts: number[],
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -767,7 +784,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     return ctx.getImageData(0, 0, image.width, image.height);
 }
 
-export async function createGame(): Promise<Game> {
+async function createGame(): Promise<Game> {
     const [wallImageData, keyImageData, bombImageData, playerImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
@@ -851,7 +868,7 @@ export async function createGame(): Promise<Game> {
         moving: 0,
         hue: 0,
     };
-    const game: Game = {camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
+    const game: Game = {camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: []};
 
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -943,13 +960,11 @@ function properMod(a: number, b: number): number {
     return (a%b + b)%b;
 }
 
-const SPRITE_ANGLES_COUNT = 8;
-
 function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
     return Math.floor(properMod(properMod(entity.direction, 2*Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2*Math.PI) - Math.PI + Math.PI/8, 2*Math.PI)/(2*Math.PI)*SPRITE_ANGLES_COUNT);
 }
 
-export function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
+function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
     resetSpritePool(game.spritePool);
 
     game.players.forEach((player) => {
@@ -978,6 +993,87 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 
+(async () => {
+    const gameCanvas = document.getElementById("game") as (HTMLCanvasElement | null);
+    if (gameCanvas === null) throw new Error("No canvas with id `game` is found");
+    const factor = 80;
+    gameCanvas.width = 16*factor;
+    gameCanvas.height = 9*factor;
+    const ctx = gameCanvas.getContext("2d");
+    if (ctx === null) throw new Error("2D context is not supported");
+    ctx.imageSmoothingEnabled = false;
+
+    // TODO: bring hotreloading back
+    // TODO: hot reloading should not break if the game crashes
+
+    const display = createDisplay(ctx, SCREEN_WIDTH, SCREEN_HEIGHT);
+    const game = await createGame();
+
+    window.addEventListener("keydown", (e) => {
+        if (!e.repeat) {
+            const direction = CONTROL_KEYS[e.code];
+            if (direction !== undefined) {
+                if (game.ws.readyState === WebSocket.OPEN) {
+                    const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+                    common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
+                    common.AmmaMovingStruct.start.write(view, 1);
+                    common.AmmaMovingStruct.direction.write(view, direction);
+                    game.ws.send(view);
+                } else {
+                    game.me.moving |= 1<<direction;
+                }
+            } else if (e.code === 'Space') {
+                throwBomb(game.me, game.bombs);
+            }
+        }
+    });
+    // TODO: When the window loses the focus, reset all the controls
+    window.addEventListener("keyup", (e) => {
+        if (!e.repeat) {
+            const direction = CONTROL_KEYS[e.code];
+            if (direction !== undefined) {
+                if (game.ws.readyState === WebSocket.OPEN) {
+                    const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+                    common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
+                    common.AmmaMovingStruct.start.write(view, 0);
+                    common.AmmaMovingStruct.direction.write(view, direction);
+                    game.ws.send(view);
+                } else {
+                    game.me.moving &= ~(1<<direction);
+                }
+            }
+        }
+    });
+
+    const PING_COOLDOWN = 60;
+    let prevTimestamp = 0;
+    let pingCooldown = PING_COOLDOWN;
+    const frame = (timestamp: number) => {
+        const deltaTime = (timestamp - prevTimestamp)/1000;
+        const time = timestamp/1000;
+        prevTimestamp = timestamp;
+        renderGame(display, deltaTime, time, game);
+        if (game.ws.readyState == WebSocket.OPEN) {
+            pingCooldown -= 1;
+            if (pingCooldown <= 0) {
+                const view = new DataView(new ArrayBuffer(common.PingStruct.size));
+                common.PingStruct.kind.write(view, common.MessageKind.Ping);
+                common.PingStruct.timestamp.write(view, performance.now());
+                game.ws.send(view);
+                pingCooldown = PING_COOLDOWN;
+            }
+        }
+        window.requestAnimationFrame(frame);
+    }
+    window.requestAnimationFrame((timestamp) => {
+        prevTimestamp = timestamp;
+        window.requestAnimationFrame(frame);
+    });
+})();
+// TODO: Hot reload assets
+// TODO: Load assets asynchronously
+//   While a texture is loading, replace it with a color tile.
+// TODO: Mobile controls
 // TODO: "magnet" items into the player
 // TODO: Blast particles should fade out as they age
 // TODO: Bomb collision should take into account its size
