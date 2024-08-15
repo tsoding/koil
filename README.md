@@ -16,7 +16,8 @@ and browsers, but we are working it.**
 
 ```console
 $ npm install
-$ npm run watch
+$ npm run build
+$ npm run serve
 $ <browser> https://localhost:6969/
 ```
 
