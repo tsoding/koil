@@ -92,13 +92,13 @@ export const HelloStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
     const id = allocUint32Field(allocator);
-    const x_ = allocFloat32Field(allocator);
-    const y_ = allocFloat32Field(allocator);
+    const x = allocFloat32Field(allocator);
+    const y = allocFloat32Field(allocator);
     const direction = allocFloat32Field(allocator);
     const hue = allocUint8Field(allocator);
     const size = allocator.size;
     const verify = verifier(kind, MessageKind.Hello, size);
-    return { kind, id, x_, y_, direction, hue, size, verify };
+    return { kind, id, x, y, direction, hue, size, verify };
 })();
 export const AmmaMovingStruct = (() => {
     const allocator = { size: 0 };
@@ -112,13 +112,13 @@ export const AmmaMovingStruct = (() => {
 export const PlayerStruct = (() => {
     const allocator = { size: 0 };
     const id = allocUint32Field(allocator);
-    const x_ = allocFloat32Field(allocator);
-    const y_ = allocFloat32Field(allocator);
+    const x = allocFloat32Field(allocator);
+    const y = allocFloat32Field(allocator);
     const direction = allocFloat32Field(allocator);
     const hue = allocUint8Field(allocator);
     const moving = allocUint8Field(allocator);
     const size = allocator.size;
-    return { id, x_, y_, direction, hue, moving, size };
+    return { id, x, y, direction, hue, moving, size };
 })();
 export const PlayersJoinedHeaderStruct = (() => {
     const allocator = { size: 0 };

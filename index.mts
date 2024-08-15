@@ -36,17 +36,17 @@ const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
         if (!e.repeat) {
             const direction = DIRECTION_KEYS[e.code];
             if (direction !== undefined) {
-                if (gameState.ws_.readyState === WebSocket.OPEN) {
+                if (gameState.ws.readyState === WebSocket.OPEN) {
                     const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
                     common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
                     common.AmmaMovingStruct.start.write(view, 1);
                     common.AmmaMovingStruct.direction.write(view, direction);
-                    gameState.ws_.send(view);
+                    gameState.ws.send(view);
                 } else {
-                    gameState.me_.moving |= 1<<direction;
+                    gameState.me.moving |= 1<<direction;
                 }
             } else if (e.code === 'Space') {
-                game.throwBomb(gameState.me_, gameState.bombs);
+                game.throwBomb(gameState.me, gameState.bombs);
             }
         }
     });
@@ -55,14 +55,14 @@ const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
         if (!e.repeat) {
             const direction = DIRECTION_KEYS[e.code];
             if (direction !== undefined) {
-                if (gameState.ws_.readyState === WebSocket.OPEN) {
+                if (gameState.ws.readyState === WebSocket.OPEN) {
                     const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
                     common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
                     common.AmmaMovingStruct.start.write(view, 0);
                     common.AmmaMovingStruct.direction.write(view, direction);
-                    gameState.ws_.send(view);
+                    gameState.ws.send(view);
                 } else {
-                    gameState.me_.moving &= ~(1<<direction);
+                    gameState.me.moving &= ~(1<<direction);
                 }
             }
         }
@@ -76,13 +76,13 @@ const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
         const time = timestamp/1000;
         prevTimestamp = timestamp;
         game.renderGame(display, deltaTime, time, gameState);
-        if (gameState.ws_.readyState == WebSocket.OPEN) {
+        if (gameState.ws.readyState == WebSocket.OPEN) {
             pingCooldown -= 1;
             if (pingCooldown <= 0) {
                 const view = new DataView(new ArrayBuffer(common.PingStruct.size));
                 common.PingStruct.kind.write(view, common.MessageKind.Ping);
                 common.PingStruct.timestamp.write(view, performance.now());
-                gameState.ws_.send(view);
+                gameState.ws.send(view);
                 pingCooldown = PING_COOLDOWN;
             }
         }

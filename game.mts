@@ -253,7 +253,7 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
 
     const labels = [];
     labels.push(`FPS: ${Math.floor(1/dtAvg)}`)
-    switch (game.ws_.readyState) {
+    switch (game.ws.readyState) {
         case WebSocket.CONNECTING: {
             labels.push('Connecting...');
         } break;
@@ -758,8 +758,8 @@ interface Assets {
 
 interface Game {
     camera: Camera,
-    ws_: WebSocket,
-    me_: Player,
+    ws: WebSocket,
+    me: Player,
     players: Map<number, Player>,
     bombs: Array<Bomb>, // TODO: make bombs part of the server state
     visibleSprites: Array<Sprite>,
@@ -863,7 +863,7 @@ export async function createGame(): Promise<Game> {
         moving: 0,
         hue: 0,
     };
-    const game: Game = {camera, ws_: ws, me_: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
+    const game: Game = {camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites};
 
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -882,14 +882,14 @@ export async function createGame(): Promise<Game> {
         }
         const view = new DataView(event.data);
         if (common.HelloStruct.verify(view)) {
-            game.me_ = {
+            game.me = {
                 id: common.HelloStruct.id.read(view),
-                position: new Vector2(common.HelloStruct.x_.read(view), common.HelloStruct.y_.read(view)),
+                position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
                 direction: common.HelloStruct.direction.read(view),
                 moving: 0,
                 hue: common.HelloStruct.hue.read(view)/256*360,
             }
-            players.set(game.me_.id, game.me_)
+            players.set(game.me.id, game.me)
         } else if (common.PlayersJoinedHeaderStruct.verify(view)) {
             const count = common.PlayersJoinedHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
@@ -897,14 +897,14 @@ export async function createGame(): Promise<Game> {
                 const id = common.PlayerStruct.id.read(playerView);
                 const player = players.get(id);
                 if (player !== undefined) {
-                    player.position.x = common.PlayerStruct.x_.read(playerView);
-                    player.position.y = common.PlayerStruct.y_.read(playerView);
+                    player.position.x = common.PlayerStruct.x.read(playerView);
+                    player.position.y = common.PlayerStruct.y.read(playerView);
                     player.direction = common.PlayerStruct.direction.read(playerView);
                     player.moving = common.PlayerStruct.moving.read(playerView);
                     player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
                 } else {
-                    const x = common.PlayerStruct.x_.read(playerView);
-                    const y = common.PlayerStruct.y_.read(playerView);
+                    const x = common.PlayerStruct.x.read(playerView);
+                    const y = common.PlayerStruct.y.read(playerView);
                     players.set(id, {
                         id,
                         position: new Vector2(x, y),
@@ -933,8 +933,8 @@ export async function createGame(): Promise<Game> {
                     return;
                 }
                 player.moving = common.PlayerStruct.moving.read(playerView);
-                player.position.x = common.PlayerStruct.x_.read(playerView);
-                player.position.y = common.PlayerStruct.y_.read(playerView);
+                player.position.x = common.PlayerStruct.x.read(playerView);
+                player.position.y = common.PlayerStruct.y.read(playerView);
                 player.direction = common.PlayerStruct.direction.read(playerView);
             }
         } else if (common.PongStruct.verify(view)) {
@@ -965,16 +965,16 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
     resetSpritePool(game.spritePool);
 
     game.players.forEach((player) => {
-        if (player !== game.me_) updatePlayer(player, SCENE, deltaTime)
+        if (player !== game.me) updatePlayer(player, SCENE, deltaTime)
     });
-    updatePlayer(game.me_, SCENE, deltaTime);
-    updateCamera(game.me_, game.camera);
-    updateItems(game.spritePool, time, game.me_, game.items, game.assets);
-    updateBombs(game.spritePool, game.me_, game.bombs, game.particles, SCENE, deltaTime, game.assets);
+    updatePlayer(game.me, SCENE, deltaTime);
+    updateCamera(game.me, game.camera);
+    updateItems(game.spritePool, time, game.me, game.items, game.assets);
+    updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
 
     game.players.forEach((player) => {
-        if (player !== game.me_) {
+        if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
             pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
         }
@@ -986,7 +986,7 @@ export function renderGame(display: Display, deltaTime: number, time: number, ga
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
 
-    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me_, SCENE, game.spritePool, game.visibleSprites);
+    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 
