@@ -1,15 +1,4 @@
-// This module is the main logic of the game and when served via `npm run watch` should be
-// hot-reloadable without losing the state of the game. Anything outside of this module
-// is only "cold"-reloadable (by simply refreshing the whole page).
-//
-// The way we hot-reload modules is rather limited and does not allow to reload for instance
-// classes. In case of Vector2 and RGBA we don't really care because they are not modified very
-// often.
-//
-// Only simple functions that operate on objects that don't store any functions can be easily
-// hot-reloaded. Examples are Scene and Player which we defined as interfaces.
-import { Vector2, Vector3, RGBA } from './vector.mjs';
-import {SERVER_PORT, Player, Scene, SCENE, sceneGetTile, updatePlayer, PLAYER_SIZE} from './common.mjs';
+import {SERVER_PORT, Player, Scene, SCENE, sceneGetTile, updatePlayer, PLAYER_SIZE, RGBA, Vector2, Vector3} from './common.mjs';
 import * as common from './common.mjs';
 
 const EPS = 1e-6;
@@ -160,16 +149,6 @@ interface Camera {
     direction: number;
     fovLeft: Vector2;
     fovRight: Vector2;
-}
-
-function createPlayer(position: Vector2, direction: number): Player {
-    return {
-        id: 0,
-        position: position,
-        direction: direction,
-        moving: 0,
-        hue: 0,
-    }
 }
 
 function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Player, scene: Scene, spritePool: SpritePool, visibleSprites: Array<Sprite>) {

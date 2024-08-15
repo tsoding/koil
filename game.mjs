@@ -1,5 +1,4 @@
-import { Vector2, Vector3, RGBA } from './vector.mjs';
-import { SERVER_PORT, SCENE, sceneGetTile, updatePlayer, PLAYER_SIZE } from './common.mjs';
+import { SERVER_PORT, SCENE, sceneGetTile, updatePlayer, PLAYER_SIZE, RGBA, Vector2, Vector3 } from './common.mjs';
 import * as common from './common.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
@@ -109,15 +108,6 @@ function castRay(scene, p1, p2) {
         p2 = p3;
     }
     return p2;
-}
-function createPlayer(position, direction) {
-    return {
-        id: 0,
-        position: position,
-        direction: direction,
-        moving: 0,
-        hue: 0,
-    };
 }
 function renderMinimap(ctx, camera, player, scene, spritePool, visibleSprites) {
     ctx.save();

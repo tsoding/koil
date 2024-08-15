@@ -1,7 +1,6 @@
 import {WebSocketServer, WebSocket} from 'ws';
 import * as common from './common.mjs'
-import {Player} from './common.mjs';
-import {Vector2} from './vector.mjs';
+import {Player, Vector2} from './common.mjs';
 
 namespace Stats {
     const AVERAGE_CAPACITY = 30;
