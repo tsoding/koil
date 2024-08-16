@@ -1,5 +1,5 @@
 import * as common from './common.mjs';
-import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, SCENE, clamp, properMod } from './common.mjs';
+import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, SCENE, clamp, properMod, PlayerClass } from './common.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -684,13 +684,7 @@ async function createGame() {
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
     if (window.location.hostname === 'tsoding.github.io')
         ws.close();
-    const me = {
-        id: 0,
-        position: new Vector2(),
-        direction: 0,
-        moving: 0,
-        hue: 0,
-    };
+    const me = new PlayerClass(0, 0, 0, 0, 0, 0);
     const game = { camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: [] };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -707,38 +701,22 @@ async function createGame() {
         }
         const view = new DataView(event.data);
         if (common.HelloStruct.verify(view)) {
-            game.me = {
-                id: common.HelloStruct.id.read(view),
-                position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
-                direction: common.HelloStruct.direction.read(view),
-                moving: 0,
-                hue: common.HelloStruct.hue.read(view) / 256 * 360,
-            };
+            game.me = Object.create(PlayerClass.prototype);
+            game.me.fromDataView(view, common.HelloStruct);
             players.set(game.me.id, game.me);
         }
         else if (common.PlayersJoinedHeaderStruct.verify(view)) {
             const count = common.PlayersJoinedHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
                 const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
-                const id = common.PlayerStruct.id.read(playerView);
-                const player = players.get(id);
-                if (player !== undefined) {
-                    player.position.x = common.PlayerStruct.x.read(playerView);
-                    player.position.y = common.PlayerStruct.y.read(playerView);
-                    player.direction = common.PlayerStruct.direction.read(playerView);
-                    player.moving = common.PlayerStruct.moving.read(playerView);
-                    player.hue = common.PlayerStruct.hue.read(playerView) / 256 * 360;
+                const newPlayer = Object.create(PlayerClass.prototype);
+                newPlayer.fromDataView(playerView, common.PlayerStruct);
+                const existingPlayer = players.get(newPlayer.id);
+                if (existingPlayer != undefined) {
+                    existingPlayer.update(newPlayer);
                 }
                 else {
-                    const x = common.PlayerStruct.x.read(playerView);
-                    const y = common.PlayerStruct.y.read(playerView);
-                    players.set(id, {
-                        id,
-                        position: new Vector2(x, y),
-                        direction: common.PlayerStruct.direction.read(playerView),
-                        moving: common.PlayerStruct.moving.read(playerView),
-                        hue: common.PlayerStruct.hue.read(playerView) / 256 * 360,
-                    });
+                    players.set(newPlayer.id, newPlayer);
                 }
             }
         }
@@ -752,18 +730,16 @@ async function createGame() {
         else if (common.PlayersMovingHeaderStruct.verify(view)) {
             const count = common.PlayersMovingHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
-                const id = common.PlayerStruct.id.read(playerView);
-                const player = players.get(id);
-                if (player === undefined) {
-                    console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`);
+                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
+                const newPlayer = Object.create(PlayerClass.prototype);
+                newPlayer.fromDataView(playerView, common.PlayerStruct);
+                const existingPlayer = players.get(newPlayer.id);
+                if (existingPlayer === undefined) {
+                    console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${newPlayer.id}`);
                     ws?.close();
                     return;
                 }
-                player.moving = common.PlayerStruct.moving.read(playerView);
-                player.position.x = common.PlayerStruct.x.read(playerView);
-                player.position.y = common.PlayerStruct.y.read(playerView);
-                player.direction = common.PlayerStruct.direction.read(playerView);
+                existingPlayer.update(newPlayer);
             }
         }
         else if (common.PongStruct.verify(view)) {

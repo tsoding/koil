@@ -3,7 +3,7 @@ import {
     RGBA, Vector2, Vector3, Scene, Player, 
     sceneGetTile, updatePlayer, 
     PLAYER_SIZE, SERVER_PORT, SCENE, 
-    clamp, properMod
+    clamp, properMod, PlayerClass
 } from './common.mjs';
 
 const EPS = 1e-6;
@@ -755,8 +755,8 @@ interface Assets {
 interface Game {
     camera: Camera,
     ws: WebSocket,
-    me: Player,
-    players: Map<number, Player>,
+    me: PlayerClass,
+    players: Map<number, PlayerClass>,
     bombs: Array<Bomb>, // TODO: make bombs part of the server state
     visibleSprites: Array<Sprite>,
     spritePool: SpritePool,
@@ -843,7 +843,7 @@ async function createGame(): Promise<Game> {
     const visibleSprites: Array<Sprite> = [];
     const spritePool = createSpritePool();
 
-    const players = new Map<number, Player>();
+    const players = new Map<number, PlayerClass>();
 
     const camera: Camera = {
         position: new Vector2(),
@@ -862,13 +862,7 @@ async function createGame(): Promise<Game> {
     // which does not look good in the demo. So if we are on
     // tsoding.github.io we just instantly close the connection.
     if (window.location.hostname === 'tsoding.github.io') ws.close();
-    const me = {
-        id: 0,
-        position: new Vector2(),
-        direction: 0,
-        moving: 0,
-        hue: 0,
-    };
+    const me = new PlayerClass(0, 0, 0, 0, 0, 0);
     const game: Game = {camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: []};
 
     ws.binaryType = 'arraybuffer';
@@ -888,36 +882,20 @@ async function createGame(): Promise<Game> {
         }
         const view = new DataView(event.data);
         if (common.HelloStruct.verify(view)) {
-            game.me = {
-                id: common.HelloStruct.id.read(view),
-                position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
-                direction: common.HelloStruct.direction.read(view),
-                moving: 0,
-                hue: common.HelloStruct.hue.read(view)/256*360,
-            }
-            players.set(game.me.id, game.me)
+            game.me = Object.create(PlayerClass.prototype);
+            game.me.fromDataView(view, common.HelloStruct);
+            players.set(game.me.id, game.me);
         } else if (common.PlayersJoinedHeaderStruct.verify(view)) {
             const count = common.PlayersJoinedHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
-                const id = common.PlayerStruct.id.read(playerView);
-                const player = players.get(id);
-                if (player !== undefined) {
-                    player.position.x = common.PlayerStruct.x.read(playerView);
-                    player.position.y = common.PlayerStruct.y.read(playerView);
-                    player.direction = common.PlayerStruct.direction.read(playerView);
-                    player.moving = common.PlayerStruct.moving.read(playerView);
-                    player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
+                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size); 
+                const newPlayer = Object.create(PlayerClass.prototype);
+                newPlayer.fromDataView(playerView, common.PlayerStruct);
+                const existingPlayer = players.get(newPlayer.id);
+                if (existingPlayer != undefined) {
+                    existingPlayer.update(newPlayer);
                 } else {
-                    const x = common.PlayerStruct.x.read(playerView);
-                    const y = common.PlayerStruct.y.read(playerView);
-                    players.set(id, {
-                        id,
-                        position: new Vector2(x, y),
-                        direction: common.PlayerStruct.direction.read(playerView),
-                        moving: common.PlayerStruct.moving.read(playerView),
-                        hue: common.PlayerStruct.hue.read(playerView)/256*360,
-                    });
+                    players.set(newPlayer.id, newPlayer);
                 }
             }
         } else if (common.PlayersLeftHeaderStruct.verify(view)) {
@@ -929,19 +907,17 @@ async function createGame(): Promise<Game> {
         } else if (common.PlayersMovingHeaderStruct.verify(view)) {
             const count = common.PlayersMovingHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+                const newPlayer = Object.create(PlayerClass.prototype);
+                newPlayer.fromDataView(playerView, common.PlayerStruct);
 
-                const id = common.PlayerStruct.id.read(playerView);
-                const player = players.get(id);
-                if (player === undefined) {
-                    console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`)
+                const existingPlayer = players.get(newPlayer.id);
+                if (existingPlayer === undefined) {
+                    console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${newPlayer.id}`)
                     ws?.close();
                     return;
                 }
-                player.moving = common.PlayerStruct.moving.read(playerView);
-                player.position.x = common.PlayerStruct.x.read(playerView);
-                player.position.y = common.PlayerStruct.y.read(playerView);
-                player.direction = common.PlayerStruct.direction.read(playerView);
+                existingPlayer.update(newPlayer)
             }
         } else if (common.PongStruct.verify(view)) {
             game.ping = performance.now() - common.PongStruct.timestamp.read(view);

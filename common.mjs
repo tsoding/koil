@@ -222,6 +222,35 @@ export var Moving;
     Moving[Moving["TurningRight"] = 3] = "TurningRight";
     Moving[Moving["Count"] = 4] = "Count";
 })(Moving || (Moving = {}));
+export class PlayerClass {
+    id;
+    position;
+    direction;
+    moving = 0;
+    hue;
+    constructor(id, x, y, direction, moving, hue) {
+        this.id = id;
+        this.position = new Vector2(x, y);
+        this.direction = direction;
+        this.moving = moving;
+        this.hue = hue / 256 * 360;
+    }
+    fromDataView(view, structType) {
+        this.id = structType.id.read(view);
+        this.position = new Vector2(structType.x.read(view), structType.y.read(view));
+        this.direction = structType.direction.read(view);
+        this.hue = structType.hue.read(view) / 256 * 360;
+        if ('moving' in structType) {
+            this.moving = structType.moving.read(view);
+        }
+    }
+    update(other) {
+        this.direction = other.direction;
+        this.hue = other.hue;
+        this.position = other.position;
+        this.moving = other.moving;
+    }
+}
 export var MessageKind;
 (function (MessageKind) {
     MessageKind[MessageKind["Hello"] = 0] = "Hello";

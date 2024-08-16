@@ -235,6 +235,37 @@ export interface Player {
     hue: number,
 }
 
+export class PlayerClass implements Player {
+    id: number;
+    position: Vector2;
+    direction: number;
+    moving: number = 0;
+    hue: number;
+
+    constructor(id: number, x: number, y: number, direction: number, moving: number, hue: number) {
+        this.id = id;
+        this.position = new Vector2(x, y);
+        this.direction = direction;
+        this.moving = moving;
+        this.hue = hue / 256 * 360
+    }
+    fromDataView(view: DataView, structType: typeof HelloStruct | typeof PlayerStruct) {
+        this.id = structType.id.read(view);
+        this.position = new Vector2(structType.x.read(view), structType.y.read(view));
+        this.direction = structType.direction.read(view);
+        this.hue = structType.hue.read(view) / 256 * 360;
+        if ('moving' in structType) {  // TODO: this hack exist only because HelloStruct doesn't have 'moving' property
+            this.moving = structType.moving.read(view);
+        }
+    }
+    update(other: PlayerClass): void {
+        this.direction = other.direction;
+        this.hue = other.hue;
+        this.position = other.position;
+        this.moving = other.moving;
+    }
+}
+
 export enum MessageKind {
     Hello,
     PlayerJoined,

@@ -1,6 +1,5 @@
 import { WebSocketServer } from 'ws';
 import * as common from './common.mjs';
-import { Vector2 } from './common.mjs';
 var Stats;
 (function (Stats) {
     const AVERAGE_CAPACITY = 30;
@@ -95,6 +94,30 @@ var Stats;
 const SERVER_FPS = 60;
 const SERVER_TOTAL_LIMIT = 2000;
 const SERVER_SINGLE_IP_LIMIT = 10;
+class PlayerOnServerClass extends common.PlayerClass {
+    ws;
+    remoteAddress;
+    newMoving;
+    constructor(ws, remoteAddress, id, x, y, direction, moving, newMoving, hue) {
+        super(id, x, y, direction, moving, hue);
+        this.ws = ws;
+        this.remoteAddress = remoteAddress;
+        this.newMoving = newMoving;
+    }
+    toDataView(view, structType) {
+        structType.id.write(view, this.id);
+        structType.x.write(view, this.position.x);
+        structType.y.write(view, this.position.y);
+        structType.direction.write(view, this.direction);
+        structType.hue.write(view, this.hue / 360 * 256);
+        if ('moving' in structType) {
+            structType.moving.write(view, this.moving);
+        }
+        if ('kind' in structType) {
+            structType.kind.write(view, common.MessageKind.Hello);
+        }
+    }
+}
 const players = new Map();
 const connectionLimits = new Map();
 let idCounter = 0;
@@ -131,19 +154,8 @@ wss.on("connection", (ws, req) => {
     const id = idCounter++;
     const x = 0;
     const y = 0;
-    const position = new Vector2(x, y);
     const hue = Math.floor(Math.random() * 360);
-    const player = {
-        ws,
-        remoteAddress,
-        id,
-        position,
-        direction: 0,
-        moving: 0,
-        newMoving: 0,
-        hue,
-        moved: false,
-    };
+    const player = new PlayerOnServerClass(ws, remoteAddress, id, x, y, 0, 0, 0, hue);
     players.set(id, player);
     joinedIds.add(id);
     Stats.playersJoined.counter += 1;
@@ -212,24 +224,14 @@ function tick() {
             let index = 0;
             players.forEach((player) => {
                 const playerView = new DataView(buffer, common.PlayersJoinedHeaderStruct.size + index * common.PlayerStruct.size);
-                common.PlayerStruct.id.write(playerView, player.id);
-                common.PlayerStruct.x.write(playerView, player.position.x);
-                common.PlayerStruct.y.write(playerView, player.position.y);
-                common.PlayerStruct.direction.write(playerView, player.direction);
-                common.PlayerStruct.hue.write(playerView, player.hue / 360 * 256);
-                common.PlayerStruct.moving.write(playerView, player.moving);
+                player.toDataView(playerView, common.PlayerStruct);
                 index += 1;
             });
             joinedIds.forEach((joinedId) => {
                 const joinedPlayer = players.get(joinedId);
                 if (joinedPlayer !== undefined) {
                     const view = new DataView(new ArrayBuffer(common.HelloStruct.size));
-                    common.HelloStruct.kind.write(view, common.MessageKind.Hello);
-                    common.HelloStruct.id.write(view, joinedPlayer.id);
-                    common.HelloStruct.x.write(view, joinedPlayer.position.x);
-                    common.HelloStruct.y.write(view, joinedPlayer.position.y);
-                    common.HelloStruct.direction.write(view, joinedPlayer.direction);
-                    common.HelloStruct.hue.write(view, Math.floor(joinedPlayer.hue / 360 * 256));
+                    joinedPlayer.toDataView(view, common.HelloStruct);
                     joinedPlayer.ws.send(view);
                     bytesSentCounter += view.byteLength;
                     messageSentCounter += 1;
@@ -249,12 +251,7 @@ function tick() {
                 const joinedPlayer = players.get(joinedId);
                 if (joinedPlayer !== undefined) {
                     const playerView = new DataView(buffer, common.PlayersJoinedHeaderStruct.size + index * common.PlayerStruct.size);
-                    common.PlayerStruct.id.write(playerView, joinedPlayer.id);
-                    common.PlayerStruct.x.write(playerView, joinedPlayer.position.x);
-                    common.PlayerStruct.y.write(playerView, joinedPlayer.position.y);
-                    common.PlayerStruct.direction.write(playerView, joinedPlayer.direction);
-                    common.PlayerStruct.hue.write(playerView, joinedPlayer.hue / 360 * 256);
-                    common.PlayerStruct.moving.write(playerView, joinedPlayer.moving);
+                    joinedPlayer.toDataView(playerView, common.PlayerStruct);
                     index += 1;
                 }
             });
@@ -297,11 +294,7 @@ function tick() {
                 if (player.newMoving !== player.moving) {
                     player.moving = player.newMoving;
                     const playerView = new DataView(buffer, common.PlayersMovingHeaderStruct.size + index * common.PlayerStruct.size);
-                    common.PlayerStruct.id.write(playerView, player.id);
-                    common.PlayerStruct.x.write(playerView, player.position.x);
-                    common.PlayerStruct.y.write(playerView, player.position.y);
-                    common.PlayerStruct.direction.write(playerView, player.direction);
-                    common.PlayerStruct.moving.write(playerView, player.moving);
+                    player.toDataView(playerView, common.PlayerStruct);
                     index += 1;
                 }
             });
