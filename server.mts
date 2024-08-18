@@ -141,6 +141,7 @@ const wss = new WebSocketServer({
 const joinedIds = new Set<number>()
 const leftIds = new Set<number>()
 const pingIds = new Map<number, number>()
+const level = common.createLevel();
 
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -380,7 +381,7 @@ function tick() {
     }
 
     // Simulating the world for one server tick.
-    players.forEach((player) => common.updatePlayer(player, common.SCENE, deltaTime))
+    players.forEach((player) => common.updatePlayer(player, level.scene, deltaTime))
 
     // Sending out pings
     pingIds.forEach((timestamp, id) => {

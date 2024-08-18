@@ -477,15 +477,25 @@ export function createScene(walls: Array<Array<boolean>>): Scene {
     return scene;
 }
 
-export const SCENE = createScene([
-    [ false, false, true, true, true, false, false],
-    [ false, false, false, false, false, true, false],
-    [ true, false, false, false, false, true, false],
-    [ true,  false, false, false, false, true, false],
-    [ true],
-    [  false,  true, true, true, false, false, false],
-    [  false,  false, false, false, false, false, false],
-]);
+// NOTE: This is basically the part of the state of the Game that is shared 
+// between Client and Server and constantly synced over the network.
+export interface Level {
+    scene: Scene,
+}
+
+export function createLevel(): Level {
+    const scene = createScene([
+        [ false, false, true, true, true, false, false],
+        [ false, false, false, false, false, true, false],
+        [ true, false, false, false, false, true, false],
+        [ true,  false, false, false, false, true, false],
+        [ true],
+        [  false,  true, true, true, false, false, false],
+        [  false,  false, false, false, false, false, false],
+    ]);
+
+    return {scene}
+}
 
 export function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
     const controlVelocity = new Vector2();

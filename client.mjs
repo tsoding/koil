@@ -1,5 +1,5 @@
 import * as common from './common.mjs';
-import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, SCENE, clamp, properMod } from './common.mjs';
+import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, clamp, properMod } from './common.mjs';
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
@@ -691,7 +691,11 @@ async function createGame() {
         moving: 0,
         hue: 0,
     };
-    const game = { camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: [] };
+    const level = common.createLevel();
+    const game = {
+        camera, ws, me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: [],
+        level
+    };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event);
@@ -786,13 +790,13 @@ function renderGame(display, deltaTime, time, game) {
     resetSpritePool(game.spritePool);
     game.players.forEach((player) => {
         if (player !== game.me)
-            updatePlayer(player, SCENE, deltaTime);
+            updatePlayer(player, game.level.scene, deltaTime);
     });
-    updatePlayer(game.me, SCENE, deltaTime);
+    updatePlayer(game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.spritePool, time, game.me, game.items, game.assets);
-    updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, SCENE, game.particles);
+    updateBombs(game.spritePool, game.me, game.bombs, game.particles, game.level.scene, deltaTime, game.assets);
+    updateParticles(game.spritePool, deltaTime, game.level.scene, game.particles);
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
@@ -800,12 +804,12 @@ function renderGame(display, deltaTime, time, game) {
         }
     });
     renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.assets, game.camera, SCENE);
+    renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
     if (MINIMAP)
-        renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
+        renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 (async () => {

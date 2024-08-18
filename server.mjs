@@ -106,6 +106,7 @@ const wss = new WebSocketServer({
 const joinedIds = new Set();
 const leftIds = new Set();
 const pingIds = new Map();
+const level = common.createLevel();
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (players.size >= SERVER_TOTAL_LIMIT) {
@@ -312,7 +313,7 @@ function tick() {
             });
         }
     }
-    players.forEach((player) => common.updatePlayer(player, common.SCENE, deltaTime));
+    players.forEach((player) => common.updatePlayer(player, level.scene, deltaTime));
     pingIds.forEach((timestamp, id) => {
         const player = players.get(id);
         if (player !== undefined) {

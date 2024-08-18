@@ -2,7 +2,7 @@ import * as common from './common.mjs';
 import {
     RGBA, Vector2, Vector3, Scene, Player, 
     sceneGetTile, updatePlayer, 
-    PLAYER_SIZE, SERVER_PORT, SCENE, 
+    PLAYER_SIZE, SERVER_PORT, 
     clamp, properMod
 } from './common.mjs';
 
@@ -765,6 +765,7 @@ interface Game {
     items: Array<Item>, // TODO: make items part of the server state
     ping: number,
     dts: number[],
+    level: common.Level,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -869,7 +870,11 @@ async function createGame(): Promise<Game> {
         moving: 0,
         hue: 0,
     };
-    const game: Game = {camera, ws, me: me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: []};
+    const level = common.createLevel();
+    const game: Game = {
+        camera, ws, me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: [],
+        level
+    };
 
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -965,13 +970,13 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     resetSpritePool(game.spritePool);
 
     game.players.forEach((player) => {
-        if (player !== game.me) updatePlayer(player, SCENE, deltaTime)
+        if (player !== game.me) updatePlayer(player, game.level.scene, deltaTime)
     });
-    updatePlayer(game.me, SCENE, deltaTime);
+    updatePlayer(game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.spritePool, time, game.me, game.items, game.assets);
-    updateBombs(game.spritePool, game.me, game.bombs, game.particles, SCENE, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, SCENE, game.particles)
+    updateBombs(game.spritePool, game.me, game.bombs, game.particles, game.level.scene, deltaTime, game.assets);
+    updateParticles(game.spritePool, deltaTime, game.level.scene, game.particles)
 
     game.players.forEach((player) => {
         if (player !== game.me) {
@@ -981,12 +986,12 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     })
 
     renderFloorAndCeiling(display.backImageData, game.camera);
-    renderWalls(display, game.assets, game.camera, SCENE);
+    renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
     displaySwapBackImageData(display);
 
-    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, SCENE, game.spritePool, game.visibleSprites);
+    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 

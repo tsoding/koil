@@ -424,15 +424,18 @@ export function createScene(walls) {
     }
     return scene;
 }
-export const SCENE = createScene([
-    [false, false, true, true, true, false, false],
-    [false, false, false, false, false, true, false],
-    [true, false, false, false, false, true, false],
-    [true, false, false, false, false, true, false],
-    [true],
-    [false, true, true, true, false, false, false],
-    [false, false, false, false, false, false, false],
-]);
+export function createLevel() {
+    const scene = createScene([
+        [false, false, true, true, true, false, false],
+        [false, false, false, false, false, true, false],
+        [true, false, false, false, false, true, false],
+        [true, false, false, false, false, true, false],
+        [true],
+        [false, true, true, true, false, false, false],
+        [false, false, false, false, false, false, false],
+    ]);
+    return { scene };
+}
 export function updatePlayer(player, scene, deltaTime) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
