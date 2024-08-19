@@ -2,9 +2,9 @@
 
 ![screenshot](./screenshot.png)
 
-My take on Raycasting inspired by Lode's Computer Graphics Tutorial: https://lodev.org/cgtutor/raycasting.html
+Online Multiplayer Browser Game with Old-School Raycasting Graphics.
 
-GitHub Pages: https://tsoding.github.io/raycasting/
+Offline version available on GitHub Pages: https://tsoding.github.io/raycasting/
 
 **We are intentinally rendering on HTML 2D Canvas without employing
 any hardware acceleration to see how much we can push the boundaries
@@ -21,4 +21,9 @@ $ npm run serve
 $ <browser> https://localhost:6969/
 ```
 
-This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and tsc in watch mode to constantly recompile [index.ts](./index.ts). See [watch.js](./watch.js) for more details.
+This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and the server of the game ([server.mts](./server.mts)). See [serve.js](./serve.js) for more details.
+
+## References
+
+- Renderer implementation is heavily inspired by https://lodev.org/cgtutor/raycasting.html
+- The Networking is Based on https://github.com/tsoding/multiplayer-game-prototype
