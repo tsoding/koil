@@ -1,8 +1,8 @@
 import * as common from './common.mjs';
 import {
-    RGBA, Vector2, Vector3, Scene, Player, 
-    sceneGetTile, updatePlayer, 
-    PLAYER_SIZE, SERVER_PORT, 
+    RGBA, Vector2, Vector3, Scene, Player,
+    sceneGetTile, updatePlayer,
+    PLAYER_SIZE, SERVER_PORT,
     clamp, properMod
 } from './common.mjs';
 
@@ -146,7 +146,6 @@ function sceneGetCeiling(p: Vector2): Tile | undefined {
         return SCENE_CEILING2;
     }
 }
-
 
 function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     let start = p1;
@@ -297,7 +296,7 @@ function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2,
             u = t.x;
         }
 
-        const y1f = (display.backImageData.height - stripHeight) * 0.5; 
+        const y1f = (display.backImageData.height - stripHeight) * 0.5;
         const y1 = Math.ceil(y1f);
         const y2 = Math.floor(y1 + stripHeight);
         const by1 = Math.max(0, y1);
@@ -554,9 +553,9 @@ function updateCamera(player: Player, camera: Camera) {
 
 function spriteOfItemKind(itemKind: common.ItemKind, assets: Assets): ImageData {
     switch (itemKind) {
-        case common.ItemKind.Key: return assets.keyImageData;
-        case common.ItemKind.Bomb: return assets.bombImageData;
-        // TODO: default texture for unknown items
+    case common.ItemKind.Key: return assets.keyImageData;
+    case common.ItemKind.Bomb: return assets.bombImageData;
+    default: return assets.nullImageData;
     }
 }
 
@@ -606,7 +605,7 @@ function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene
             if (sceneGetTile(scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
-                
+
                 if (dx > 0) particle.velocity.x *= -1;
                 if (dy > 0) particle.velocity.y *= -1;
                 particle.velocity.scale(PARTICLE_DAMP);
@@ -667,7 +666,7 @@ function updateBombs(ws: WebSocket, spritePool: SpritePool, player: Player, bomb
             if (common.updateBomb(bomb, scene, deltaTime)) {
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
-            
+
             if (ws.readyState != WebSocket.OPEN && bomb.lifetime <= 0) {
                 explodeBomb(bomb, player, assets, particles)
             }
@@ -680,6 +679,7 @@ interface Assets {
     keyImageData: ImageData,
     bombImageData: ImageData,
     playerImageData: ImageData,
+    nullImageData: ImageData,
     bombRicochetSound: HTMLAudioElement,
     itemPickupSound: HTMLAudioElement,
     bombBlastSound: HTMLAudioElement
@@ -718,11 +718,12 @@ async function loadImageData(url: string): Promise<ImageData> {
 }
 
 async function createGame(): Promise<Game> {
-    const [wallImageData, keyImageData, bombImageData, playerImageData] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
+        loadImageData("assets/images/custom/null.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -732,6 +733,7 @@ async function createGame(): Promise<Game> {
         keyImageData,
         bombImageData,
         playerImageData,
+        nullImageData,
         bombRicochetSound,
         itemPickupSound,
         bombBlastSound,
@@ -905,7 +907,7 @@ async function createGame(): Promise<Game> {
     ws.addEventListener("open", (event) => {
         console.log("WEBSOCKET OPEN", event)
     });
-    
+
     return game;
 }
 

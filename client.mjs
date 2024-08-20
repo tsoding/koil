@@ -444,6 +444,7 @@ function spriteOfItemKind(itemKind, assets) {
     switch (itemKind) {
         case common.ItemKind.Key: return assets.keyImageData;
         case common.ItemKind.Bomb: return assets.bombImageData;
+        default: return assets.nullImageData;
     }
 }
 function updateItems(ws, spritePool, time, player, items, assets) {
@@ -563,11 +564,12 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, image.width, image.height);
 }
 async function createGame() {
-    const [wallImageData, keyImageData, bombImageData, playerImageData] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
+        loadImageData("assets/images/custom/null.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -577,6 +579,7 @@ async function createGame() {
         keyImageData,
         bombImageData,
         playerImageData,
+        nullImageData,
         bombRicochetSound,
         itemPickupSound,
         bombBlastSound,
