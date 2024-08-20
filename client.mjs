@@ -447,7 +447,7 @@ function spriteOfItemKind(itemKind, assets) {
         default: return assets.nullImageData;
     }
 }
-function updateItems(ws, spritePool, time, player, items, assets) {
+function updateItems(ws, spritePool, time, me, items, assets) {
     for (let item of items) {
         if (item.alive) {
             pushSprite(spritePool, spriteOfItemKind(item.kind, assets), item.position, 0.25 + ITEM_AMP - ITEM_AMP * Math.sin(ITEM_FREQ * Math.PI * time + item.position.x + item.position.y), 0.25);
@@ -455,8 +455,8 @@ function updateItems(ws, spritePool, time, player, items, assets) {
     }
     if (ws.readyState != WebSocket.OPEN) {
         for (let item of items) {
-            if (common.collectItem(player, item)) {
-                playSound(assets.itemPickupSound, player.position, item.position);
+            if (common.collectItem(me, item)) {
+                playSound(assets.itemPickupSound, me.position, item.position);
             }
         }
     }

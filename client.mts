@@ -559,18 +559,19 @@ function spriteOfItemKind(itemKind: common.ItemKind, assets: Assets): ImageData 
     }
 }
 
-function updateItems(ws: WebSocket, spritePool: SpritePool, time: number, player: Player, items: Array<common.Item>, assets: Assets) {
+function updateItems(ws: WebSocket, spritePool: SpritePool, time: number, me: Player, items: Array<common.Item>, assets: Assets) {
+    // Rendering the items as sprites
     for (let item of items) {
         if (item.alive) {
             pushSprite(spritePool, spriteOfItemKind(item.kind, assets), item.position, 0.25 + ITEM_AMP - ITEM_AMP*Math.sin(ITEM_FREQ*Math.PI*time + item.position.x + item.position.y), 0.25);
         }
     }
 
+    // Offline mode. Updating items state without asking the server.
     if (ws.readyState != WebSocket.OPEN) {
         for (let item of items) {
-            if (common.collectItem(player, item)) {
-                // TODO: use game.me as the player position
-                playSound(assets.itemPickupSound, player.position, item.position);
+            if (common.collectItem(me, item)) {
+                playSound(assets.itemPickupSound, me.position, item.position);
             }
         }
     }
