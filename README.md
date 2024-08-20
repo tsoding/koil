@@ -6,7 +6,7 @@ Online Multiplayer Browser Game with Old-School Raycasting Graphics.
 
 Offline version available on GitHub Pages: https://tsoding.github.io/raycasting/
 
-**We are intentinally rendering on HTML 2D Canvas without employing
+**We are intentionally rendering on HTML 2D Canvas without employing
 any hardware acceleration to see how much we can push the boundaries
 of the software rendering implemented in JavaScript running in
 Browser. So the renderer may run unexpectedly slow on some machines
