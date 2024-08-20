@@ -4,7 +4,6 @@ const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI * 0.5;
-const PLAYER_RADIUS = 0.5;
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
@@ -472,20 +471,21 @@ function updateCamera(player, camera) {
 }
 function spriteOfItemKind(itemKind, assets) {
     switch (itemKind) {
-        case "key": return assets.keyImageData;
-        case "bomb": return assets.bombImageData;
+        case common.ItemKind.Key: return assets.keyImageData;
+        case common.ItemKind.Bomb: return assets.bombImageData;
     }
 }
-function updateItems(spritePool, time, player, items, assets) {
+function updateItems(ws, spritePool, time, player, items, assets) {
     for (let item of items) {
         if (item.alive) {
-            if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS * PLAYER_RADIUS) {
-                playSound(assets.itemPickupSound, player.position, item.position);
-                item.alive = false;
-            }
-        }
-        if (item.alive) {
             pushSprite(spritePool, spriteOfItemKind(item.kind, assets), item.position, 0.25 + ITEM_AMP - ITEM_AMP * Math.sin(ITEM_FREQ * Math.PI * time + item.position.x + item.position.y), 0.25);
+        }
+    }
+    if (ws.readyState != WebSocket.OPEN) {
+        for (let item of items) {
+            if (common.collectItem(player, item)) {
+                playSound(assets.itemPickupSound, player.position, item.position);
+            }
         }
     }
 }
@@ -637,38 +637,6 @@ async function createGame() {
         itemPickupSound,
         bombBlastSound,
     };
-    const items = [
-        {
-            kind: "bomb",
-            position: new Vector2(1.5, 3.5),
-            alive: true,
-        },
-        {
-            kind: "key",
-            position: new Vector2(2.5, 1.5),
-            alive: true,
-        },
-        {
-            kind: "key",
-            position: new Vector2(3, 1.5),
-            alive: true,
-        },
-        {
-            kind: "key",
-            position: new Vector2(3.5, 1.5),
-            alive: true,
-        },
-        {
-            kind: "key",
-            position: new Vector2(4.0, 1.5),
-            alive: true,
-        },
-        {
-            kind: "key",
-            position: new Vector2(4.5, 1.5),
-            alive: true,
-        },
-    ];
     const bombs = allocateBombs(10);
     const particles = allocateParticles(1000);
     const visibleSprites = [];
@@ -692,8 +660,10 @@ async function createGame() {
         hue: 0,
     };
     const level = common.createLevel();
+    for (const item of level.items)
+        item.alive = false;
     const game = {
-        camera, ws, me, ping: 0, players, items, bombs, particles, assets, spritePool, visibleSprites, dts: [],
+        camera, ws, me, ping: 0, players, bombs, particles, assets, spritePool, visibleSprites, dts: [],
         level
     };
     ws.binaryType = 'arraybuffer';
@@ -773,6 +743,31 @@ async function createGame() {
         else if (common.PongStruct.verify(view)) {
             game.ping = performance.now() - common.PongStruct.timestamp.read(view);
         }
+        else if (common.ItemCollectedStruct.verify(view)) {
+            const index = common.ItemCollectedStruct.index.read(view);
+            if (!(0 <= index && index < game.level.items.length)) {
+                console.error(`Received bogus-amogus ItemCollected message from server. Invalid index ${index}`);
+                ws?.close();
+                return;
+            }
+            if (game.level.items[index].alive) {
+                game.level.items[index].alive = false;
+                playSound(assets.itemPickupSound, game.me.position, game.level.items[index].position);
+            }
+        }
+        else if (common.ItemSpawnedStruct.verify(view)) {
+            console.log("ITEM SPAWNED");
+            const index = common.ItemSpawnedStruct.index.read(view);
+            if (!(0 <= index && index < game.level.items.length)) {
+                console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
+                ws?.close();
+                return;
+            }
+            game.level.items[index].alive = true;
+            game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(view);
+            game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(view);
+            game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(view);
+        }
         else {
             console.error("Received bogus-amogus message from server.", view);
             ws?.close();
@@ -794,7 +789,7 @@ function renderGame(display, deltaTime, time, game) {
     });
     updatePlayer(game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
-    updateItems(game.spritePool, time, game.me, game.items, game.assets);
+    updateItems(game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
     updateBombs(game.spritePool, game.me, game.bombs, game.particles, game.level.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.level.scene, game.particles);
     game.players.forEach((player) => {

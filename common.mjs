@@ -1,3 +1,7 @@
+export const SERVER_PORT = 6970;
+export const PLAYER_SIZE = 0.5;
+export const PLAYER_SPEED = 2;
+export const PLAYER_RADIUS = 0.5;
 export class RGBA {
     r;
     g;
@@ -211,9 +215,6 @@ export class Vector3 {
         return this;
     }
 }
-export const SERVER_PORT = 6970;
-export const PLAYER_SIZE = 0.5;
-export const PLAYER_SPEED = 2;
 export var Moving;
 (function (Moving) {
     Moving[Moving["MovingForward"] = 0] = "MovingForward";
@@ -231,6 +232,8 @@ export var MessageKind;
     MessageKind[MessageKind["AmmaMoving"] = 4] = "AmmaMoving";
     MessageKind[MessageKind["Ping"] = 5] = "Ping";
     MessageKind[MessageKind["Pong"] = 6] = "Pong";
+    MessageKind[MessageKind["ItemSpawned"] = 7] = "ItemSpawned";
+    MessageKind[MessageKind["ItemCollected"] = 8] = "ItemCollected";
 })(MessageKind || (MessageKind = {}));
 export const UINT8_SIZE = 1;
 export const UINT16_SIZE = 2;
@@ -284,6 +287,25 @@ function verifier(kindField, kind, size) {
     return (view) => view.byteLength == size &&
         kindField.read(view) == kind;
 }
+export const ItemCollectedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const index = allocUint32Field(allocator);
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.ItemCollected, size);
+    return { kind, index, size, verify };
+})();
+export const ItemSpawnedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const itemKind = allocUint8Field(allocator);
+    const index = allocUint32Field(allocator);
+    const x = allocFloat32Field(allocator);
+    const y = allocFloat32Field(allocator);
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.ItemSpawned, size);
+    return { kind, itemKind, index, x, y, size, verify };
+})();
 export const PingStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -424,6 +446,20 @@ export function createScene(walls) {
     }
     return scene;
 }
+export var ItemKind;
+(function (ItemKind) {
+    ItemKind[ItemKind["Key"] = 0] = "Key";
+    ItemKind[ItemKind["Bomb"] = 1] = "Bomb";
+})(ItemKind || (ItemKind = {}));
+export function collectItem(player, item) {
+    if (item.alive) {
+        if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS * PLAYER_RADIUS) {
+            item.alive = false;
+            return true;
+        }
+    }
+    return false;
+}
 export function createLevel() {
     const scene = createScene([
         [false, false, true, true, true, false, false],
@@ -434,7 +470,39 @@ export function createLevel() {
         [false, true, true, true, false, false, false],
         [false, false, false, false, false, false, false],
     ]);
-    return { scene };
+    const items = [
+        {
+            kind: ItemKind.Bomb,
+            position: new Vector2(1.5, 3.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(2.5, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(3, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(3.5, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(4.0, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(4.5, 1.5),
+            alive: true,
+        },
+    ];
+    return { scene, items };
 }
 export function updatePlayer(player, scene, deltaTime) {
     const controlVelocity = new Vector2();

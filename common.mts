@@ -1,3 +1,8 @@
+export const SERVER_PORT = 6970;
+export const PLAYER_SIZE = 0.5;
+export const PLAYER_SPEED = 2;
+export const PLAYER_RADIUS = 0.5;
+
 export class RGBA {
     r: number;
     g: number;
@@ -214,11 +219,6 @@ export class Vector3 {
     }
 }
 
-
-export const SERVER_PORT = 6970;
-export const PLAYER_SIZE = 0.5;
-export const PLAYER_SPEED = 2;
-
 export enum Moving {
     MovingForward,
     MovingBackward,
@@ -243,6 +243,8 @@ export enum MessageKind {
     AmmaMoving,
     Ping,
     Pong,
+    ItemSpawned,
+    ItemCollected,
 }
 
 interface Field {
@@ -310,6 +312,28 @@ function verifier(kindField: Field, kind: number, size: number): (view: DataView
         view.byteLength == size &&
         kindField.read(view) == kind
 }
+
+// TODO: Batch up the Item messages
+export const ItemCollectedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind      = allocUint8Field(allocator);
+    const index     = allocUint32Field(allocator);
+    const size      = allocator.size;
+    const verify    = verifier(kind, MessageKind.ItemCollected, size);
+    return {kind, index, size, verify};
+})();
+
+export const ItemSpawnedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind     = allocUint8Field(allocator);
+    const itemKind = allocUint8Field(allocator);
+    const index    = allocUint32Field(allocator);
+    const x        = allocFloat32Field(allocator);
+    const y        = allocFloat32Field(allocator);
+    const size     = allocator.size;
+    const verify   = verifier(kind, MessageKind.ItemSpawned, size);
+    return {kind, itemKind, index, x, y, size, verify};
+})();
 
 export const PingStruct = (() => {
     const allocator = { size: 0 };
@@ -477,10 +501,32 @@ export function createScene(walls: Array<Array<boolean>>): Scene {
     return scene;
 }
 
+export enum ItemKind {
+    Key,
+    Bomb,
+}
+
+export interface Item {
+    alive: boolean,
+    kind: ItemKind,
+    position: Vector2,
+}
+
+export function collectItem(player: Player, item: Item): boolean {
+    if (item.alive) {
+        if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS*PLAYER_RADIUS) {
+            item.alive = false;
+            return true;
+        }
+    }
+    return false;
+}
+
 // NOTE: This is basically the part of the state of the Game that is shared 
 // between Client and Server and constantly synced over the network.
 export interface Level {
     scene: Scene,
+    items: Array<Item>,
 }
 
 export function createLevel(): Level {
@@ -494,7 +540,40 @@ export function createLevel(): Level {
         [  false,  false, false, false, false, false, false],
     ]);
 
-    return {scene}
+    const items: Array<Item> = [
+        {
+            kind: ItemKind.Bomb,
+            position: new Vector2(1.5, 3.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(2.5, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(3, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(3.5, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(4.0, 1.5),
+            alive: true,
+        },
+        {
+            kind: ItemKind.Key,
+            position: new Vector2(4.5, 1.5),
+            alive: true,
+        },
+    ]
+
+    return {scene, items}
 }
 
 export function updatePlayer(player: Player, scene: Scene, deltaTime: number) {

@@ -237,6 +237,19 @@ function tick() {
                     joinedPlayer.ws.send(buffer);
                     bytesSentCounter += buffer.byteLength;
                     messageSentCounter += 1;
+                    level.items.forEach((item, index) => {
+                        if (item.alive) {
+                            const view = new DataView(new ArrayBuffer(common.ItemSpawnedStruct.size));
+                            common.ItemSpawnedStruct.kind.write(view, common.MessageKind.ItemSpawned);
+                            common.ItemSpawnedStruct.index.write(view, index);
+                            common.ItemSpawnedStruct.x.write(view, item.position.x);
+                            common.ItemSpawnedStruct.y.write(view, item.position.y);
+                            common.ItemSpawnedStruct.itemKind.write(view, item.kind);
+                            joinedPlayer.ws.send(view);
+                            bytesSentCounter += view.byteLength;
+                            messageSentCounter += 1;
+                        }
+                    });
                 }
             });
         }
@@ -313,7 +326,23 @@ function tick() {
             });
         }
     }
-    players.forEach((player) => common.updatePlayer(player, level.scene, deltaTime));
+    players.forEach((player) => {
+        common.updatePlayer(player, level.scene, deltaTime);
+        level.items.forEach((item, index) => {
+            if (item.alive) {
+                if (common.collectItem(player, item)) {
+                    const view = new DataView(new ArrayBuffer(common.ItemCollectedStruct.size));
+                    common.ItemCollectedStruct.kind.write(view, common.MessageKind.ItemCollected);
+                    common.ItemCollectedStruct.index.write(view, index);
+                    players.forEach((anotherPlayer) => {
+                        anotherPlayer.ws.send(view);
+                        bytesSentCounter += view.byteLength;
+                        messageSentCounter += 1;
+                    });
+                }
+            }
+        });
+    });
     pingIds.forEach((timestamp, id) => {
         const player = players.get(id);
         if (player !== undefined) {
