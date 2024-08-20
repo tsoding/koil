@@ -2,6 +2,11 @@ export const SERVER_PORT = 6970;
 export const PLAYER_SIZE = 0.5;
 export const PLAYER_SPEED = 2;
 export const PLAYER_RADIUS = 0.5;
+export const BOMB_LIFETIME = 2;
+export const BOMB_THROW_VELOCITY = 5;
+export const BOMB_GRAVITY = 10;
+export const BOMB_DAMP = 0.8;
+export const BOMB_SCALE = 0.25;
 
 export class RGBA {
     r: number;
@@ -241,10 +246,13 @@ export enum MessageKind {
     PlayerLeft,
     PlayerMoving,
     AmmaMoving,
+    AmmaThrowing,
     Ping,
     Pong,
     ItemSpawned,
     ItemCollected,
+    BombSpawned,
+    BombExploded,
 }
 
 interface Field {
@@ -323,6 +331,34 @@ export const ItemCollectedStruct = (() => {
     return {kind, index, size, verify};
 })();
 
+export const BombSpawnedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind     = allocUint8Field(allocator);
+    const index    = allocUint32Field(allocator);
+    const x        = allocFloat32Field(allocator);
+    const y        = allocFloat32Field(allocator);
+    const z        = allocFloat32Field(allocator);
+    const dx       = allocFloat32Field(allocator);
+    const dy       = allocFloat32Field(allocator);
+    const dz       = allocFloat32Field(allocator);
+    const lifetime = allocFloat32Field(allocator);
+    const size     = allocator.size;
+    const verify   = verifier(kind, MessageKind.BombSpawned, size);
+    return {kind, index, x, y, z, dx, dy, dz, lifetime, size, verify};
+})();
+
+export const BombExplodedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind     = allocUint8Field(allocator);
+    const index    = allocUint32Field(allocator);
+    const x        = allocFloat32Field(allocator);
+    const y        = allocFloat32Field(allocator);
+    const z        = allocFloat32Field(allocator);
+    const size     = allocator.size;
+    const verify   = verifier(kind, MessageKind.BombExploded, size);
+    return {kind, index, x, y, z, size, verify};
+})();
+
 export const ItemSpawnedStruct = (() => {
     const allocator = { size: 0 };
     const kind     = allocUint8Field(allocator);
@@ -374,6 +410,14 @@ export const AmmaMovingStruct = (() => {
     const size      = allocator.size;
     const verify    = verifier(kind, MessageKind.AmmaMoving, size);
     return {kind, direction, start, size, verify}
+})();
+
+export const AmmaThrowingStruct = (() => {
+    const allocator = { size: 0 };
+    const kind      = allocUint8Field(allocator);
+    const size      = allocator.size;
+    const verify    = verifier(kind, MessageKind.AmmaThrowing, size);
+    return {kind, size, verify}
 })();
 
 // [kind] [count] [id] [x] [y] [moving] [id] [x] [y] [moving] [id] [x] [y] [moving]
@@ -522,11 +566,77 @@ export function collectItem(player: Player, item: Item): boolean {
     return false;
 }
 
+export interface Bomb {
+    position: Vector3,
+    velocity: Vector3,
+    lifetime: number,
+}
+
+export function allocateBombs(capacity: number): Array<Bomb> {
+    let bomb: Array<Bomb> = []
+    for (let i = 0; i < capacity; ++i) {
+        bomb.push({
+            position: new Vector3(),
+            velocity: new Vector3(),
+            lifetime: 0,
+        })
+    }
+    return bomb
+}
+
+export function throwBomb(player: Player, bombs: Array<Bomb>): number | null {
+    for (let index = 0; index < bombs.length; ++index) {
+        const bomb = bombs[index];
+        if (bomb.lifetime <= 0) {
+            bomb.lifetime = BOMB_LIFETIME;
+            bomb.position.copy2(player.position, 0.6);
+            bomb.velocity.x = Math.cos(player.direction);
+            bomb.velocity.y = Math.sin(player.direction);
+            bomb.velocity.z = 0.5;
+            bomb.velocity.scale(BOMB_THROW_VELOCITY);
+            return index;
+        }
+    }
+    return null;
+}
+
+export function updateBomb(bomb: Bomb, scene: Scene, deltaTime: number): boolean {
+    let collided = false;
+    bomb.lifetime -= deltaTime;
+    bomb.velocity.z -= BOMB_GRAVITY*deltaTime;
+
+    const nx = bomb.position.x + bomb.velocity.x*deltaTime;
+    const ny = bomb.position.y + bomb.velocity.y*deltaTime;
+    if (sceneGetTile(scene, new Vector2(nx, ny))) {
+        const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
+        const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
+        
+        if (dx > 0) bomb.velocity.x *= -1;
+        if (dy > 0) bomb.velocity.y *= -1;
+        bomb.velocity.scale(BOMB_DAMP);
+        if (bomb.velocity.length() > 1) collided = true; // Wall collision
+    } else {
+        bomb.position.x = nx;
+        bomb.position.y = ny;
+    }
+
+    const nz = bomb.position.z + bomb.velocity.z*deltaTime;
+    if (nz < BOMB_SCALE || nz > 1.0) {
+        bomb.velocity.z *= -1
+        bomb.velocity.scale(BOMB_DAMP);
+        if (bomb.velocity.length() > 1) collided = true; // Floor collision
+    } else {
+        bomb.position.z = nz;
+    }
+    return collided;
+}
+
 // NOTE: This is basically the part of the state of the Game that is shared 
 // between Client and Server and constantly synced over the network.
 export interface Level {
     scene: Scene,
     items: Array<Item>,
+    bombs: Array<Bomb>,
 }
 
 export function createLevel(): Level {
@@ -573,7 +683,9 @@ export function createLevel(): Level {
         },
     ]
 
-    return {scene, items}
+    const bombs = allocateBombs(10);
+
+    return {scene, items, bombs};
 }
 
 export function updatePlayer(player: Player, scene: Scene, deltaTime: number) {

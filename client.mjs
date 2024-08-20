@@ -13,11 +13,6 @@ const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
 const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
-const BOMB_LIFETIME = 2;
-const BOMB_THROW_VELOCITY = 5;
-const BOMB_GRAVITY = 10;
-const BOMB_DAMP = 0.8;
-const BOMB_SCALE = 0.25;
 const BOMB_PARTICLE_COUNT = 50;
 const PARTICLE_LIFETIME = 1.0;
 const PARTICLE_DAMP = 0.8;
@@ -437,30 +432,6 @@ function pushSprite(spritePool, image, position, z, scale, cropPosition, cropSiz
     }
     spritePool.length += 1;
 }
-function allocateBombs(capacity) {
-    let bomb = [];
-    for (let i = 0; i < capacity; ++i) {
-        bomb.push({
-            position: new Vector3(),
-            velocity: new Vector3(),
-            lifetime: 0,
-        });
-    }
-    return bomb;
-}
-function throwBomb(player, bombs) {
-    for (let bomb of bombs) {
-        if (bomb.lifetime <= 0) {
-            bomb.lifetime = BOMB_LIFETIME;
-            bomb.position.copy2(player.position, 0.6);
-            bomb.velocity.x = Math.cos(player.direction);
-            bomb.velocity.y = Math.sin(player.direction);
-            bomb.velocity.z = 0.5;
-            bomb.velocity.scale(BOMB_THROW_VELOCITY);
-            break;
-        }
-    }
-}
 function updateCamera(player, camera) {
     const halfFov = FOV * 0.5;
     const fovLen = NEAR_CLIPPING_PLANE / Math.cos(halfFov);
@@ -504,7 +475,7 @@ function updateParticles(spritePool, deltaTime, scene, particles) {
     for (let particle of particles) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
-            particle.velocity.z -= BOMB_GRAVITY * deltaTime;
+            particle.velocity.z -= common.BOMB_GRAVITY * deltaTime;
             const nx = particle.position.x + particle.velocity.x * deltaTime;
             const ny = particle.position.y + particle.velocity.y * deltaTime;
             if (sceneGetTile(scene, new Vector2(nx, ny))) {
@@ -555,48 +526,21 @@ function playSound(sound, playerPosition, objectPosition) {
     sound.currentTime = 0;
     sound.play();
 }
-function updateBombs(spritePool, player, bombs, particles, scene, deltaTime, assets) {
+function explodeBomb(bomb, player, assets, particles) {
+    playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
+    for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
+        emitParticle(bomb.position, particles);
+    }
+}
+function updateBombs(ws, spritePool, player, bombs, particles, scene, deltaTime, assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
-            bomb.lifetime -= deltaTime;
-            bomb.velocity.z -= BOMB_GRAVITY * deltaTime;
-            const nx = bomb.position.x + bomb.velocity.x * deltaTime;
-            const ny = bomb.position.y + bomb.velocity.y * deltaTime;
-            if (sceneGetTile(scene, new Vector2(nx, ny))) {
-                const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
-                const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
-                if (dx > 0)
-                    bomb.velocity.x *= -1;
-                if (dy > 0)
-                    bomb.velocity.y *= -1;
-                bomb.velocity.scale(BOMB_DAMP);
-                if (bomb.velocity.length() > 1) {
-                    playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
-                }
+            pushSprite(spritePool, assets.bombImageData, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE);
+            if (common.updateBomb(bomb, scene, deltaTime)) {
+                playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
-            else {
-                bomb.position.x = nx;
-                bomb.position.y = ny;
-            }
-            const nz = bomb.position.z + bomb.velocity.z * deltaTime;
-            if (nz < BOMB_SCALE || nz > 1.0) {
-                bomb.velocity.z *= -1;
-                bomb.velocity.scale(BOMB_DAMP);
-                if (bomb.velocity.length() > 1) {
-                    playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
-                }
-            }
-            else {
-                bomb.position.z = nz;
-            }
-            if (bomb.lifetime <= 0) {
-                playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
-                for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-                    emitParticle(bomb.position, particles);
-                }
-            }
-            else {
-                pushSprite(spritePool, assets.bombImageData, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE);
+            if (ws.readyState != WebSocket.OPEN && bomb.lifetime <= 0) {
+                explodeBomb(bomb, player, assets, particles);
             }
         }
     }
@@ -637,7 +581,6 @@ async function createGame() {
         itemPickupSound,
         bombBlastSound,
     };
-    const bombs = allocateBombs(10);
     const particles = allocateParticles(1000);
     const visibleSprites = [];
     const spritePool = createSpritePool();
@@ -663,7 +606,7 @@ async function createGame() {
     for (const item of level.items)
         item.alive = false;
     const game = {
-        camera, ws, me, ping: 0, players, bombs, particles, assets, spritePool, visibleSprites, dts: [],
+        camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
         level
     };
     ws.binaryType = 'arraybuffer';
@@ -756,7 +699,6 @@ async function createGame() {
             }
         }
         else if (common.ItemSpawnedStruct.verify(view)) {
-            console.log("ITEM SPAWNED");
             const index = common.ItemSpawnedStruct.index.read(view);
             if (!(0 <= index && index < game.level.items.length)) {
                 console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
@@ -767,6 +709,34 @@ async function createGame() {
             game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(view);
             game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(view);
             game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(view);
+        }
+        else if (common.BombSpawnedStruct.verify(view)) {
+            const index = common.BombSpawnedStruct.index.read(view);
+            if (!(0 <= index && index < game.level.bombs.length)) {
+                console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${index}`);
+                ws?.close();
+                return;
+            }
+            game.level.bombs[index].lifetime = common.BombSpawnedStruct.lifetime.read(view);
+            game.level.bombs[index].position.x = common.BombSpawnedStruct.x.read(view);
+            game.level.bombs[index].position.y = common.BombSpawnedStruct.y.read(view);
+            game.level.bombs[index].position.z = common.BombSpawnedStruct.z.read(view);
+            game.level.bombs[index].velocity.x = common.BombSpawnedStruct.dx.read(view);
+            game.level.bombs[index].velocity.y = common.BombSpawnedStruct.dy.read(view);
+            game.level.bombs[index].velocity.z = common.BombSpawnedStruct.dz.read(view);
+        }
+        else if (common.BombExplodedStruct.verify(view)) {
+            const index = common.BombExplodedStruct.index.read(view);
+            if (!(0 <= index && index < game.level.bombs.length)) {
+                console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${index}`);
+                ws?.close();
+                return;
+            }
+            game.level.bombs[index].lifetime = 0.0;
+            game.level.bombs[index].position.x = common.BombExplodedStruct.x.read(view);
+            game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
+            game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
+            explodeBomb(level.bombs[index], me, assets, particles);
         }
         else {
             console.error("Received bogus-amogus message from server.", view);
@@ -790,7 +760,7 @@ function renderGame(display, deltaTime, time, game) {
     updatePlayer(game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
-    updateBombs(game.spritePool, game.me, game.bombs, game.particles, game.level.scene, deltaTime, game.assets);
+    updateBombs(game.ws, game.spritePool, game.me, game.level.bombs, game.particles, game.level.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.level.scene, game.particles);
     game.players.forEach((player) => {
         if (player !== game.me) {
@@ -836,7 +806,14 @@ function renderGame(display, deltaTime, time, game) {
                 }
             }
             else if (e.code === 'Space') {
-                throwBomb(game.me, game.bombs);
+                if (game.ws.readyState === WebSocket.OPEN) {
+                    const view = new DataView(new ArrayBuffer(common.AmmaThrowingStruct.size));
+                    common.AmmaThrowingStruct.kind.write(view, common.MessageKind.AmmaThrowing);
+                    game.ws.send(view);
+                }
+                else {
+                    common.throwBomb(game.me, game.level.bombs);
+                }
             }
         }
     });

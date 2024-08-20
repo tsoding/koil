@@ -23,11 +23,6 @@ const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
 
-const BOMB_LIFETIME = 2;
-const BOMB_THROW_VELOCITY = 5;
-const BOMB_GRAVITY = 10;
-const BOMB_DAMP = 0.8;
-const BOMB_SCALE = 0.25;
 const BOMB_PARTICLE_COUNT = 50
 
 const PARTICLE_LIFETIME = 1.0;
@@ -548,38 +543,6 @@ function pushSprite(spritePool: SpritePool, image: RGBA | ImageData, position: V
     spritePool.length += 1;
 }
 
-interface Bomb {
-    position: Vector3,
-    velocity: Vector3,
-    lifetime: number,
-}
-
-function allocateBombs(capacity: number): Array<Bomb> {
-    let bomb: Array<Bomb> = []
-    for (let i = 0; i < capacity; ++i) {
-        bomb.push({
-            position: new Vector3(),
-            velocity: new Vector3(),
-            lifetime: 0,
-        })
-    }
-    return bomb
-}
-
-function throwBomb(player: Player, bombs: Array<Bomb>) {
-    for (let bomb of bombs) {
-        if (bomb.lifetime <= 0) {
-            bomb.lifetime = BOMB_LIFETIME;
-            bomb.position.copy2(player.position, 0.6);
-            bomb.velocity.x = Math.cos(player.direction);
-            bomb.velocity.y = Math.sin(player.direction);
-            bomb.velocity.z = 0.5;
-            bomb.velocity.scale(BOMB_THROW_VELOCITY);
-            break;
-        }
-    }
-}
-
 function updateCamera(player: Player, camera: Camera) {
     const halfFov = FOV*0.5;
     const fovLen = NEAR_CLIPPING_PLANE/Math.cos(halfFov);
@@ -636,7 +599,7 @@ function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene
     for (let particle of particles) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
-            particle.velocity.z -= BOMB_GRAVITY*deltaTime;
+            particle.velocity.z -= common.BOMB_GRAVITY*deltaTime;
 
             const nx = particle.position.x + particle.velocity.x*deltaTime;
             const ny = particle.position.y + particle.velocity.y*deltaTime;
@@ -690,47 +653,23 @@ function playSound(sound: HTMLAudioElement, playerPosition: Vector2, objectPosit
     sound.play();
 }
 
-function updateBombs(spritePool: SpritePool, player: Player, bombs: Array<Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, assets: Assets) {
+function explodeBomb(bomb: common.Bomb, player: Player, assets: Assets, particles: Array<Particle>) {
+    playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
+    for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
+        emitParticle(bomb.position, particles);
+    }
+}
+
+function updateBombs(ws: WebSocket, spritePool: SpritePool, player: Player, bombs: Array<common.Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, assets: Assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
-            bomb.lifetime -= deltaTime;
-            bomb.velocity.z -= BOMB_GRAVITY*deltaTime;
-
-            const nx = bomb.position.x + bomb.velocity.x*deltaTime;
-            const ny = bomb.position.y + bomb.velocity.y*deltaTime;
-            if (sceneGetTile(scene, new Vector2(nx, ny))) {
-                const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
-                const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
-                
-                if (dx > 0) bomb.velocity.x *= -1;
-                if (dy > 0) bomb.velocity.y *= -1;
-                bomb.velocity.scale(BOMB_DAMP);
-                if (bomb.velocity.length() > 1) {
-                    playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
-                }
-            } else {
-                bomb.position.x = nx;
-                bomb.position.y = ny;
+            pushSprite(spritePool, assets.bombImageData, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE)
+            if (common.updateBomb(bomb, scene, deltaTime)) {
+                playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
-
-            const nz = bomb.position.z + bomb.velocity.z*deltaTime;
-            if (nz < BOMB_SCALE || nz > 1.0) {
-                bomb.velocity.z *= -1
-                bomb.velocity.scale(BOMB_DAMP);
-                if (bomb.velocity.length() > 1) {
-                    playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
-                }
-            } else {
-                bomb.position.z = nz;
-            }
-
-            if (bomb.lifetime <= 0) {
-                playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
-                for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-                    emitParticle(bomb.position, particles);
-                }
-            } else {
-                pushSprite(spritePool, assets.bombImageData, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, BOMB_SCALE)
+            
+            if (ws.readyState != WebSocket.OPEN && bomb.lifetime <= 0) {
+                explodeBomb(bomb, player, assets, particles)
             }
         }
     }
@@ -751,7 +690,6 @@ interface Game {
     ws: WebSocket,
     me: Player,
     players: Map<number, Player>,
-    bombs: Array<Bomb>, // TODO: make bombs part of the server state
     visibleSprites: Array<Sprite>,
     spritePool: SpritePool,
     particles: Array<Particle>,
@@ -799,7 +737,6 @@ async function createGame(): Promise<Game> {
         bombBlastSound,
     }
 
-    const bombs = allocateBombs(10);
     const particles = allocateParticles(1000);
     const visibleSprites: Array<Sprite> = [];
     const spritePool = createSpritePool();
@@ -834,7 +771,7 @@ async function createGame(): Promise<Game> {
     // TODO: make a better initialization of the items on client
     for (const item of level.items) item.alive = false;
     const game: Game = {
-        camera, ws, me, ping: 0, players, bombs, particles, assets, spritePool, visibleSprites, dts: [],
+        camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
         level
     };
 
@@ -924,7 +861,6 @@ async function createGame(): Promise<Game> {
                 playSound(assets.itemPickupSound, game.me.position, game.level.items[index].position);
             }
         } else if (common.ItemSpawnedStruct.verify(view)) {
-            console.log("ITEM SPAWNED");
             const index = common.ItemSpawnedStruct.index.read(view);
             if (!(0 <= index && index < game.level.items.length)) {
                 console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
@@ -935,6 +871,32 @@ async function createGame(): Promise<Game> {
             game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(view);
             game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(view);
             game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(view);
+        } else if (common.BombSpawnedStruct.verify(view)) {
+            const index = common.BombSpawnedStruct.index.read(view);
+            if (!(0 <= index && index < game.level.bombs.length)) {
+                console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${index}`);
+                ws?.close();
+                return;
+            }
+            game.level.bombs[index].lifetime = common.BombSpawnedStruct.lifetime.read(view);
+            game.level.bombs[index].position.x = common.BombSpawnedStruct.x.read(view);
+            game.level.bombs[index].position.y = common.BombSpawnedStruct.y.read(view);
+            game.level.bombs[index].position.z = common.BombSpawnedStruct.z.read(view);
+            game.level.bombs[index].velocity.x = common.BombSpawnedStruct.dx.read(view);
+            game.level.bombs[index].velocity.y = common.BombSpawnedStruct.dy.read(view);
+            game.level.bombs[index].velocity.z = common.BombSpawnedStruct.dz.read(view);
+        } else if (common.BombExplodedStruct.verify(view)) {
+            const index = common.BombExplodedStruct.index.read(view);
+            if (!(0 <= index && index < game.level.bombs.length)) {
+                console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${index}`);
+                ws?.close();
+                return;
+            }
+            game.level.bombs[index].lifetime = 0.0;
+            game.level.bombs[index].position.x = common.BombExplodedStruct.x.read(view);
+            game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
+            game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
+            explodeBomb(level.bombs[index], me, assets, particles);
         } else {
             console.error("Received bogus-amogus message from server.", view)
             ws?.close();
@@ -960,7 +922,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     updatePlayer(game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
-    updateBombs(game.spritePool, game.me, game.bombs, game.particles, game.level.scene, deltaTime, game.assets);
+    updateBombs(game.ws, game.spritePool, game.me, game.level.bombs, game.particles, game.level.scene, deltaTime, game.assets);
     updateParticles(game.spritePool, deltaTime, game.level.scene, game.particles)
 
     game.players.forEach((player) => {
@@ -1010,7 +972,13 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
                     game.me.moving |= 1<<direction;
                 }
             } else if (e.code === 'Space') {
-                throwBomb(game.me, game.bombs);
+                if (game.ws.readyState === WebSocket.OPEN) {
+                    const view = new DataView(new ArrayBuffer(common.AmmaThrowingStruct.size));
+                    common.AmmaThrowingStruct.kind.write(view, common.MessageKind.AmmaThrowing);
+                    game.ws.send(view);
+                } else {
+                    common.throwBomb(game.me, game.level.bombs);
+                }
             }
         }
     });

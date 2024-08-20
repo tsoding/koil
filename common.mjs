@@ -2,6 +2,11 @@ export const SERVER_PORT = 6970;
 export const PLAYER_SIZE = 0.5;
 export const PLAYER_SPEED = 2;
 export const PLAYER_RADIUS = 0.5;
+export const BOMB_LIFETIME = 2;
+export const BOMB_THROW_VELOCITY = 5;
+export const BOMB_GRAVITY = 10;
+export const BOMB_DAMP = 0.8;
+export const BOMB_SCALE = 0.25;
 export class RGBA {
     r;
     g;
@@ -230,10 +235,13 @@ export var MessageKind;
     MessageKind[MessageKind["PlayerLeft"] = 2] = "PlayerLeft";
     MessageKind[MessageKind["PlayerMoving"] = 3] = "PlayerMoving";
     MessageKind[MessageKind["AmmaMoving"] = 4] = "AmmaMoving";
-    MessageKind[MessageKind["Ping"] = 5] = "Ping";
-    MessageKind[MessageKind["Pong"] = 6] = "Pong";
-    MessageKind[MessageKind["ItemSpawned"] = 7] = "ItemSpawned";
-    MessageKind[MessageKind["ItemCollected"] = 8] = "ItemCollected";
+    MessageKind[MessageKind["AmmaThrowing"] = 5] = "AmmaThrowing";
+    MessageKind[MessageKind["Ping"] = 6] = "Ping";
+    MessageKind[MessageKind["Pong"] = 7] = "Pong";
+    MessageKind[MessageKind["ItemSpawned"] = 8] = "ItemSpawned";
+    MessageKind[MessageKind["ItemCollected"] = 9] = "ItemCollected";
+    MessageKind[MessageKind["BombSpawned"] = 10] = "BombSpawned";
+    MessageKind[MessageKind["BombExploded"] = 11] = "BombExploded";
 })(MessageKind || (MessageKind = {}));
 export const UINT8_SIZE = 1;
 export const UINT16_SIZE = 2;
@@ -295,6 +303,32 @@ export const ItemCollectedStruct = (() => {
     const verify = verifier(kind, MessageKind.ItemCollected, size);
     return { kind, index, size, verify };
 })();
+export const BombSpawnedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const index = allocUint32Field(allocator);
+    const x = allocFloat32Field(allocator);
+    const y = allocFloat32Field(allocator);
+    const z = allocFloat32Field(allocator);
+    const dx = allocFloat32Field(allocator);
+    const dy = allocFloat32Field(allocator);
+    const dz = allocFloat32Field(allocator);
+    const lifetime = allocFloat32Field(allocator);
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.BombSpawned, size);
+    return { kind, index, x, y, z, dx, dy, dz, lifetime, size, verify };
+})();
+export const BombExplodedStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const index = allocUint32Field(allocator);
+    const x = allocFloat32Field(allocator);
+    const y = allocFloat32Field(allocator);
+    const z = allocFloat32Field(allocator);
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.BombExploded, size);
+    return { kind, index, x, y, z, size, verify };
+})();
 export const ItemSpawnedStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -342,6 +376,13 @@ export const AmmaMovingStruct = (() => {
     const size = allocator.size;
     const verify = verifier(kind, MessageKind.AmmaMoving, size);
     return { kind, direction, start, size, verify };
+})();
+export const AmmaThrowingStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.AmmaThrowing, size);
+    return { kind, size, verify };
 })();
 export const PlayerStruct = (() => {
     const allocator = { size: 0 };
@@ -460,6 +501,65 @@ export function collectItem(player, item) {
     }
     return false;
 }
+export function allocateBombs(capacity) {
+    let bomb = [];
+    for (let i = 0; i < capacity; ++i) {
+        bomb.push({
+            position: new Vector3(),
+            velocity: new Vector3(),
+            lifetime: 0,
+        });
+    }
+    return bomb;
+}
+export function throwBomb(player, bombs) {
+    for (let index = 0; index < bombs.length; ++index) {
+        const bomb = bombs[index];
+        if (bomb.lifetime <= 0) {
+            bomb.lifetime = BOMB_LIFETIME;
+            bomb.position.copy2(player.position, 0.6);
+            bomb.velocity.x = Math.cos(player.direction);
+            bomb.velocity.y = Math.sin(player.direction);
+            bomb.velocity.z = 0.5;
+            bomb.velocity.scale(BOMB_THROW_VELOCITY);
+            return index;
+        }
+    }
+    return null;
+}
+export function updateBomb(bomb, scene, deltaTime) {
+    let collided = false;
+    bomb.lifetime -= deltaTime;
+    bomb.velocity.z -= BOMB_GRAVITY * deltaTime;
+    const nx = bomb.position.x + bomb.velocity.x * deltaTime;
+    const ny = bomb.position.y + bomb.velocity.y * deltaTime;
+    if (sceneGetTile(scene, new Vector2(nx, ny))) {
+        const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
+        const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
+        if (dx > 0)
+            bomb.velocity.x *= -1;
+        if (dy > 0)
+            bomb.velocity.y *= -1;
+        bomb.velocity.scale(BOMB_DAMP);
+        if (bomb.velocity.length() > 1)
+            collided = true;
+    }
+    else {
+        bomb.position.x = nx;
+        bomb.position.y = ny;
+    }
+    const nz = bomb.position.z + bomb.velocity.z * deltaTime;
+    if (nz < BOMB_SCALE || nz > 1.0) {
+        bomb.velocity.z *= -1;
+        bomb.velocity.scale(BOMB_DAMP);
+        if (bomb.velocity.length() > 1)
+            collided = true;
+    }
+    else {
+        bomb.position.z = nz;
+    }
+    return collided;
+}
 export function createLevel() {
     const scene = createScene([
         [false, false, true, true, true, false, false],
@@ -502,7 +602,8 @@ export function createLevel() {
             alive: true,
         },
     ];
-    return { scene, items };
+    const bombs = allocateBombs(10);
+    return { scene, items, bombs };
 }
 export function updatePlayer(player, scene, deltaTime) {
     const controlVelocity = new Vector2();

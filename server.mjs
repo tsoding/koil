@@ -106,6 +106,7 @@ const wss = new WebSocketServer({
 const joinedIds = new Set();
 const leftIds = new Set();
 const pingIds = new Map();
+const bombsThrown = new Set();
 const level = common.createLevel();
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -168,6 +169,12 @@ wss.on("connection", (ws, req) => {
             }
             else {
                 player.newMoving &= ~(1 << direction);
+            }
+        }
+        else if (common.AmmaThrowingStruct.verify(view)) {
+            const index = common.throwBomb(player, level.bombs);
+            if (index !== null) {
+                bombsThrown.add(index);
             }
         }
         else if (common.PingStruct.verify(view)) {
@@ -326,23 +333,62 @@ function tick() {
             });
         }
     }
-    players.forEach((player) => {
-        common.updatePlayer(player, level.scene, deltaTime);
-        level.items.forEach((item, index) => {
-            if (item.alive) {
-                if (common.collectItem(player, item)) {
-                    const view = new DataView(new ArrayBuffer(common.ItemCollectedStruct.size));
-                    common.ItemCollectedStruct.kind.write(view, common.MessageKind.ItemCollected);
-                    common.ItemCollectedStruct.index.write(view, index);
-                    players.forEach((anotherPlayer) => {
-                        anotherPlayer.ws.send(view);
+    bombsThrown.forEach((index) => {
+        const bomb = level.bombs[index];
+        const view = new DataView(new ArrayBuffer(common.BombSpawnedStruct.size));
+        common.BombSpawnedStruct.kind.write(view, common.MessageKind.BombSpawned);
+        common.BombSpawnedStruct.index.write(view, index);
+        common.BombSpawnedStruct.x.write(view, bomb.position.x);
+        common.BombSpawnedStruct.y.write(view, bomb.position.y);
+        common.BombSpawnedStruct.z.write(view, bomb.position.z);
+        common.BombSpawnedStruct.dx.write(view, bomb.velocity.x);
+        common.BombSpawnedStruct.dy.write(view, bomb.velocity.y);
+        common.BombSpawnedStruct.dz.write(view, bomb.velocity.z);
+        common.BombSpawnedStruct.lifetime.write(view, bomb.lifetime);
+        players.forEach((player) => {
+            player.ws.send(view);
+            bytesSentCounter += view.byteLength;
+            messageSentCounter += 1;
+        });
+    });
+    {
+        players.forEach((player) => {
+            common.updatePlayer(player, level.scene, deltaTime);
+            level.items.forEach((item, index) => {
+                if (item.alive) {
+                    if (common.collectItem(player, item)) {
+                        const view = new DataView(new ArrayBuffer(common.ItemCollectedStruct.size));
+                        common.ItemCollectedStruct.kind.write(view, common.MessageKind.ItemCollected);
+                        common.ItemCollectedStruct.index.write(view, index);
+                        players.forEach((anotherPlayer) => {
+                            anotherPlayer.ws.send(view);
+                            bytesSentCounter += view.byteLength;
+                            messageSentCounter += 1;
+                        });
+                    }
+                }
+            });
+        });
+        for (let index = 0; index < level.bombs.length; ++index) {
+            const bomb = level.bombs[index];
+            if (bomb.lifetime > 0) {
+                common.updateBomb(bomb, level.scene, deltaTime);
+                if (bomb.lifetime <= 0) {
+                    const view = new DataView(new ArrayBuffer(common.BombExplodedStruct.size));
+                    common.BombExplodedStruct.kind.write(view, common.MessageKind.BombExploded);
+                    common.BombExplodedStruct.index.write(view, index);
+                    common.BombExplodedStruct.x.write(view, bomb.position.x);
+                    common.BombExplodedStruct.y.write(view, bomb.position.y);
+                    common.BombExplodedStruct.z.write(view, bomb.position.z);
+                    players.forEach((player) => {
+                        player.ws.send(view);
                         bytesSentCounter += view.byteLength;
                         messageSentCounter += 1;
                     });
                 }
             }
-        });
-    });
+        }
+    }
     pingIds.forEach((timestamp, id) => {
         const player = players.get(id);
         if (player !== undefined) {
@@ -366,6 +412,7 @@ function tick() {
     joinedIds.clear();
     leftIds.clear();
     pingIds.clear();
+    bombsThrown.clear();
     bytesReceivedWithinTick = 0;
     messagesRecievedWithinTick = 0;
     if (Stats.ticksCount.counter % SERVER_FPS === 0) {

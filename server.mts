@@ -141,6 +141,7 @@ const wss = new WebSocketServer({
 const joinedIds = new Set<number>()
 const leftIds = new Set<number>()
 const pingIds = new Map<number, number>()
+const bombsThrown = new Set<number>()
 const level = common.createLevel();
 
 wss.on("connection", (ws, req) => {
@@ -215,10 +216,15 @@ wss.on("connection", (ws, req) => {
             } else {
                 player.newMoving &= ~(1<<direction);
             }
+        } else if (common.AmmaThrowingStruct.verify(view)) {
+            const index = common.throwBomb(player, level.bombs);
+            if (index !== null) {
+                bombsThrown.add(index)
+            }
         } else if (common.PingStruct.verify(view)) {
             pingIds.set(id, common.PingStruct.timestamp.read(view));
         } else {
-            // console.log(`Received bogus-amogus message from client ${id}:`, message)
+            // console.log(`Received bogus-amogus message from client ${id}:`, view)
             Stats.bogusAmogusMessages.counter += 1;
             ws.close();
             return;
@@ -307,6 +313,8 @@ function tick() {
                             messageSentCounter += 1
                         }
                     });
+
+                    // TODO: Reconstructing the state of bombs
                 }
             })
         }
@@ -394,24 +402,66 @@ function tick() {
         }
     }
 
+    // Notifying about thrown bombs
+    bombsThrown.forEach((index) => {
+        const bomb = level.bombs[index];
+        const view = new DataView(new ArrayBuffer(common.BombSpawnedStruct.size));
+        common.BombSpawnedStruct.kind.write(view, common.MessageKind.BombSpawned);
+        common.BombSpawnedStruct.index.write(view, index);
+        common.BombSpawnedStruct.x.write(view, bomb.position.x);
+        common.BombSpawnedStruct.y.write(view, bomb.position.y);
+        common.BombSpawnedStruct.z.write(view, bomb.position.z);
+        common.BombSpawnedStruct.dx.write(view, bomb.velocity.x);
+        common.BombSpawnedStruct.dy.write(view, bomb.velocity.y);
+        common.BombSpawnedStruct.dz.write(view, bomb.velocity.z);
+        common.BombSpawnedStruct.lifetime.write(view, bomb.lifetime);
+        players.forEach((player) => {
+            player.ws.send(view);
+            bytesSentCounter += view.byteLength;
+            messageSentCounter += 1;
+        })
+    })
+
     // Simulating the world for one server tick.
-    players.forEach((player) => {
-        common.updatePlayer(player, level.scene, deltaTime)
-        level.items.forEach((item, index) => {
-            if (item.alive) {
-                if (common.collectItem(player, item)) {
-                    const view = new DataView(new ArrayBuffer(common.ItemCollectedStruct.size));
-                    common.ItemCollectedStruct.kind.write(view, common.MessageKind.ItemCollected);
-                    common.ItemCollectedStruct.index.write(view, index);
-                    players.forEach((anotherPlayer) => {
-                        anotherPlayer.ws.send(view);
+    {
+        players.forEach((player) => {
+            common.updatePlayer(player, level.scene, deltaTime)
+            level.items.forEach((item, index) => {
+                if (item.alive) {
+                    if (common.collectItem(player, item)) {
+                        const view = new DataView(new ArrayBuffer(common.ItemCollectedStruct.size));
+                        common.ItemCollectedStruct.kind.write(view, common.MessageKind.ItemCollected);
+                        common.ItemCollectedStruct.index.write(view, index);
+                        players.forEach((anotherPlayer) => {
+                            anotherPlayer.ws.send(view);
+                            bytesSentCounter += view.byteLength;
+                            messageSentCounter += 1;
+                        });
+                    }
+                }
+            })
+        });
+
+        for (let index = 0; index < level.bombs.length; ++index) {
+            const bomb = level.bombs[index];
+            if (bomb.lifetime > 0) {
+                common.updateBomb(bomb, level.scene, deltaTime);
+                if (bomb.lifetime <= 0) {
+                    const view = new DataView(new ArrayBuffer(common.BombExplodedStruct.size));
+                    common.BombExplodedStruct.kind.write(view, common.MessageKind.BombExploded);
+                    common.BombExplodedStruct.index.write(view, index);
+                    common.BombExplodedStruct.x.write(view, bomb.position.x);
+                    common.BombExplodedStruct.y.write(view, bomb.position.y);
+                    common.BombExplodedStruct.z.write(view, bomb.position.z);
+                    players.forEach((player) => {
+                        player.ws.send(view);
                         bytesSentCounter += view.byteLength;
                         messageSentCounter += 1;
-                    });
+                    })
                 }
             }
-        })
-    });
+        }
+    }
 
     // Sending out pings
     pingIds.forEach((timestamp, id) => {
@@ -439,6 +489,7 @@ function tick() {
     joinedIds.clear();
     leftIds.clear();
     pingIds.clear();
+    bombsThrown.clear();
     bytesReceivedWithinTick = 0;
     messagesRecievedWithinTick = 0;
 
