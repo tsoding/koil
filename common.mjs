@@ -602,7 +602,7 @@ export function createLevel() {
             alive: true,
         },
     ];
-    const bombs = allocateBombs(10);
+    const bombs = allocateBombs(20);
     return { scene, items, bombs };
 }
 export function updatePlayer(player, scene, deltaTime) {

@@ -683,7 +683,7 @@ export function createLevel(): Level {
         },
     ]
 
-    const bombs = allocateBombs(10);
+    const bombs = allocateBombs(20);
 
     return {scene, items, bombs};
 }
