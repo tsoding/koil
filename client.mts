@@ -1040,3 +1040,4 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
 // TODO: sound don't mix properly
 //   Right now same sounds are just stopped and replaced instantly. Which generally does not sound good.
 //   We need to fix them properly
+// TODO: consider looking into Web Audio API https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
