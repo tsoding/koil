@@ -363,7 +363,7 @@ export const HelloStruct = (() => {
     const x = allocFloat32Field(allocator);
     const y = allocFloat32Field(allocator);
     const direction = allocFloat32Field(allocator);
-    const hue = allocUint8Field(allocator);
+    const hue = allocUint16Field(allocator);
     const size = allocator.size;
     const verify = verifier(kind, MessageKind.Hello, size);
     return { kind, id, x, y, direction, hue, size, verify };
@@ -390,7 +390,7 @@ export const PlayerStruct = (() => {
     const x = allocFloat32Field(allocator);
     const y = allocFloat32Field(allocator);
     const direction = allocFloat32Field(allocator);
-    const hue = allocUint8Field(allocator);
+    const hue = allocUint16Field(allocator);
     const moving = allocUint8Field(allocator);
     const size = allocator.size;
     return { id, x, y, direction, hue, moving, size };

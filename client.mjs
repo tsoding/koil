@@ -204,7 +204,7 @@ function renderDebugInfo(ctx, deltaTime, game) {
 function renderColumnOfWall(display, cell, x, p, c) {
     if (cell instanceof RGBA) {
         const stripHeight = display.backImageData.height / display.zBuffer[x];
-        const shadow = 1 / display.zBuffer[x] * 2;
+        const shadow = Math.max(0, 1 - display.zBuffer[x] * 0.1);
         for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
             const y = Math.floor((display.backImageData.height - stripHeight) * 0.5) + dy;
             const destP = (y * display.backImageData.width + x) * 4;
@@ -236,7 +236,7 @@ function renderColumnOfWall(display, cell, x, p, c) {
         const by2 = Math.min(display.backImageData.height, y2);
         const tx = Math.floor(u * cell.width);
         const sh = cell.height / stripHeight;
-        const shadow = Math.min(1 / display.zBuffer[x] * 4, 1);
+        const shadow = Math.max(0, 1 - display.zBuffer[x] * 0.1);
         for (let y = by1; y < by2; ++y) {
             const ty = Math.floor((y - y1f) * sh);
             const destP = (y * display.backImageData.width + x) * 4;
@@ -276,18 +276,18 @@ function renderFloorAndCeiling(imageData, camera) {
             const floorTile = sceneGetFloor(t);
             if (floorTile instanceof RGBA) {
                 const destP = (y * imageData.width + x) * 4;
-                const shadow = camera.position.distanceTo(t) * 255;
-                imageData.data[destP + 0] = floorTile.r * shadow;
-                imageData.data[destP + 1] = floorTile.g * shadow;
-                imageData.data[destP + 2] = floorTile.b * shadow;
+                const shadow = Math.max(0, 1 - camera.position.distanceTo(t) * 0.1);
+                imageData.data[destP + 0] = floorTile.r * shadow * 255;
+                imageData.data[destP + 1] = floorTile.g * shadow * 255;
+                imageData.data[destP + 2] = floorTile.b * shadow * 255;
             }
             const ceilingTile = sceneGetCeiling(t);
             if (ceilingTile instanceof RGBA) {
                 const destP = (sz * imageData.width + x) * 4;
-                const shadow = camera.position.distanceTo(t) * 255;
-                imageData.data[destP + 0] = ceilingTile.r * shadow;
-                imageData.data[destP + 1] = ceilingTile.g * shadow;
-                imageData.data[destP + 2] = ceilingTile.b * shadow;
+                const shadow = Math.max(0, 1 - camera.position.distanceTo(t) * 0.1);
+                imageData.data[destP + 0] = ceilingTile.r * shadow * 255;
+                imageData.data[destP + 1] = ceilingTile.g * shadow * 255;
+                imageData.data[destP + 2] = ceilingTile.b * shadow * 255;
             }
         }
     }
@@ -768,7 +768,9 @@ function renderGame(display, deltaTime, time, game) {
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
-            pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
+            const distance = game.camera.position.distanceTo(player.position);
+            const playerSprite = applyHueToSprite(game.assets.playerImageData, player.hue, distance);
+            pushSprite(game.spritePool, playerSprite, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
     renderFloorAndCeiling(display.backImageData, game.camera);
@@ -779,6 +781,88 @@ function renderGame(display, deltaTime, time, game) {
     if (MINIMAP)
         renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
+}
+function applyHueToSprite(originalImageData, hue, distance) {
+    const newImageData = new ImageData(originalImageData.width, originalImageData.height);
+    const data = originalImageData.data;
+    const newData = newImageData.data;
+    const darknessScale = Math.max(0, 1 - distance * 0.1);
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (a === 0) {
+            newData[i] = r;
+            newData[i + 1] = g;
+            newData[i + 2] = b;
+            newData[i + 3] = a;
+            continue;
+        }
+        const [h, s, l] = rgbToHsl(r, g, b);
+        const newL = l * darknessScale;
+        const [newR, newG, newB] = hslToRgb(hue / 360, s, newL);
+        newData[i] = newR;
+        newData[i + 1] = newG;
+        newData[i + 2] = newB;
+        newData[i + 3] = a;
+    }
+    return newImageData;
+}
+function rgbToHsl(r, g, b) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0, s, l = (max + min) / 2;
+    if (max === min) {
+        h = s = 0;
+    }
+    else {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r:
+                h = (g - b) / d + (g < b ? 6 : 0);
+                break;
+            case g:
+                h = (b - r) / d + 2;
+                break;
+            case b:
+                h = (r - g) / d + 4;
+                break;
+        }
+        h /= 6;
+    }
+    return [h, s, l];
+}
+function hslToRgb(h, s, l) {
+    let r, g, b;
+    if (s === 0) {
+        r = g = b = l;
+    }
+    else {
+        const hue2rgb = (p, q, t) => {
+            if (t < 0)
+                t += 1;
+            if (t > 1)
+                t -= 1;
+            if (t < 1 / 6)
+                return p + (q - p) * 6 * t;
+            if (t < 1 / 2)
+                return q;
+            if (t < 2 / 3)
+                return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1 / 3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1 / 3);
+    }
+    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 (async () => {
     const gameCanvas = document.getElementById("game");

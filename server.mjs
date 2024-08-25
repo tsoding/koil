@@ -224,7 +224,7 @@ function tick() {
                 common.PlayerStruct.x.write(playerView, player.position.x);
                 common.PlayerStruct.y.write(playerView, player.position.y);
                 common.PlayerStruct.direction.write(playerView, player.direction);
-                common.PlayerStruct.hue.write(playerView, player.hue / 360 * 256);
+                common.PlayerStruct.hue.write(playerView, player.hue);
                 common.PlayerStruct.moving.write(playerView, player.moving);
                 index += 1;
             });
@@ -237,7 +237,7 @@ function tick() {
                     common.HelloStruct.x.write(view, joinedPlayer.position.x);
                     common.HelloStruct.y.write(view, joinedPlayer.position.y);
                     common.HelloStruct.direction.write(view, joinedPlayer.direction);
-                    common.HelloStruct.hue.write(view, Math.floor(joinedPlayer.hue / 360 * 256));
+                    common.HelloStruct.hue.write(view, joinedPlayer.hue);
                     joinedPlayer.ws.send(view);
                     bytesSentCounter += view.byteLength;
                     messageSentCounter += 1;
@@ -274,7 +274,7 @@ function tick() {
                     common.PlayerStruct.x.write(playerView, joinedPlayer.position.x);
                     common.PlayerStruct.y.write(playerView, joinedPlayer.position.y);
                     common.PlayerStruct.direction.write(playerView, joinedPlayer.direction);
-                    common.PlayerStruct.hue.write(playerView, joinedPlayer.hue / 360 * 256);
+                    common.PlayerStruct.hue.write(playerView, joinedPlayer.hue);
                     common.PlayerStruct.moving.write(playerView, joinedPlayer.moving);
                     index += 1;
                 }
