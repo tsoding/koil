@@ -1,8 +1,8 @@
-# Raycasting in TypeScript
-
-![screenshot](./screenshot.png)
+# Koil
 
 Online Multiplayer Browser Game with Old-School Raycasting Graphics.
+
+![screenshot](./screenshot.png)
 
 Offline version available on GitHub Pages: https://tsoding.github.io/raycasting/
 
