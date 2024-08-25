@@ -683,7 +683,8 @@ interface Assets {
     nullImageData: ImageData,
     bombRicochetSound: HTMLAudioElement,
     itemPickupSound: HTMLAudioElement,
-    bombBlastSound: HTMLAudioElement
+    bombBlastSound: HTMLAudioElement,
+    handImageData: ImageData,
 }
 
 interface Game {
@@ -698,6 +699,10 @@ interface Game {
     ping: number,
     dts: number[],
     level: common.Level,
+    handBobOffset: number,
+    handBobDirection: number,
+    handAnimationFrame: number,
+    handAnimationTimer: number,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -719,12 +724,13 @@ async function loadImageData(url: string): Promise<ImageData> {
 }
 
 async function createGame(): Promise<Game> {
-    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData, handImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
         loadImageData("assets/images/custom/null.png"),
+        loadImageData("assets/images/weaponspell1.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -738,6 +744,7 @@ async function createGame(): Promise<Game> {
         bombRicochetSound,
         itemPickupSound,
         bombBlastSound,
+        handImageData,
     }
 
     const particles = allocateParticles(1000);
@@ -775,7 +782,11 @@ async function createGame(): Promise<Game> {
     for (const item of level.items) item.alive = false;
     const game: Game = {
         camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
-        level
+        level,
+        handBobOffset: 0,
+        handBobDirection: 1,
+        handAnimationFrame: 0,
+        handAnimationTimer: 0,
     };
 
     ws.binaryType = 'arraybuffer';
@@ -945,6 +956,62 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
 
     if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
+
+    renderHand(display, deltaTime, game);
+}
+
+function renderHand(display: Display, deltaTime: number, game: Game) {
+    const BOB_SPEED = 55;
+    const BOB_AMOUNT = 10;
+    const SCALE = 5;
+    const FRAME_WIDTH = game.assets.handImageData.width / 3;
+    const FRAME_HEIGHT = game.assets.handImageData.height;
+    const ANIMATION_SPEED = 0.1;
+
+    // Update hand bob
+    if (game.me.moving !== 0) {
+        game.handBobOffset += BOB_SPEED * deltaTime * game.handBobDirection;
+        if (Math.abs(game.handBobOffset) > BOB_AMOUNT) {
+            game.handBobDirection *= -1;
+        }
+    } else {
+        game.handBobOffset *= 0.9; // Gradually return to center when not moving
+    }
+
+    // Update hand animation
+    if (game.handAnimationTimer > 0) {
+        game.handAnimationTimer -= deltaTime;
+        if (game.handAnimationTimer <= 0) {
+            game.handAnimationFrame = (game.handAnimationFrame + 1) % 3;
+            if (game.handAnimationFrame !== 0) {
+                game.handAnimationTimer = ANIMATION_SPEED;
+            }
+        }
+    }
+
+    const frameX = game.handAnimationFrame * FRAME_WIDTH;
+    const handY = display.ctx.canvas.height - FRAME_HEIGHT * SCALE + game.handBobOffset + 15;
+
+    const handCanvas = document.createElement('canvas');
+    handCanvas.width = FRAME_WIDTH;
+    handCanvas.height = FRAME_HEIGHT;
+    const handCtx = handCanvas.getContext('2d')!;
+    handCtx.imageSmoothingEnabled = false;
+    handCtx.putImageData(
+        game.assets.handImageData, 
+        -frameX, 0, 
+        frameX, 0, FRAME_WIDTH, FRAME_HEIGHT
+    );
+
+    display.ctx.imageSmoothingEnabled = false;
+    display.ctx.drawImage(
+        handCanvas,
+        0, 0, FRAME_WIDTH, FRAME_HEIGHT,
+        (display.ctx.canvas.width / 2 - (FRAME_WIDTH * SCALE) / 2) + 240, 
+        handY, 
+        FRAME_WIDTH * SCALE, FRAME_HEIGHT * SCALE
+    );
+    display.ctx.imageSmoothingEnabled = true;
 }
 
 function applyHueToSprite(originalImageData: ImageData, hue: number, distance: number): ImageData {
@@ -1072,6 +1139,9 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
                 } else {
                     common.throwBomb(game.me, game.level.bombs);
                 }
+                // Trigger hand animation
+                game.handAnimationFrame = 1;
+                game.handAnimationTimer = 0.1;
             }
         }
     });
