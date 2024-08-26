@@ -1157,20 +1157,21 @@ function renderChatMessages(game: Game, display: Display) {
             if (player) {
                 message.position = player.position.clone();
             }
-            const initialY = player?.position.y ?? 0;
 
             // Project 3D world coordinates to 2D screen coordinates
             const screenPos = worldToScreen(message.position, game.camera, display);
             
             if (screenPos) {
-                ctx.fillText(message.text, screenPos.x, screenPos.y - 50 - message.verticalOffset);
+                // Adjust the Y position to be directly above the player's head
+                const playerHeight = 50; // Adjust this value based on your player sprite height
+                ctx.fillText(message.text, screenPos.x, screenPos.y - playerHeight - message.verticalOffset);
             }
             return true;
         }
         return false;
     });
 
-    // Render chat input (this part remains unchanged)
+    // Render chat input
     if (game.isTyping) {
         ctx.globalAlpha = 1;
         ctx.fillText(`Chat: ${game.chatInput}`, display.ctx.canvas.width / 2, display.ctx.canvas.height - 30);
@@ -1179,7 +1180,7 @@ function renderChatMessages(game: Game, display: Display) {
     ctx.globalAlpha = 1;
 }
 
-// Add this helper function to project 3D coordinates to 2D screen space
+// Helper function to project 3D coordinates to 2D screen space
 function worldToScreen(worldPos: Vector2, camera: Camera, display: Display): { x: number, y: number } | null {
     const relativePos = worldPos.clone().sub(camera.position);
     const angle = Math.atan2(relativePos.y, relativePos.x) - camera.direction;
@@ -1190,8 +1191,8 @@ function worldToScreen(worldPos: Vector2, camera: Camera, display: Display): { x
         return null;
     }
 
-    const screenX = (0.5 + Math.tan(angle) / Math.tan(FOV / 2)) * display.ctx.canvas.width;
-    const screenY = display.ctx.canvas.height / 2 - (1 / distance) * display.ctx.canvas.height;
+    const screenX = (0.5 + Math.tan(angle) / Math.tan(FOV / 2)) * display.ctx.canvas.width; 
+    const screenY = display.ctx.canvas.height / 2 - (1 / distance) * display.ctx.canvas.height * 0.25;
 
     return { x: screenX, y: screenY };
 }
