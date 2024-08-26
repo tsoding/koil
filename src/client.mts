@@ -328,47 +328,54 @@ function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Sc
     }
 }
 
-function renderFloorAndCeiling(imageData: ImageData, camera: Camera) {
+function renderFloorAndCeiling(imageData: ImageData, camera: Camera, floorImageData: ImageData, skyImageData: ImageData) {
     const pz = imageData.height/2;
     const t = new Vector2();
     const t1 = new Vector2();
     const t2 = new Vector2();
     const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
-    for (let y = Math.floor(imageData.height/2); y < imageData.height; ++y) {
-        const sz = imageData.height - y - 1;
+    const epsilon = 0.001;
+    const floorRepeatFactor = 32; // Adjust this value to control how often the floor texture repeats
+
+    for (let y = 0; y < imageData.height; ++y) {
+        const isFloor = y >= imageData.height / 2;
+        const sz = isFloor ? imageData.height - y - 1 : y;
 
         const ap = pz - sz;
         const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
         t1.copy(camera.fovLeft).sub(camera.position).norm().scale(b).add(camera.position);
         t2.copy(camera.fovRight).sub(camera.position).norm().scale(b).add(camera.position);
 
-        // TODO: Render rows up until FAR_CLIPPING_PLANE
-        //   There is a small bug with how we are projecting the floor and ceiling which makes it non-trivial.
-        //   I think we are projecting it too far, and the only reason it works is because we have no
-        //   specific textures at specific places anywhere. So it works completely accidentally.
-        //   We need to fix this bug first.
-        //
-        //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
-        //   fewer rows.
-
         for (let x = 0; x < imageData.width; ++x) {
             t.copy(t1).lerp(t2, x/imageData.width);
-            const floorTile = sceneGetFloor(t);
-            if (floorTile instanceof RGBA) {
-                const destP = (y*imageData.width + x)*4;
-                const shadow = Math.max(0, 1 - camera.position.distanceTo(t) * 0.1); // Invert the shadow calculation
-                imageData.data[destP + 0] = floorTile.r * shadow * 255;
-                imageData.data[destP + 1] = floorTile.g * shadow * 255;
-                imageData.data[destP + 2] = floorTile.b * shadow * 255;
+            
+            const destP = (y * imageData.width + x) * 4;
+            const shadow = Math.max(0, 1 - camera.position.distanceTo(t) * 0.1);
+
+            if (isFloor) {
+                // Floor rendering with increased repetition
+                const floorTx = Math.floor((t.x * floorRepeatFactor + epsilon) % floorImageData.width);
+                const floorTy = Math.floor((t.y * floorRepeatFactor + epsilon) % floorImageData.height);
+                const floorSrcP = ((floorTy + floorImageData.height) % floorImageData.height * floorImageData.width + (floorTx + floorImageData.width) % floorImageData.width) * 4;
+                
+                imageData.data[destP] = floorImageData.data[floorSrcP] * shadow;
+                imageData.data[destP + 1] = floorImageData.data[floorSrcP + 1] * shadow;
+                imageData.data[destP + 2] = floorImageData.data[floorSrcP + 2] * shadow;
+            } else {
+                // Ceiling (sky) rendering with correct fade to dark
+                const skyTx = Math.floor((x / imageData.width + camera.direction / (2 * Math.PI)) * skyImageData.width) % skyImageData.width;
+                const skyTy = Math.floor(y / (imageData.height / 2) * skyImageData.height);
+                const skySrcP = (skyTy * skyImageData.width + skyTx) * 4;
+
+                // Calculate a separate shadow factor for the sky
+                // This creates a gradual fade to black from bottom to top of the sky
+                const skyShadow = Math.max(0, 1 - (y / (imageData.height / 2)));
+
+                imageData.data[destP] = skyImageData.data[skySrcP] * skyShadow;
+                imageData.data[destP + 1] = skyImageData.data[skySrcP + 1] * skyShadow;
+                imageData.data[destP + 2] = skyImageData.data[skySrcP + 2] * skyShadow;
             }
-            const ceilingTile = sceneGetCeiling(t);
-            if (ceilingTile instanceof RGBA) {
-                const destP = (sz*imageData.width + x)*4;
-                const shadow = Math.max(0, 1 - camera.position.distanceTo(t) * 0.1); // Invert the shadow calculation
-                imageData.data[destP + 0] = ceilingTile.r * shadow * 255;
-                imageData.data[destP + 1] = ceilingTile.g * shadow * 255;
-                imageData.data[destP + 2] = ceilingTile.b * shadow * 255;
-            }
+            imageData.data[destP + 3] = 255;
         }
     }
 }
@@ -685,6 +692,8 @@ interface Assets {
     itemPickupSound: HTMLAudioElement,
     bombBlastSound: HTMLAudioElement,
     handImageData: ImageData,
+    floorImageData: ImageData,
+    skyImageData: ImageData,
 }
 
 interface Game {
@@ -735,13 +744,15 @@ async function loadImageData(url: string): Promise<ImageData> {
 }
 
 async function createGame(): Promise<Game> {
-    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData, handImageData] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData, handImageData, floorImageData, skyImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
         loadImageData("assets/images/custom/null.png"),
-        loadImageData("assets/images/weaponspell1.png"),
+        loadImageData("assets/images/custom/hand_1.png"),
+        loadImageData("assets/images/custom/floor.png"),
+        loadImageData("assets/images/custom/sky.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -756,6 +767,8 @@ async function createGame(): Promise<Game> {
         itemPickupSound,
         bombBlastSound,
         handImageData,
+        floorImageData,
+        skyImageData,
     }
 
     const particles = allocateParticles(1000);
@@ -977,7 +990,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    renderFloorAndCeiling(display.backImageData, game.camera);
+    renderFloorAndCeiling(display.backImageData, game.camera, game.assets.floorImageData, game.assets.skyImageData);
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
