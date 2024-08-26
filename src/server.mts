@@ -199,7 +199,7 @@ wss.on("connection", (ws, req) => {
 
         if (!(event.data instanceof ArrayBuffer)){
             Stats.bogusAmogusMessages.counter += 1;
-            // console.log(`Received bogus-amogus message from client ${id}:`, message)
+            console.log(`Received bogus-amogus message from client ${id}:`, event.data);
             ws.close();
             return;
         }
@@ -207,8 +207,10 @@ wss.on("connection", (ws, req) => {
         const view = new DataView(event.data);
         Stats.bytesReceived.counter += view.byteLength;
         bytesReceivedWithinTick += view.byteLength;
+
+        console.log(`Received message from client ${id}:`, view);
+
         if (common.AmmaMovingStruct.verify(view)) {
-            // console.log(`Received message from player ${id}`, message)
             const direction = common.AmmaMovingStruct.direction.read(view);
             const start = common.AmmaMovingStruct.start.read(view);
             if (start) {
@@ -224,17 +226,23 @@ wss.on("connection", (ws, req) => {
         } else if (common.PingStruct.verify(view)) {
             pingIds.set(id, common.PingStruct.timestamp.read(view));
         } else if (common.AmmaChatStruct.verify(view)) {
-            const chatMessage = common.AmmaChatStruct.message.read(view);
-            broadcastChatMessage(id, chatMessage.toString());
+            const messageLength = common.AmmaChatStruct.messageLength.read(view);
+            // Read the message bytes from the correct position in the buffer
+            const messageBytes = new Uint8Array(view.buffer, common.AmmaChatStruct.size - 250, messageLength);
+            const chatMessage = new TextDecoder().decode(messageBytes);
+            console.log(`Received chat message from client ${id}:`, chatMessage);
+            broadcastChatMessage(id, chatMessage);
         } else {
-            // console.log(`Received bogus-amogus message from client ${id}:`, view)
+            console.log(`Received unrecognized message from client ${id}:`, view);
+            console.log(`Expected kind: ${common.MessageKind.AmmaChat}, Received kind: ${view.getUint8(0)}`);
+            console.log(`Expected size: ${common.AmmaChatStruct.size}, Received size: ${view.byteLength}`);
             Stats.bogusAmogusMessages.counter += 1;
             ws.close();
             return;
         }
     });
-    ws.on("close", () => {
-        // console.log(`Player ${id} disconnected`);
+    ws.on("close", (code, reason) => {
+        console.log(`Player ${id} disconnected. Code: ${code}, Reason: ${reason}`);
         let count = connectionLimits.get(remoteAddress);
         if (count !== undefined) {
             if (count <= 1) {
@@ -249,7 +257,7 @@ wss.on("connection", (ws, req) => {
         if (!joinedIds.delete(id)) {
             leftIds.add(id);
         }
-    })
+    });
 })
 
 let previousTimestamp = performance.now();
@@ -498,7 +506,7 @@ function tick() {
 
     if (Stats.ticksCount.counter%SERVER_FPS === 0) {
         // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
-        Stats.print()
+        // Stats.print()
     }
 
     setTimeout(tick, Math.max(0, 1000/SERVER_FPS - tickTime));
@@ -509,19 +517,21 @@ setTimeout(tick, 1000/SERVER_FPS);
 console.log(`Listening to ws://0.0.0.0:${common.SERVER_PORT}`)
 
 function broadcastChatMessage(senderId: number, message: string) {
-  const broadcastView = new DataView(new ArrayBuffer(common.ChatMessageStruct.size));
+  const encodedMessage = new TextEncoder().encode(message);
+  const messageLength = Math.min(encodedMessage.length, 250); // Ensure we don't exceed the maximum length
+
+  const buffer = new ArrayBuffer(common.ChatMessageStruct.size);
+  const broadcastView = new DataView(buffer);
   common.ChatMessageStruct.kind.write(broadcastView, common.MessageKind.ChatMessage);
   common.ChatMessageStruct.playerId.write(broadcastView, senderId);
+  common.ChatMessageStruct.messageLength.write(broadcastView, messageLength);
 
-  const encodedMessage = new TextEncoder().encode(message);
-  common.ChatMessageStruct.message.write(broadcastView, encodedMessage.length);
+  // Write the message bytes directly into the buffer
+  new Uint8Array(buffer, common.ChatMessageStruct.size - 250).set(encodedMessage.slice(0, messageLength));
 
-  for (let i = 0; i < encodedMessage.length; i++) {
-    broadcastView.setUint8(common.ChatMessageStruct.message.offset + i, encodedMessage[i]);
-  }
   for (const [, player] of players) {
-    player.ws.send(broadcastView);
+    player.ws.send(buffer);
   }
 
-  return broadcastView.byteLength;
+  return buffer.byteLength;
 }

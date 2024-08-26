@@ -711,7 +711,9 @@ interface Game {
 interface ChatMessage {
     text: string;
     timestamp: number;
-    position: { x: number; y: number };
+    position: Vector2;
+    verticalOffset: number;
+    playerId: number;
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -812,137 +814,139 @@ async function createGame(): Promise<Game> {
     });
     ws.addEventListener("message", (event) => {
         // console.log('Received message', event);
-        if (!(event.data instanceof ArrayBuffer)) {
-            console.error("Received bogus-amogus message from server. Expected binary data", event);
-            ws?.close();
-        }
-        const view = new DataView(event.data);
-        if (common.HelloStruct.verify(view)) {
-            game.me = {
-                id: common.HelloStruct.id.read(view),
-                position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
-                direction: common.HelloStruct.direction.read(view),
-                moving: 0,
-                hue: common.HelloStruct.hue.read(view)/256*360,
+            if (!(event.data instanceof ArrayBuffer)) {
+                console.error("Received bogus-amogus message from server. Expected binary data", event);
+                ws?.close();
             }
-            players.set(game.me.id, game.me)
-        } else if (common.PlayersJoinedHeaderStruct.verify(view)) {
-            const count = common.PlayersJoinedHeaderStruct.count(view);
-            for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
-                const id = common.PlayerStruct.id.read(playerView);
-                const player = players.get(id);
-                if (player !== undefined) {
+            const view = new DataView(event.data);
+            if (common.HelloStruct.verify(view)) {
+                game.me = {
+                    id: common.HelloStruct.id.read(view),
+                    position: new Vector2(common.HelloStruct.x.read(view), common.HelloStruct.y.read(view)),
+                    direction: common.HelloStruct.direction.read(view),
+                    moving: 0,
+                    hue: common.HelloStruct.hue.read(view)/256*360,
+                }
+                players.set(game.me.id, game.me)
+            } else if (common.PlayersJoinedHeaderStruct.verify(view)) {
+                const count = common.PlayersJoinedHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+                    const id = common.PlayerStruct.id.read(playerView);
+                    const player = players.get(id);
+                    if (player !== undefined) {
+                        player.position.x = common.PlayerStruct.x.read(playerView);
+                        player.position.y = common.PlayerStruct.y.read(playerView);
+                        player.direction = common.PlayerStruct.direction.read(playerView);
+                        player.moving = common.PlayerStruct.moving.read(playerView);
+                        player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
+                    } else {
+                        const x = common.PlayerStruct.x.read(playerView);
+                        const y = common.PlayerStruct.y.read(playerView);
+                        players.set(id, {
+                            id,
+                            position: new Vector2(x, y),
+                            direction: common.PlayerStruct.direction.read(playerView),
+                            moving: common.PlayerStruct.moving.read(playerView),
+                            hue: common.PlayerStruct.hue.read(playerView)/256*360,
+                        });
+                    }
+                }
+            } else if (common.PlayersLeftHeaderStruct.verify(view)) {
+                const count = common.PlayersLeftHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
+                    players.delete(id);
+                }
+            } else if (common.PlayersMovingHeaderStruct.verify(view)) {
+                const count = common.PlayersMovingHeaderStruct.count(view);
+                for (let i = 0; i < count; ++i) {
+                    const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
+
+                    const id = common.PlayerStruct.id.read(playerView);
+                    const player = players.get(id);
+                    if (player === undefined) {
+                        console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`)
+                        ws?.close();
+                        return;
+                    }
+                    player.moving = common.PlayerStruct.moving.read(playerView);
                     player.position.x = common.PlayerStruct.x.read(playerView);
                     player.position.y = common.PlayerStruct.y.read(playerView);
                     player.direction = common.PlayerStruct.direction.read(playerView);
-                    player.moving = common.PlayerStruct.moving.read(playerView);
-                    player.hue = common.PlayerStruct.hue.read(playerView)/256*360;
-                } else {
-                    const x = common.PlayerStruct.x.read(playerView);
-                    const y = common.PlayerStruct.y.read(playerView);
-                    players.set(id, {
-                        id,
-                        position: new Vector2(x, y),
-                        direction: common.PlayerStruct.direction.read(playerView),
-                        moving: common.PlayerStruct.moving.read(playerView),
-                        hue: common.PlayerStruct.hue.read(playerView)/256*360,
-                    });
                 }
-            }
-        } else if (common.PlayersLeftHeaderStruct.verify(view)) {
-            const count = common.PlayersLeftHeaderStruct.count(view);
-            for (let i = 0; i < count; ++i) {
-                const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
-                players.delete(id);
-            }
-        } else if (common.PlayersMovingHeaderStruct.verify(view)) {
-            const count = common.PlayersMovingHeaderStruct.count(view);
-            for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i*common.PlayerStruct.size, common.PlayerStruct.size);
-
-                const id = common.PlayerStruct.id.read(playerView);
-                const player = players.get(id);
-                if (player === undefined) {
-                    console.error(`Received bogus-amogus message from server. We don't know anything about player with id ${id}`)
+            } else if (common.PongStruct.verify(view)) {
+                game.ping = performance.now() - common.PongStruct.timestamp.read(view);
+            } else if (common.ItemCollectedStruct.verify(view)) {
+                const index = common.ItemCollectedStruct.index.read(view);
+                if (!(0 <= index && index < game.level.items.length)) {
+                    console.error(`Received bogus-amogus ItemCollected message from server. Invalid index ${index}`);
                     ws?.close();
                     return;
                 }
-                player.moving = common.PlayerStruct.moving.read(playerView);
-                player.position.x = common.PlayerStruct.x.read(playerView);
-                player.position.y = common.PlayerStruct.y.read(playerView);
-                player.direction = common.PlayerStruct.direction.read(playerView);
-            }
-        } else if (common.PongStruct.verify(view)) {
-            game.ping = performance.now() - common.PongStruct.timestamp.read(view);
-        } else if (common.ItemCollectedStruct.verify(view)) {
-            const index = common.ItemCollectedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.items.length)) {
-                console.error(`Received bogus-amogus ItemCollected message from server. Invalid index ${index}`);
+                if (game.level.items[index].alive) {
+                    game.level.items[index].alive = false;
+                    playSound(assets.itemPickupSound, game.me.position, game.level.items[index].position);
+                }
+            } else if (common.ItemSpawnedStruct.verify(view)) {
+                const index = common.ItemSpawnedStruct.index.read(view);
+                if (!(0 <= index && index < game.level.items.length)) {
+                    console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
+                    ws?.close();
+                    return;
+                }
+                game.level.items[index].alive = true;
+                game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(view);
+                game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(view);
+                game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(view);
+            } else if (common.BombSpawnedStruct.verify(view)) {
+                const index = common.BombSpawnedStruct.index.read(view);
+                if (!(0 <= index && index < game.level.bombs.length)) {
+                    console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${index}`);
+                    ws?.close();
+                    return;
+                }
+                game.level.bombs[index].lifetime = common.BombSpawnedStruct.lifetime.read(view);
+                game.level.bombs[index].position.x = common.BombSpawnedStruct.x.read(view);
+                game.level.bombs[index].position.y = common.BombSpawnedStruct.y.read(view);
+                game.level.bombs[index].position.z = common.BombSpawnedStruct.z.read(view);
+                game.level.bombs[index].velocity.x = common.BombSpawnedStruct.dx.read(view);
+                game.level.bombs[index].velocity.y = common.BombSpawnedStruct.dy.read(view);
+                game.level.bombs[index].velocity.z = common.BombSpawnedStruct.dz.read(view);
+            } else if (common.BombExplodedStruct.verify(view)) {
+                const index = common.BombExplodedStruct.index.read(view);
+                if (!(0 <= index && index < game.level.bombs.length)) {
+                    console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${index}`);
+                    ws?.close();
+                    return;
+                }
+                game.level.bombs[index].lifetime = 0.0;
+                game.level.bombs[index].position.x = common.BombExplodedStruct.x.read(view);
+                game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
+                game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
+                explodeBomb(level.bombs[index], me, assets, particles);
+            } else if (common.ChatMessageStruct.verify(view)) {
+                const playerId = common.ChatMessageStruct.playerId.read(view);
+                const messageLength = common.ChatMessageStruct.messageLength.read(view);
+                const messageBytes = new Uint8Array(view.buffer, common.ChatMessageStruct.size - 250, messageLength);
+                const message = new TextDecoder().decode(messageBytes);
+                const player = game.players.get(playerId);
+                if (player) {
+                    game.chatMessages.push({
+                        text: String(message),
+                        timestamp: Date.now(),
+                        position: player.position.clone(),
+                        verticalOffset: 0,
+                        playerId: playerId
+                    });
+                }
+            } else {
+                console.error("Received unrecognized message from server.", view);
                 ws?.close();
-                return;
-            }
-            if (game.level.items[index].alive) {
-                game.level.items[index].alive = false;
-                playSound(assets.itemPickupSound, game.me.position, game.level.items[index].position);
-            }
-        } else if (common.ItemSpawnedStruct.verify(view)) {
-            const index = common.ItemSpawnedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.items.length)) {
-                console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
-            }
-            game.level.items[index].alive = true;
-            game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(view);
-            game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(view);
-            game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(view);
-        } else if (common.BombSpawnedStruct.verify(view)) {
-            const index = common.BombSpawnedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.bombs.length)) {
-                console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
-            }
-            game.level.bombs[index].lifetime = common.BombSpawnedStruct.lifetime.read(view);
-            game.level.bombs[index].position.x = common.BombSpawnedStruct.x.read(view);
-            game.level.bombs[index].position.y = common.BombSpawnedStruct.y.read(view);
-            game.level.bombs[index].position.z = common.BombSpawnedStruct.z.read(view);
-            game.level.bombs[index].velocity.x = common.BombSpawnedStruct.dx.read(view);
-            game.level.bombs[index].velocity.y = common.BombSpawnedStruct.dy.read(view);
-            game.level.bombs[index].velocity.z = common.BombSpawnedStruct.dz.read(view);
-        } else if (common.BombExplodedStruct.verify(view)) {
-            const index = common.BombExplodedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.bombs.length)) {
-                console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
-            }
-            game.level.bombs[index].lifetime = 0.0;
-            game.level.bombs[index].position.x = common.BombExplodedStruct.x.read(view);
-            game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
-            game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
-            explodeBomb(level.bombs[index], me, assets, particles);
-        } else if (common.ChatMessageStruct.verify(view)) {
-            const playerId = common.ChatMessageStruct.playerId.read(view);
-            const messageLength = common.ChatMessageStruct.messageLength.read(view);
-            const messageBytes = new Uint8Array(event.data, common.ChatMessageStruct.size, messageLength);
-            const message = new TextDecoder().decode(messageBytes);
-            const player = game.players.get(playerId);
-            if (player) {
-                game.chatMessages.push({
-                    text: String(message),
-                    timestamp: Date.now(),
-                    position: { x: player.position.x, y: player.position.y },
-                });
-            }
-        } else {
-            console.error("Received bogus-amogus message from server.", view)
-            ws?.close();
         }
     });
     ws.addEventListener("open", (event) => {
-        console.log("WEBSOCKET OPEN", event)
+        console.log("WebSocket connection opened:", event);
     });
 
     return game;
@@ -1134,17 +1138,39 @@ function renderChatMessages(game: Game, display: Display) {
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
 
-    // Render chat messages above players
-    for (const message of game.chatMessages) {
-        const age = Date.now() - message.timestamp;
-        if (age < 5000) {
-            const alpha = Math.max(0, 1 - age / 5000);
-            ctx.globalAlpha = alpha;
-            ctx.fillText(message.text, message.position.x, message.position.y - 20);
-        }
-    }
+    const currentTime = Date.now();
+    const messageLifetime = 10000; // 5 seconds
+    const fadeUpDistance = 50; // pixels to move up while fading
 
-    // Render chat input
+    // Render chat messages above players
+    game.chatMessages = game.chatMessages.filter(message => {
+        const age = currentTime - message.timestamp;
+        if (age < messageLifetime) {
+            const alpha = Math.max(0, 1 - age / messageLifetime);
+            ctx.globalAlpha = alpha;
+
+            // Calculate vertical offset
+            message.verticalOffset = (age / messageLifetime) * fadeUpDistance;
+
+            // Get the current position of the player who sent the message
+            const player = game.players.get(message.playerId);
+            if (player) {
+                message.position = player.position.clone();
+            }
+            const initialY = player?.position.y ?? 0;
+
+            // Project 3D world coordinates to 2D screen coordinates
+            const screenPos = worldToScreen(message.position, game.camera, display);
+            
+            if (screenPos) {
+                ctx.fillText(message.text, screenPos.x, screenPos.y - 50 - message.verticalOffset);
+            }
+            return true;
+        }
+        return false;
+    });
+
+    // Render chat input (this part remains unchanged)
     if (game.isTyping) {
         ctx.globalAlpha = 1;
         ctx.fillText(`Chat: ${game.chatInput}`, display.ctx.canvas.width / 2, display.ctx.canvas.height - 30);
@@ -1153,18 +1179,45 @@ function renderChatMessages(game: Game, display: Display) {
     ctx.globalAlpha = 1;
 }
 
+// Add this helper function to project 3D coordinates to 2D screen space
+function worldToScreen(worldPos: Vector2, camera: Camera, display: Display): { x: number, y: number } | null {
+    const relativePos = worldPos.clone().sub(camera.position);
+    const angle = Math.atan2(relativePos.y, relativePos.x) - camera.direction;
+    const distance = relativePos.length();
+
+    // Check if the point is within the field of view
+    if (Math.abs(angle) > FOV / 2) {
+        return null;
+    }
+
+    const screenX = (0.5 + Math.tan(angle) / Math.tan(FOV / 2)) * display.ctx.canvas.width;
+    const screenY = display.ctx.canvas.height / 2 - (1 / distance) * display.ctx.canvas.height;
+
+    return { x: screenX, y: screenY };
+}
+
 function sendChatMessage(game: Game) {
     if (game.chatInput.trim() && game.ws.readyState === WebSocket.OPEN) {
-        const encoder = new TextEncoder();
-        const messageBytes = encoder.encode(game.chatInput);
-        const view = new DataView(new ArrayBuffer(common.ChatMessageStruct.size + messageBytes.length));
-        common.ChatMessageStruct.kind.write(view, common.MessageKind.ChatMessage);
-        common.ChatMessageStruct.messageLength.write(view, messageBytes.length);
-        for (let i = 0; i < messageBytes.length; i++) {
-            view.setUint8(common.ChatMessageStruct.size + i, messageBytes[i]);
+        try {
+            console.log("Preparing to send chat message:", game.chatInput);
+            const encoder = new TextEncoder();
+            const messageBytes = encoder.encode(game.chatInput);
+            console.log("Encoded message bytes:", messageBytes);
+            const buffer = new ArrayBuffer(common.AmmaChatStruct.size);
+            const view = new DataView(buffer);
+            common.AmmaChatStruct.kind.write(view, common.MessageKind.AmmaChat);
+            common.AmmaChatStruct.messageLength.write(view, messageBytes.length);
+            // Write the message bytes directly into the buffer
+            new Uint8Array(buffer, common.AmmaChatStruct.size - 250).set(messageBytes.slice(0, 250));
+            console.log("Sending buffer:", buffer);
+            game.ws.send(buffer);
+            game.chatInput = '';
+            console.log("Message sent successfully");
+        } catch (error) {
+            console.error("Error sending chat message:", error);
         }
-        game.ws.send(view);
-        game.chatInput = '';
+    } else {
+        console.warn("Cannot send message: WebSocket is not open or message is empty.");
     }
 }
 
@@ -1186,42 +1239,51 @@ function sendChatMessage(game: Game) {
 
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
-            const direction = CONTROL_KEYS[e.code];
-            if (direction !== undefined) {
-                if (game.ws.readyState === WebSocket.OPEN) {
-                    const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
-                    common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
-                    common.AmmaMovingStruct.start.write(view, 1);
-                    common.AmmaMovingStruct.direction.write(view, direction);
-                    game.ws.send(view);
-                } else {
-                    game.me.moving |= 1<<direction;
-                }
-            } else if (e.code === 'Space') {
-                if (game.ws.readyState === WebSocket.OPEN) {
-                    const view = new DataView(new ArrayBuffer(common.AmmaThrowingStruct.size));
-                    common.AmmaThrowingStruct.kind.write(view, common.MessageKind.AmmaThrowing);
-                    game.ws.send(view);
-                } else {
-                    common.throwBomb(game.me, game.level.bombs);
-                }
-                // Trigger hand animation
-                game.handAnimationFrame = 1;
-                game.handAnimationTimer = 0.1;
-            } else if (e.key === 'T' && !game.isTyping) {
-                game.isTyping = true;
-                e.preventDefault();
-            } else if (e.key === 'Enter' && game.isTyping) {
-                game.isTyping = false;
-                sendChatMessage(game);
-                e.preventDefault();
-            } else if (game.isTyping) {
-                if (e.key === 'Backspace') {
+            if (game.isTyping) {
+                if (e.key === 'Escape') {
+                    game.isTyping = false;
+                    game.chatInput = '';
+                    e.preventDefault();
+                } else if (e.key === 'Enter') {
+                    game.isTyping = false;
+                    sendChatMessage(game);
+                    e.preventDefault();
+                } else if (e.key === 'Backspace') {
                     game.chatInput = game.chatInput.slice(0, -1);
+                    e.preventDefault();
                 } else if (e.key.length === 1 && game.chatInput.length < 250) {
                     game.chatInput += e.key;
+                    e.preventDefault();
                 }
-                e.preventDefault();
+            } else {
+                if (e.key === 't') {
+                    game.isTyping = true;
+                    e.preventDefault();
+                } else {
+                    const direction = CONTROL_KEYS[e.code];
+                    if (direction !== undefined) {
+                        if (game.ws.readyState === WebSocket.OPEN) {
+                            const view = new DataView(new ArrayBuffer(common.AmmaMovingStruct.size));
+                            common.AmmaMovingStruct.kind.write(view, common.MessageKind.AmmaMoving);
+                            common.AmmaMovingStruct.start.write(view, 1);
+                            common.AmmaMovingStruct.direction.write(view, direction);
+                            game.ws.send(view);
+                        } else {
+                            game.me.moving |= 1<<direction;
+                        }
+                    } else if (e.code === 'Space') {
+                        if (game.ws.readyState === WebSocket.OPEN) {
+                            const view = new DataView(new ArrayBuffer(common.AmmaThrowingStruct.size));
+                            common.AmmaThrowingStruct.kind.write(view, common.MessageKind.AmmaThrowing);
+                            game.ws.send(view);
+                        } else {
+                            common.throwBomb(game.me, game.level.bombs);
+                        }
+                        // Trigger hand animation
+                        game.handAnimationFrame = 1;
+                        game.handAnimationTimer = 0.1;
+                    }
+                }
             }
         }
     });

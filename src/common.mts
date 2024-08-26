@@ -254,7 +254,7 @@ export enum MessageKind {
     BombSpawned,
     BombExploded,
     ChatMessage,
-    AmmaChat, // Added this line
+    AmmaChat,
 }
 
 interface Field {
@@ -452,10 +452,11 @@ export const AmmaThrowingStruct = (() => {
 export const AmmaChatStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
-    const message = allocStringField(allocator, 250); // Set max length to 250 characters
+    const messageLength = allocUint16Field(allocator);
+    const message = allocStringField(allocator, 250);
     const size = allocator.size;
     const verify = verifier(kind, MessageKind.AmmaChat, size);
-    return { kind, message, size, verify };
+    return { kind, messageLength, message, size, verify };
 })();
 
 // [kind] [count] [id] [x] [y] [moving] [id] [x] [y] [moving] [id] [x] [y] [moving]
@@ -757,7 +758,7 @@ export const ChatMessageStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
     const playerId = allocUint32Field(allocator);
-    const messageLength = allocUint16Field(allocator); // Added this line
+    const messageLength = allocUint16Field(allocator);
     const message = allocStringField(allocator, 250);
     const size = allocator.size;
     const verify = verifier(kind, MessageKind.ChatMessage, size);
