@@ -4,7 +4,7 @@ Online Multiplayer Browser Game with Old-School Raycasting Graphics.
 
 ![screenshot](./screenshot.png)
 
-Offline version available on GitHub Pages: https://tsoding.github.io/raycasting/
+Offline version available on GitHub Pages: https://tsoding.github.io/koil/
 
 **We are intentionally rendering on HTML 2D Canvas without employing
 any hardware acceleration to see how much we can push the boundaries
