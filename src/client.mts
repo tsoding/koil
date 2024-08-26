@@ -703,6 +703,15 @@ interface Game {
     handBobDirection: number,
     handAnimationFrame: number,
     handAnimationTimer: number,
+    chatInput: string,
+    isTyping: boolean,
+    chatMessages: ChatMessage[],
+}
+
+interface ChatMessage {
+    text: string;
+    timestamp: number;
+    position: { x: number; y: number };
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -787,6 +796,9 @@ async function createGame(): Promise<Game> {
         handBobDirection: 1,
         handAnimationFrame: 0,
         handAnimationTimer: 0,
+        chatInput: '',
+        isTyping: false,
+        chatMessages: [],
     };
 
     ws.binaryType = 'arraybuffer';
@@ -911,6 +923,19 @@ async function createGame(): Promise<Game> {
             game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
             game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
             explodeBomb(level.bombs[index], me, assets, particles);
+        } else if (common.ChatMessageStruct.verify(view)) {
+            const playerId = common.ChatMessageStruct.playerId.read(view);
+            const messageLength = common.ChatMessageStruct.messageLength.read(view);
+            const messageBytes = new Uint8Array(event.data, common.ChatMessageStruct.size, messageLength);
+            const message = new TextDecoder().decode(messageBytes);
+            const player = game.players.get(playerId);
+            if (player) {
+                game.chatMessages.push({
+                    text: String(message),
+                    timestamp: Date.now(),
+                    position: { x: player.position.x, y: player.position.y },
+                });
+            }
         } else {
             console.error("Received bogus-amogus message from server.", view)
             ws?.close();
@@ -958,6 +983,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     renderDebugInfo(display.ctx, deltaTime, game);
 
     renderHand(display, deltaTime, game);
+    renderChatMessages(game, display);
 }
 
 function renderHand(display: Display, deltaTime: number, game: Game) {
@@ -1102,6 +1128,46 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
 
+function renderChatMessages(game: Game, display: Display) {
+    const ctx = display.ctx;
+    ctx.font = '14px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+
+    // Render chat messages above players
+    for (const message of game.chatMessages) {
+        const age = Date.now() - message.timestamp;
+        if (age < 5000) {
+            const alpha = Math.max(0, 1 - age / 5000);
+            ctx.globalAlpha = alpha;
+            ctx.fillText(message.text, message.position.x, message.position.y - 20);
+        }
+    }
+
+    // Render chat input
+    if (game.isTyping) {
+        ctx.globalAlpha = 1;
+        ctx.fillText(`Chat: ${game.chatInput}`, display.ctx.canvas.width / 2, display.ctx.canvas.height - 30);
+    }
+
+    ctx.globalAlpha = 1;
+}
+
+function sendChatMessage(game: Game) {
+    if (game.chatInput.trim() && game.ws.readyState === WebSocket.OPEN) {
+        const encoder = new TextEncoder();
+        const messageBytes = encoder.encode(game.chatInput);
+        const view = new DataView(new ArrayBuffer(common.ChatMessageStruct.size + messageBytes.length));
+        common.ChatMessageStruct.kind.write(view, common.MessageKind.ChatMessage);
+        common.ChatMessageStruct.messageLength.write(view, messageBytes.length);
+        for (let i = 0; i < messageBytes.length; i++) {
+            view.setUint8(common.ChatMessageStruct.size + i, messageBytes[i]);
+        }
+        game.ws.send(view);
+        game.chatInput = '';
+    }
+}
+
 (async () => {
     const gameCanvas = document.getElementById("game") as (HTMLCanvasElement | null);
     if (gameCanvas === null) throw new Error("No canvas with id `game` is found");
@@ -1142,6 +1208,20 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
                 // Trigger hand animation
                 game.handAnimationFrame = 1;
                 game.handAnimationTimer = 0.1;
+            } else if (e.key === 'T' && !game.isTyping) {
+                game.isTyping = true;
+                e.preventDefault();
+            } else if (e.key === 'Enter' && game.isTyping) {
+                game.isTyping = false;
+                sendChatMessage(game);
+                e.preventDefault();
+            } else if (game.isTyping) {
+                if (e.key === 'Backspace') {
+                    game.chatInput = game.chatInput.slice(0, -1);
+                } else if (e.key.length === 1 && game.chatInput.length < 250) {
+                    game.chatInput += e.key;
+                }
+                e.preventDefault();
             }
         }
     });

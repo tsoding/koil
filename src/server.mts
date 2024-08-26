@@ -223,6 +223,9 @@ wss.on("connection", (ws, req) => {
             }
         } else if (common.PingStruct.verify(view)) {
             pingIds.set(id, common.PingStruct.timestamp.read(view));
+        } else if (common.AmmaChatStruct.verify(view)) {
+            const chatMessage = common.AmmaChatStruct.message.read(view);
+            broadcastChatMessage(id, chatMessage.toString());
         } else {
             // console.log(`Received bogus-amogus message from client ${id}:`, view)
             Stats.bogusAmogusMessages.counter += 1;
@@ -504,3 +507,21 @@ Stats.uptime.startedAt = Date.now()
 setTimeout(tick, 1000/SERVER_FPS);
 
 console.log(`Listening to ws://0.0.0.0:${common.SERVER_PORT}`)
+
+function broadcastChatMessage(senderId: number, message: string) {
+  const broadcastView = new DataView(new ArrayBuffer(common.ChatMessageStruct.size));
+  common.ChatMessageStruct.kind.write(broadcastView, common.MessageKind.ChatMessage);
+  common.ChatMessageStruct.playerId.write(broadcastView, senderId);
+
+  const encodedMessage = new TextEncoder().encode(message);
+  common.ChatMessageStruct.message.write(broadcastView, encodedMessage.length);
+
+  for (let i = 0; i < encodedMessage.length; i++) {
+    broadcastView.setUint8(common.ChatMessageStruct.message.offset + i, encodedMessage[i]);
+  }
+  for (const [, player] of players) {
+    player.ws.send(broadcastView);
+  }
+
+  return broadcastView.byteLength;
+}

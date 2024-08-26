@@ -253,6 +253,8 @@ export enum MessageKind {
     ItemCollected,
     BombSpawned,
     BombExploded,
+    ChatMessage,
+    AmmaChat, // Added this line
 }
 
 interface Field {
@@ -312,6 +314,33 @@ function allocFloat32Field(allocator: { size: number }): Field {
         size,
         read: (view) => view.getFloat32(offset, true),
         write: (view, value) => view.setFloat32(offset, value, true)
+    }
+}
+
+function allocStringField(allocator: { size: number }, maxLength: number): Field {
+    const offset = allocator.size;
+    const size = maxLength;
+    allocator.size += size;
+    return {
+        offset,
+        size,
+        read: (view) => {
+            let end = offset;
+            while (end < offset + size && view.getUint8(end) !== 0) {
+                end++;
+            }
+            return end - offset; // Return the length of the string
+        },
+        write: (view, value) => {
+            const encoder = new TextEncoder();
+            const encoded = encoder.encode(value.toString());
+            for (let i = 0; i < encoded.length; i++) {
+                view.setUint8(offset + i, encoded[i]);
+            }
+            if (encoded.length < size) {
+                view.setUint8(offset + encoded.length, 0);
+            }
+        }
     }
 }
 
@@ -418,6 +447,15 @@ export const AmmaThrowingStruct = (() => {
     const size      = allocator.size;
     const verify    = verifier(kind, MessageKind.AmmaThrowing, size);
     return {kind, size, verify}
+})();
+
+export const AmmaChatStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const message = allocStringField(allocator, 250); // Set max length to 250 characters
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.AmmaChat, size);
+    return { kind, message, size, verify };
 })();
 
 // [kind] [count] [id] [x] [y] [moving] [id] [x] [y] [moving] [id] [x] [y] [moving]
@@ -714,3 +752,14 @@ export function updatePlayer(player: Player, scene: Scene, deltaTime: number) {
         player.position.y = ny;
     }
 }
+
+export const ChatMessageStruct = (() => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const playerId = allocUint32Field(allocator);
+    const messageLength = allocUint16Field(allocator); // Added this line
+    const message = allocStringField(allocator, 250);
+    const size = allocator.size;
+    const verify = verifier(kind, MessageKind.ChatMessage, size);
+    return { kind, playerId, messageLength, message, size, verify };
+})();
