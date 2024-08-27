@@ -1,10 +1,10 @@
-import * as common from './common.mts';
+import * as common from './common.mjs';
 import {
     RGBA, Vector2, Vector3, Scene, Player,
     sceneGetTile, updatePlayer,
     PLAYER_SIZE, SERVER_PORT,
     clamp, properMod
-} from './common.mts';
+} from './common.mjs';
 
 const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
