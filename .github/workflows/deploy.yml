@@ -34,7 +34,7 @@ jobs:
              mkdir danger-do-not-use-this-folder-name && cd danger-do-not-use-this-folder-name
              cp -r ../.git .git
 
-             git checkout --track dist
+             git checkout --track origin/dist
              git config --local user.name "Github Actions"
              git config --local user.email "actions@github.com"
              find -not -path "./.git/*" -not -name ".git" -delete
