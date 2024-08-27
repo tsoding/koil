@@ -1,0 +1,44 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+env:
+  CI: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy
+        run: |
+             mkdir danger-do-not-use-this-folder-name && cd danger-do-not-use-this-folder-name
+             cp -r ../.git .git
+
+             git checkout --track dist
+             git config --local user.name "Github Actions"
+             git config --local user.email "actions@github.com"
+             find -not -path "./.git/*" -not -name ".git" -delete
+             cp -r ../assets .
+             cp -rT ../dist .
+             cat ../index.html | sed 's,/dist,,' > index.html
+             git add . && git commit -m "Apply automatic changes" || echo "Nothing to commit"
+             git push || echo "Nothing to push"
