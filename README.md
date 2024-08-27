@@ -2,7 +2,7 @@
 
 Online Multiplayer Browser Game with Old-School Raycasting Graphics.
 
-![screenshot](./screenshot.png)
+![screenshot](./assets/screenshot.png)
 
 Offline version available on GitHub Pages: https://tsoding.github.io/koil/
 

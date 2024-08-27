@@ -11,7 +11,9 @@ const { spawn } = require('child_process');
 function cmd(program, args = []) {
     const spawnOptions = { "shell": true };
     console.log('CMD:', program, args.flat(), spawnOptions);
+
     const p = spawn(program, args.flat(), spawnOptions); // NOTE: flattening the args array enables you to group related arguments for better self-documentation of the running command
+
     // @ts-ignore [stdout may be null?]
     p.stdout.on('data', (data) => process.stdout.write(data));
     // @ts-ignore [stderr may be null?]
@@ -24,6 +26,6 @@ function cmd(program, args = []) {
     return p;
 }
 
-cmd('node', ['server.mjs'])
+cmd('node', ['dist/server.mjs'])
 // TODO: prod mode where we are listening to address 0.0.0.0
 cmd('http-server', ['-p', '6969', '-a', '127.0.0.1', '-s', '-c-1', '-d', 'false'])
