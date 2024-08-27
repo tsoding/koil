@@ -41,6 +41,6 @@ jobs:
              find -not -path "./.git/*" -not -name ".git" -delete
              cp -r ../assets .
              cp -rT ../dist .
-             cat ../index.html | sed 's,/dist,,' > index.html
+             cat ../index.html | sed 's,dist/,,' > index.html
              git add . && git commit -m "Apply automatic changes" || echo "Nothing to commit"
              git push || echo "Nothing to push"
