@@ -292,8 +292,10 @@ function renderFloorAndCeiling(display, camera) {
         }
     }
 }
-function createDisplay(ctx, width, height) {
-    const backImageData = new Uint8ClampedArray(width * height * 4);
+function createDisplay(ctx, wasm, width, height) {
+    const buffer = wasm.instance.exports.memory.buffer;
+    const pixelPtr = wasm.instance.exports.allocate_pixels(width, height);
+    const backImageData = new Uint8ClampedArray(buffer, pixelPtr, width * height * 4);
     backImageData.fill(255);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
@@ -566,6 +568,13 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, image.width, image.height);
 }
 async function createGame() {
+    const wasm = await WebAssembly.instantiateStreaming(fetch("renderer.wasm"), {
+        "env": make_environment({
+            "fmodf": (x, y) => x % y,
+            "fminf": Math.min,
+            "fmaxf": Math.max,
+        })
+    });
     const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
@@ -612,7 +621,7 @@ async function createGame() {
         item.alive = false;
     const game = {
         camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
-        level
+        level, wasm
     };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -773,7 +782,7 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    renderFloorAndCeiling(display, game.camera);
+    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, game.camera.direction);
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
@@ -781,6 +790,20 @@ function renderGame(display, deltaTime, time, game) {
     if (MINIMAP)
         renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
+}
+function make_environment(...envs) {
+    return new Proxy(envs, {
+        get(_target, prop, _receiver) {
+            for (let env of envs) {
+                if (env.hasOwnProperty(prop)) {
+                    return env[prop];
+                }
+            }
+            return (...args) => {
+                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`);
+            };
+        }
+    });
 }
 (async () => {
     const gameCanvas = document.getElementById("game");
@@ -793,8 +816,8 @@ function renderGame(display, deltaTime, time, game) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const display = createDisplay(ctx, SCREEN_WIDTH, SCREEN_HEIGHT);
     const game = await createGame();
+    const display = createDisplay(ctx, game.wasm, SCREEN_WIDTH, SCREEN_HEIGHT);
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
             const direction = CONTROL_KEYS[e.code];

@@ -328,51 +328,6 @@ function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Sc
     }
 }
 
-function renderFloorAndCeiling(display: Display, camera: Camera) {
-    const pz = display.backImageHeight/2;
-    const t = new Vector2();
-    const t1 = new Vector2();
-    const t2 = new Vector2();
-    const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
-    for (let y = Math.floor(display.backImageHeight/2); y < display.backImageHeight; ++y) {
-        const sz = display.backImageHeight - y - 1;
-
-        const ap = pz - sz;
-        const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        t1.copy(camera.fovLeft).sub(camera.position).norm().scale(b).add(camera.position);
-        t2.copy(camera.fovRight).sub(camera.position).norm().scale(b).add(camera.position);
-
-        // TODO: Render rows up until FAR_CLIPPING_PLANE
-        //   There is a small bug with how we are projecting the floor and ceiling which makes it non-trivial.
-        //   I think we are projecting it too far, and the only reason it works is because we have no
-        //   specific textures at specific places anywhere. So it works completely accidentally.
-        //   We need to fix this bug first.
-        //
-        //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
-        //   fewer rows.
-
-        for (let x = 0; x < display.backImageWidth; ++x) {
-            t.copy(t1).lerp(t2, x/display.backImageWidth);
-            const floorTile = sceneGetFloor(t);
-            if (floorTile instanceof RGBA) {
-                const destP = (y*display.backImageWidth + x)*4;
-                const shadow = camera.position.distanceTo(t)*255;
-                display.backImageData[destP + 0] = floorTile.r*shadow;
-                display.backImageData[destP + 1] = floorTile.g*shadow;
-                display.backImageData[destP + 2] = floorTile.b*shadow;
-            }
-            const ceilingTile = sceneGetCeiling(t);
-            if (ceilingTile instanceof RGBA) {
-                const destP = (sz*display.backImageWidth + x)*4;
-                const shadow = camera.position.distanceTo(t)*255;
-                display.backImageData[destP + 0] = ceilingTile.r*shadow;
-                display.backImageData[destP + 1] = ceilingTile.g*shadow;
-                display.backImageData[destP + 2] = ceilingTile.b*shadow;
-            }
-        }
-    }
-}
-
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
@@ -382,8 +337,10 @@ interface Display {
     zBuffer: Array<number>;
 }
 
-function createDisplay(ctx: CanvasRenderingContext2D, width: number, height: number): Display {
-    const backImageData = new Uint8ClampedArray(width*height*4);
+function createDisplay(ctx: CanvasRenderingContext2D, wasm: WebAssembly.WebAssemblyInstantiatedSource, width: number, height: number): Display {
+    const buffer = wasm.instance.exports.memory.buffer;
+    const pixelPtr: number = wasm.instance.exports.allocate_pixels(width, height);
+    const backImageData = new Uint8ClampedArray(buffer, pixelPtr, width*height*4);
     backImageData.fill(255);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
@@ -702,6 +659,7 @@ interface Game {
     ping: number,
     dts: number[],
     level: common.Level,
+    wasm: WebAssembly.WebAssemblyInstantiatedSource,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -723,6 +681,14 @@ async function loadImageData(url: string): Promise<ImageData> {
 }
 
 async function createGame(): Promise<Game> {
+    const wasm = await WebAssembly.instantiateStreaming(fetch("renderer.wasm"), {
+        "env": make_environment({
+            "fmodf": (x: number, y: number) => x%y,
+            "fminf": Math.min,
+            "fmaxf": Math.max,
+        })
+    });
+
     const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
@@ -779,7 +745,7 @@ async function createGame(): Promise<Game> {
     for (const item of level.items) item.alive = false;
     const game: Game = {
         camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
-        level
+        level, wasm
     };
 
     ws.binaryType = 'arraybuffer';
@@ -939,7 +905,8 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    renderFloorAndCeiling(display, game.camera);
+    // renderFloorAndCeiling(display, game.camera);
+    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, game.camera.direction);
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
@@ -947,6 +914,21 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
 
     if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
+}
+
+function make_environment(...envs: any): any {
+    return new Proxy(envs, {
+        get(_target, prop, _receiver) {
+            for (let env of envs) {
+                if (env.hasOwnProperty(prop)) {
+                    return env[prop];
+                }
+            }
+            return (...args: any) => {
+                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`)
+            }
+        }
+    });
 }
 
 (async () => {
@@ -962,8 +944,8 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     // TODO: bring hotreloading back
     // TODO: hot reloading should not break if the game crashes
 
-    const display = createDisplay(ctx, SCREEN_WIDTH, SCREEN_HEIGHT);
     const game = await createGame();
+    const display = createDisplay(ctx, game.wasm, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
