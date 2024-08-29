@@ -729,7 +729,7 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, game.camera.direction);
+    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
