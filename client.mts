@@ -272,17 +272,17 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
 
 function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2, c: Vector2) {
     if (cell instanceof RGBA) {
-        const stripHeight = display.backImageData.height/display.zBuffer[x];
+        const stripHeight = display.backImageHeight/display.zBuffer[x];
         const shadow = 1/display.zBuffer[x]*2;
         for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
-            const y = Math.floor((display.backImageData.height - stripHeight)*0.5) + dy;
-            const destP = (y*display.backImageData.width + x)*4;
-            display.backImageData.data[destP + 0] = cell.r*shadow*255;
-            display.backImageData.data[destP + 1] = cell.g*shadow*255;
-            display.backImageData.data[destP + 2] = cell.b*shadow*255;
+            const y = Math.floor((display.backImageHeight - stripHeight)*0.5) + dy;
+            const destP = (y*display.backImageWidth + x)*4;
+            display.backImageData[destP + 0] = cell.r*shadow*255;
+            display.backImageData[destP + 1] = cell.g*shadow*255;
+            display.backImageData[destP + 2] = cell.b*shadow*255;
         }
     } else if (cell instanceof ImageData) {
-        const stripHeight = display.backImageData.height/display.zBuffer[x];
+        const stripHeight = display.backImageHeight/display.zBuffer[x];
 
         let u = 0;
         const t = p.clone().sub(c);
@@ -296,29 +296,29 @@ function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2,
             u = t.x;
         }
 
-        const y1f = (display.backImageData.height - stripHeight) * 0.5;
+        const y1f = (display.backImageHeight - stripHeight) * 0.5; 
         const y1 = Math.ceil(y1f);
         const y2 = Math.floor(y1 + stripHeight);
         const by1 = Math.max(0, y1);
-        const by2 = Math.min(display.backImageData.height, y2);
+        const by2 = Math.min(display.backImageHeight, y2);
         const tx = Math.floor(u*cell.width);
         const sh = cell.height / stripHeight;
         const shadow = Math.min(1/display.zBuffer[x]*4, 1);
         for (let y = by1; y < by2; ++y) {
             const ty = Math.floor((y - y1f)*sh);
-            const destP = (y*display.backImageData.width + x)*4;
+            const destP = (y*display.backImageWidth + x)*4;
             const srcP = (ty*cell.width + tx)*4;
-            display.backImageData.data[destP + 0] = cell.data[srcP + 0]*shadow;
-            display.backImageData.data[destP + 1] = cell.data[srcP + 1]*shadow;
-            display.backImageData.data[destP + 2] = cell.data[srcP + 2]*shadow;
+            display.backImageData[destP + 0] = cell.data[srcP + 0]*shadow;
+            display.backImageData[destP + 1] = cell.data[srcP + 1]*shadow;
+            display.backImageData[destP + 2] = cell.data[srcP + 2]*shadow;
         }
     }
 }
 
 function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Scene) {
     const d = new Vector2().setPolar(camera.direction)
-    for (let x = 0; x < display.backImageData.width; ++x) {
-        const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageData.width));
+    for (let x = 0; x < display.backImageWidth; ++x) {
+        const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageWidth));
         const c = hittingCell(camera.position, p);
         const v = p.clone().sub(camera.position);
         display.zBuffer[x] = v.dot(d);
@@ -328,14 +328,14 @@ function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Sc
     }
 }
 
-function renderFloorAndCeiling(imageData: ImageData, camera: Camera) {
-    const pz = imageData.height/2;
+function renderFloorAndCeiling(display: Display, camera: Camera) {
+    const pz = display.backImageHeight/2;
     const t = new Vector2();
     const t1 = new Vector2();
     const t2 = new Vector2();
     const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
-    for (let y = Math.floor(imageData.height/2); y < imageData.height; ++y) {
-        const sz = imageData.height - y - 1;
+    for (let y = Math.floor(display.backImageHeight/2); y < display.backImageHeight; ++y) {
+        const sz = display.backImageHeight - y - 1;
 
         const ap = pz - sz;
         const b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
@@ -351,23 +351,23 @@ function renderFloorAndCeiling(imageData: ImageData, camera: Camera) {
         //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
         //   fewer rows.
 
-        for (let x = 0; x < imageData.width; ++x) {
-            t.copy(t1).lerp(t2, x/imageData.width);
+        for (let x = 0; x < display.backImageWidth; ++x) {
+            t.copy(t1).lerp(t2, x/display.backImageWidth);
             const floorTile = sceneGetFloor(t);
             if (floorTile instanceof RGBA) {
-                const destP = (y*imageData.width + x)*4;
+                const destP = (y*display.backImageWidth + x)*4;
                 const shadow = camera.position.distanceTo(t)*255;
-                imageData.data[destP + 0] = floorTile.r*shadow;
-                imageData.data[destP + 1] = floorTile.g*shadow;
-                imageData.data[destP + 2] = floorTile.b*shadow;
+                display.backImageData[destP + 0] = floorTile.r*shadow;
+                display.backImageData[destP + 1] = floorTile.g*shadow;
+                display.backImageData[destP + 2] = floorTile.b*shadow;
             }
             const ceilingTile = sceneGetCeiling(t);
             if (ceilingTile instanceof RGBA) {
-                const destP = (sz*imageData.width + x)*4;
+                const destP = (sz*display.backImageWidth + x)*4;
                 const shadow = camera.position.distanceTo(t)*255;
-                imageData.data[destP + 0] = ceilingTile.r*shadow;
-                imageData.data[destP + 1] = ceilingTile.g*shadow;
-                imageData.data[destP + 2] = ceilingTile.b*shadow;
+                display.backImageData[destP + 0] = ceilingTile.r*shadow;
+                display.backImageData[destP + 1] = ceilingTile.g*shadow;
+                display.backImageData[destP + 2] = ceilingTile.b*shadow;
             }
         }
     }
@@ -376,13 +376,15 @@ function renderFloorAndCeiling(imageData: ImageData, camera: Camera) {
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
-    backImageData: ImageData;
+    backImageData: Uint8ClampedArray;
+    backImageWidth: number;
+    backImageHeight: number;
     zBuffer: Array<number>;
 }
 
 function createDisplay(ctx: CanvasRenderingContext2D, width: number, height: number): Display {
-    const backImageData = new ImageData(width, height);
-    backImageData.data.fill(255);
+    const backImageData = new Uint8ClampedArray(width*height*4);
+    backImageData.fill(255);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null) throw new Error("2D context is not supported");
@@ -391,12 +393,14 @@ function createDisplay(ctx: CanvasRenderingContext2D, width: number, height: num
         ctx,
         backCtx,
         backImageData,
+        backImageWidth: width,
+        backImageHeight: height,
         zBuffer: Array(width).fill(0),
     };
 }
 
 function displaySwapBackImageData(display: Display) {
-    display.backCtx.putImageData(display.backImageData, 0, 0);
+    display.backCtx.putImageData(new ImageData(display.backImageData, display.backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
@@ -448,29 +452,29 @@ function cullAndSortSprites(camera: Camera, spritePool: SpritePool, visibleSprit
 
 function renderSprites(display: Display, sprites: Array<Sprite>) {
     for (let sprite of sprites) {
-        const cx = display.backImageData.width*sprite.t;
-        const cy = display.backImageData.height*0.5;
-        const maxSpriteSize = display.backImageData.height/sprite.pdist;
+        const cx = display.backImageWidth*sprite.t;
+        const cy = display.backImageHeight*0.5;
+        const maxSpriteSize = display.backImageHeight/sprite.pdist;
         const spriteSize = maxSpriteSize*sprite.scale;
         const x1 = Math.floor(cx - spriteSize*0.5);
         const x2 = Math.floor(x1 + spriteSize - 1);
         const bx1 = Math.max(0, x1);
-        const bx2 = Math.min(display.backImageData.width-1, x2);
+        const bx2 = Math.min(display.backImageWidth-1, x2);
         const y1 = Math.floor(cy + maxSpriteSize*0.5 - maxSpriteSize*sprite.z);
         const y2 = Math.floor(y1 + spriteSize - 1);
         const by1 = Math.max(0, y1);
-        const by2 = Math.min(display.backImageData.height-1, y2);
+        const by2 = Math.min(display.backImageHeight-1, y2);
 
         if (sprite.image instanceof ImageData) {
             const src = sprite.image.data;
-            const dest = display.backImageData.data;
+            const dest = display.backImageData;
             for (let x = bx1; x <= bx2; ++x) {
                 if (sprite.pdist < display.zBuffer[x]) {
                     for (let y = by1; y <= by2; ++y) {
                         const tx = Math.floor((x - x1)/spriteSize*sprite.cropSize.x);
                         const ty = Math.floor((y - y1)/spriteSize*sprite.cropSize.y);
                         const srcP = ((ty + sprite.cropPosition.y)*sprite.image.width + (tx + sprite.cropPosition.x))*4;
-                        const destP = (y*display.backImageData.width + x)*4;
+                        const destP = (y*display.backImageWidth + x)*4;
                         const alpha = src[srcP + 3]/255;
                         dest[destP + 0] = dest[destP + 0]*(1 - alpha) + src[srcP + 0]*alpha;
                         dest[destP + 1] = dest[destP + 1]*(1 - alpha) + src[srcP + 1]*alpha;
@@ -479,11 +483,11 @@ function renderSprites(display: Display, sprites: Array<Sprite>) {
                 }
             }
         } else if (sprite.image instanceof RGBA) {
-            const dest = display.backImageData.data;
+            const dest = display.backImageData;
             for (let x = bx1; x <= bx2; ++x) {
                 if (sprite.pdist < display.zBuffer[x]) {
                     for (let y = by1; y <= by2; ++y) {
-                        const destP = (y*display.backImageData.width + x)*4;
+                        const destP = (y*display.backImageWidth + x)*4;
                         const alpha = sprite.image.a;
                         dest[destP + 0] = dest[destP + 0]*(1 - alpha) + sprite.image.r*255*alpha;
                         dest[destP + 1] = dest[destP + 1]*(1 - alpha) + sprite.image.g*255*alpha;
@@ -935,7 +939,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    renderFloorAndCeiling(display.backImageData, game.camera);
+    renderFloorAndCeiling(display, game.camera);
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
