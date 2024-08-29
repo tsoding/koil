@@ -240,9 +240,10 @@ function renderWalls(display, assets, camera, scene) {
     }
 }
 function createDisplay(ctx, wasm, width, height) {
-    const buffer = wasm.instance.exports.memory.buffer;
-    const pixelPtr = wasm.instance.exports.allocate_pixels(width, height);
-    const backImageData = new Uint8ClampedArray(buffer, pixelPtr, width * height * 4);
+    const memory = wasm.instance.exports.memory;
+    const allocate_pixels = wasm.instance.exports.allocate_pixels;
+    const pixelPtr = allocate_pixels(width, height);
+    const backImageData = new Uint8ClampedArray(memory.buffer, pixelPtr, width * height * 4);
     backImageData.fill(255);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
@@ -729,7 +730,8 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
+    const render_floor_and_ceiling = game.wasm.instance.exports.render_floor_and_ceiling;
+    render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
