@@ -7,10 +7,6 @@ const FOV = Math.PI * 0.5;
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
-const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
-const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
-const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
-const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
 const BOMB_PARTICLE_COUNT = 50;
@@ -88,22 +84,6 @@ function rayStep(p1, p2) {
         p3.set(x3, y3);
     }
     return p3;
-}
-function sceneGetFloor(p) {
-    if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
-        return SCENE_FLOOR1;
-    }
-    else {
-        return SCENE_FLOOR2;
-    }
-}
-function sceneGetCeiling(p) {
-    if ((Math.floor(p.x) + Math.floor(p.y)) % 2 == 0) {
-        return SCENE_CEILING1;
-    }
-    else {
-        return SCENE_CEILING2;
-    }
 }
 function castRay(scene, p1, p2) {
     let start = p1;
@@ -256,39 +236,6 @@ function renderWalls(display, assets, camera, scene) {
         display.zBuffer[x] = v.dot(d);
         if (sceneGetTile(scene, c)) {
             renderColumnOfWall(display, assets.wallImageData, x, p, c);
-        }
-    }
-}
-function renderFloorAndCeiling(display, camera) {
-    const pz = display.backImageHeight / 2;
-    const t = new Vector2();
-    const t1 = new Vector2();
-    const t2 = new Vector2();
-    const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
-    for (let y = Math.floor(display.backImageHeight / 2); y < display.backImageHeight; ++y) {
-        const sz = display.backImageHeight - y - 1;
-        const ap = pz - sz;
-        const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        t1.copy(camera.fovLeft).sub(camera.position).norm().scale(b).add(camera.position);
-        t2.copy(camera.fovRight).sub(camera.position).norm().scale(b).add(camera.position);
-        for (let x = 0; x < display.backImageWidth; ++x) {
-            t.copy(t1).lerp(t2, x / display.backImageWidth);
-            const floorTile = sceneGetFloor(t);
-            if (floorTile instanceof RGBA) {
-                const destP = (y * display.backImageWidth + x) * 4;
-                const shadow = camera.position.distanceTo(t) * 255;
-                display.backImageData[destP + 0] = floorTile.r * shadow;
-                display.backImageData[destP + 1] = floorTile.g * shadow;
-                display.backImageData[destP + 2] = floorTile.b * shadow;
-            }
-            const ceilingTile = sceneGetCeiling(t);
-            if (ceilingTile instanceof RGBA) {
-                const destP = (sz * display.backImageWidth + x) * 4;
-                const shadow = camera.position.distanceTo(t) * 255;
-                display.backImageData[destP + 0] = ceilingTile.r * shadow;
-                display.backImageData[destP + 1] = ceilingTile.g * shadow;
-                display.backImageData[destP + 2] = ceilingTile.b * shadow;
-            }
         }
     }
 }

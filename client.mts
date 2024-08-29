@@ -15,11 +15,6 @@ const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 
-const SCENE_FLOOR1 = new RGBA(0.094, 0.094 + 0.07, 0.094 + 0.07, 1.0);
-const SCENE_FLOOR2 = new RGBA(0.188, 0.188 + 0.07, 0.188 + 0.07, 1.0);
-const SCENE_CEILING1 = new RGBA(0.094 + 0.07, 0.094, 0.094, 1.0);
-const SCENE_CEILING2 = new RGBA(0.188 + 0.07, 0.188, 0.188, 1.0);
-
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
 
@@ -130,22 +125,6 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
 }
 
 type Tile = RGBA | ImageData | null;
-
-function sceneGetFloor(p: Vector2): Tile | undefined {
-    if ((Math.floor(p.x) + Math.floor(p.y))%2 == 0) {
-        return SCENE_FLOOR1;
-    } else {
-        return SCENE_FLOOR2;
-    }
-}
-
-function sceneGetCeiling(p: Vector2): Tile | undefined {
-    if ((Math.floor(p.x) + Math.floor(p.y))%2 == 0) {
-        return SCENE_CEILING1;
-    } else {
-        return SCENE_CEILING2;
-    }
-}
 
 function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     let start = p1;
