@@ -259,39 +259,6 @@ function renderWalls(display, assets, camera, scene) {
         }
     }
 }
-function renderFloorAndCeiling(display, camera) {
-    const pz = display.backImageHeight / 2;
-    const t = new Vector2();
-    const t1 = new Vector2();
-    const t2 = new Vector2();
-    const bp = t1.copy(camera.fovLeft).sub(camera.position).length();
-    for (let y = Math.floor(display.backImageHeight / 2); y < display.backImageHeight; ++y) {
-        const sz = display.backImageHeight - y - 1;
-        const ap = pz - sz;
-        const b = (bp / ap) * pz / NEAR_CLIPPING_PLANE;
-        t1.copy(camera.fovLeft).sub(camera.position).norm().scale(b).add(camera.position);
-        t2.copy(camera.fovRight).sub(camera.position).norm().scale(b).add(camera.position);
-        for (let x = 0; x < display.backImageWidth; ++x) {
-            t.copy(t1).lerp(t2, x / display.backImageWidth);
-            const floorTile = sceneGetFloor(t);
-            if (floorTile instanceof RGBA) {
-                const destP = (y * display.backImageWidth + x) * 4;
-                const shadow = camera.position.distanceTo(t) * 255;
-                display.backImageData[destP + 0] = floorTile.r * shadow;
-                display.backImageData[destP + 1] = floorTile.g * shadow;
-                display.backImageData[destP + 2] = floorTile.b * shadow;
-            }
-            const ceilingTile = sceneGetCeiling(t);
-            if (ceilingTile instanceof RGBA) {
-                const destP = (sz * display.backImageWidth + x) * 4;
-                const shadow = camera.position.distanceTo(t) * 255;
-                display.backImageData[destP + 0] = ceilingTile.r * shadow;
-                display.backImageData[destP + 1] = ceilingTile.g * shadow;
-                display.backImageData[destP + 2] = ceilingTile.b * shadow;
-            }
-        }
-    }
-}
 function createDisplay(ctx, wasm, width, height) {
     const buffer = wasm.instance.exports.memory.buffer;
     const pixelPtr = wasm.instance.exports.allocate_pixels(width, height);
@@ -782,7 +749,7 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, game.camera.direction);
+    game.wasm.instance.exports.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
