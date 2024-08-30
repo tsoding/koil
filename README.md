@@ -22,6 +22,17 @@ $ <browser> https://localhost:6969/
 
 This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and the server of the game ([server.mts](./server.mts)). See [serve.js](./serve.js) for more details.
 
+## Rebuilding Artifacts
+
+Dependencies
+- Latest commit of [C3 compiler](https://github.com/c3lang/c3c) (you need to build it from scratch)
+- Node (v20.9.0+)
+
+```console
+$ node install
+$ node run build
+```
+
 ## References
 
 - Renderer implementation is heavily inspired by https://lodev.org/cgtutor/raycasting.html
