@@ -3,11 +3,10 @@ import std::math;
 const float NEAR_CLIPPING_PLANE = 0.1;
 const float FAR_CLIPPING_PLANE = 10.0;
 const float FOV = math::PI*0.5;
-const int SCREEN_FACTOR = 30;
-const int SCREEN_WIDTH = 16*SCREEN_FACTOR;
-const int SCREEN_HEIGHT = 9*SCREEN_FACTOR;
 
-Color[SCREEN_WIDTH*SCREEN_HEIGHT] pixels;
+Color[] pixels;
+int pixels_width;
+int pixels_height;
 
 def Color = char[<4>];
 def Vector2 = float[<2>];
@@ -32,6 +31,10 @@ fn void Camera.update(Camera *camera) {
 
 fn void *allocate_pixels(int width, int height) @extern("allocate_pixels") @wasm
 {
+    // TODO: deallocate existing buffer on second call
+    pixels = mem::new_array(Color, width*height);
+    pixels_width = width;
+    pixels_height = height;
     return &pixels[0];
 }
 
@@ -60,10 +63,10 @@ fn void render_floor_and_ceiling(float position_x, float position_y, float direc
     Camera camera = { .position = {position_x, position_y}, .direction = direction };
     camera.update();
 
-    int pz = SCREEN_HEIGHT/2;
+    int pz = pixels_height/2;
     float bp = (camera.fovLeft - camera.position).length();
-    for (int y = SCREEN_HEIGHT/2; y < SCREEN_HEIGHT; ++y) {
-        int sz = SCREEN_HEIGHT - y - 1;
+    for (int y = pixels_height/2; y < pixels_height; ++y) {
+        int sz = pixels_height - y - 1;
 
         int ap = pz - sz;
         float b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
@@ -79,14 +82,14 @@ fn void render_floor_and_ceiling(float position_x, float position_y, float direc
         //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
         //   fewer rows.
 
-        for (int x = 0; x < SCREEN_WIDTH; ++x) {
-            Vector2 t = t1.lerp(t2, (float)x/SCREEN_WIDTH);
+        for (int x = 0; x < pixels_width; ++x) {
+            Vector2 t = t1.lerp(t2, (float)x/pixels_width);
 
             float fog = (t - camera.position).length();
             float[<3>] low = 0;
             float[<3>] high = 255;
-            pixels[y*SCREEN_WIDTH + x] = {(char[<3>])((float[<3>])sceneGetFloor(t).rgb*fog).clamp(low, high), 255};
-            pixels[sz*SCREEN_WIDTH + x] = {(char[<3>])((float[<3>])sceneGetCeiling(t).rgb*fog).clamp(low, high), 255};
+            pixels[y*pixels_width + x] = {(char[<3>])((float[<3>])sceneGetFloor(t).rgb*fog).clamp(low, high), 255};
+            pixels[sz*pixels_width + x] = {(char[<3>])((float[<3>])sceneGetCeiling(t).rgb*fog).clamp(low, high), 255};
         }
     }
 }

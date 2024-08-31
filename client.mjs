@@ -516,20 +516,22 @@ async function loadImageData(url) {
     return ctx.getImageData(0, 0, image.width, image.height);
 }
 async function createGame() {
-    const wasm = await WebAssembly.instantiateStreaming(fetch("renderer.wasm"), {
-        "env": make_environment({
-            "fmodf": (x, y) => x % y,
-            "fminf": Math.min,
-            "fmaxf": Math.max,
-        })
-    });
-    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData, wasm] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
         loadImageData("assets/images/custom/null.png"),
+        WebAssembly.instantiateStreaming(fetch("renderer.wasm"), {
+            "env": make_environment({
+                "fmodf": (x, y) => x % y,
+                "fminf": Math.min,
+                "fmaxf": Math.max,
+            })
+        }),
     ]);
+    const _initialize = wasm.instance.exports._initialize;
+    _initialize();
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
     const bombBlastSound = new Audio("assets/sounds/blast.ogg");
