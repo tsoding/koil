@@ -4,10 +4,6 @@ const float NEAR_CLIPPING_PLANE = 0.1;
 const float FAR_CLIPPING_PLANE = 10.0;
 const float FOV = math::PI*0.5;
 
-Color[] pixels;
-int pixels_width;
-int pixels_height;
-
 def Color = char[<4>];
 def Vector2 = float[<2>];
 
@@ -29,12 +25,9 @@ fn void Camera.update(Camera *camera) {
     camera.fovRight = from_polar(camera.direction+halfFov, fovLen) + camera.position;
 }
 
-fn void *allocate_pixels(int width, int height) @extern("allocate_pixels") @wasm
+fn Color* allocate_pixels(int width, int height) @extern("allocate_pixels") @wasm
 {
-    // TODO: deallocate existing buffer on second call
-    pixels = mem::new_array(Color, width*height);
-    pixels_width = width;
-    pixels_height = height;
+    Color[] pixels = mem::new_array(Color, width*height);
     return &pixels[0];
 }
 
@@ -59,7 +52,7 @@ fn Color sceneGetCeiling(Vector2 p) {
     }
 }
 
-fn void render_floor_and_ceiling(float position_x, float position_y, float direction) @extern("render_floor_and_ceiling") @wasm {
+fn void render_floor_and_ceiling(Color *pixels, int pixels_width, int pixels_height, float position_x, float position_y, float direction) @extern("render_floor_and_ceiling") @wasm {
     Camera camera = { .position = {position_x, position_y}, .direction = direction };
     camera.update();
 

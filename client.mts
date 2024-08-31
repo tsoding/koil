@@ -249,16 +249,17 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
     }
 }
 
-function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2, c: Vector2) {
+function renderColumnOfWall(display: Display, wasmRenderer: WasmRenderer, cell: Tile, x: number, p: Vector2, c: Vector2) {
+    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
     if (cell instanceof RGBA) {
         const stripHeight = display.backImageHeight/display.zBuffer[x];
         const shadow = 1/display.zBuffer[x]*2;
         for (let dy = 0; dy < Math.ceil(stripHeight); ++dy) {
             const y = Math.floor((display.backImageHeight - stripHeight)*0.5) + dy;
             const destP = (y*display.backImageWidth + x)*4;
-            display.backImageData[destP + 0] = cell.r*shadow*255;
-            display.backImageData[destP + 1] = cell.g*shadow*255;
-            display.backImageData[destP + 2] = cell.b*shadow*255;
+            backImageData[destP + 0] = cell.r*shadow*255;
+            backImageData[destP + 1] = cell.g*shadow*255;
+            backImageData[destP + 2] = cell.b*shadow*255;
         }
     } else if (cell instanceof ImageData) {
         const stripHeight = display.backImageHeight/display.zBuffer[x];
@@ -287,14 +288,14 @@ function renderColumnOfWall(display: Display, cell: Tile, x: number, p: Vector2,
             const ty = Math.floor((y - y1f)*sh);
             const destP = (y*display.backImageWidth + x)*4;
             const srcP = (ty*cell.width + tx)*4;
-            display.backImageData[destP + 0] = cell.data[srcP + 0]*shadow;
-            display.backImageData[destP + 1] = cell.data[srcP + 1]*shadow;
-            display.backImageData[destP + 2] = cell.data[srcP + 2]*shadow;
+            backImageData[destP + 0] = cell.data[srcP + 0]*shadow;
+            backImageData[destP + 1] = cell.data[srcP + 1]*shadow;
+            backImageData[destP + 2] = cell.data[srcP + 2]*shadow;
         }
     }
 }
 
-function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Scene) {
+function renderWalls(display: Display, wasmRenderer: WasmRenderer, assets: Assets, camera: Camera, scene: Scene) {
     const d = new Vector2().setPolar(camera.direction)
     for (let x = 0; x < display.backImageWidth; ++x) {
         const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageWidth));
@@ -302,7 +303,7 @@ function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Sc
         const v = p.clone().sub(camera.position);
         display.zBuffer[x] = v.dot(d);
         if (sceneGetTile(scene, c)) {
-            renderColumnOfWall(display, assets.wallImageData, x, p, c);
+            renderColumnOfWall(display, wasmRenderer, assets.wallImageData, x, p, c);
         }
     }
 }
@@ -310,7 +311,7 @@ function renderWalls(display: Display, assets: Assets, camera: Camera, scene: Sc
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
-    backImageData: Uint8ClampedArray;
+    backImagePtr: number;
     backImageWidth: number;
     backImageHeight: number;
     zBuffer: Array<number>;
@@ -321,13 +322,11 @@ interface WasmRenderer {
     memory: WebAssembly.Memory,
     _initialize: () => void,
     allocate_pixels: (width: number, height: number) => number,
-    render_floor_and_ceiling: (position_x: number, position_y: number, direction: number) => void,
+    render_floor_and_ceiling: (pixels: number, pixels_width: number, pixels_height: number, position_x: number, position_y: number, direction: number) => void,
 }
 
 function createDisplay(ctx: CanvasRenderingContext2D, wasmRenderer: WasmRenderer, width: number, height: number): Display {
-    const pixelPtr: number = wasmRenderer.allocate_pixels(width, height);
-    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, pixelPtr, width*height*4);
-    backImageData.fill(255);
+    const backImagePtr: number = wasmRenderer.allocate_pixels(width, height);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null) throw new Error("2D context is not supported");
@@ -335,15 +334,16 @@ function createDisplay(ctx: CanvasRenderingContext2D, wasmRenderer: WasmRenderer
     return {
         ctx,
         backCtx,
-        backImageData,
+        backImagePtr,
         backImageWidth: width,
         backImageHeight: height,
         zBuffer: Array(width).fill(0),
     };
 }
 
-function displaySwapBackImageData(display: Display) {
-    display.backCtx.putImageData(new ImageData(display.backImageData, display.backImageWidth), 0, 0);
+function displaySwapBackImageData(display: Display, wasmRenderer: WasmRenderer) {
+    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+    display.backCtx.putImageData(new ImageData(backImageData, display.backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
@@ -393,7 +393,8 @@ function cullAndSortSprites(camera: Camera, spritePool: SpritePool, visibleSprit
     visibleSprites.sort((a, b) => b.pdist - a.pdist);
 }
 
-function renderSprites(display: Display, sprites: Array<Sprite>) {
+function renderSprites(display: Display, wasmRenderer: WasmRenderer, sprites: Array<Sprite>) {
+    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
     for (let sprite of sprites) {
         const cx = display.backImageWidth*sprite.t;
         const cy = display.backImageHeight*0.5;
@@ -410,7 +411,7 @@ function renderSprites(display: Display, sprites: Array<Sprite>) {
 
         if (sprite.image instanceof ImageData) {
             const src = sprite.image.data;
-            const dest = display.backImageData;
+            const dest = backImageData;
             for (let x = bx1; x <= bx2; ++x) {
                 if (sprite.pdist < display.zBuffer[x]) {
                     for (let y = by1; y <= by2; ++y) {
@@ -426,7 +427,7 @@ function renderSprites(display: Display, sprites: Array<Sprite>) {
                 }
             }
         } else if (sprite.image instanceof RGBA) {
-            const dest = display.backImageData;
+            const dest = backImageData;
             for (let x = bx1; x <= bx2; ++x) {
                 if (sprite.pdist < display.zBuffer[x]) {
                     for (let y = by1; y <= by2; ++y) {
@@ -911,11 +912,11 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    game.wasmRenderer.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2*Math.PI));
-    renderWalls(display, game.assets, game.camera, game.level.scene);
+    game.wasmRenderer.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2*Math.PI));
+    renderWalls(display, game.wasmRenderer, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
-    renderSprites(display, game.visibleSprites);
-    displaySwapBackImageData(display);
+    renderSprites(display, game.wasmRenderer, game.visibleSprites);
+    displaySwapBackImageData(display, game.wasmRenderer);
 
     if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
