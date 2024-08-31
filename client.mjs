@@ -239,11 +239,9 @@ function renderWalls(display, assets, camera, scene) {
         }
     }
 }
-function createDisplay(ctx, wasm, width, height) {
-    const memory = wasm.instance.exports.memory;
-    const allocate_pixels = wasm.instance.exports.allocate_pixels;
-    const pixelPtr = allocate_pixels(width, height);
-    const backImageData = new Uint8ClampedArray(memory.buffer, pixelPtr, width * height * 4);
+function createDisplay(ctx, wasmRenderer, width, height) {
+    const pixelPtr = wasmRenderer.allocate_pixels(width, height);
+    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, pixelPtr, width * height * 4);
     backImageData.fill(255);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
@@ -515,23 +513,32 @@ async function loadImageData(url) {
     ctx.drawImage(image, 0, 0);
     return ctx.getImageData(0, 0, image.width, image.height);
 }
+async function instantiateWasmRenderer(url) {
+    const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
+        "env": make_environment({
+            "fmodf": (x, y) => x % y,
+            "fminf": Math.min,
+            "fmaxf": Math.max,
+        })
+    });
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory,
+        _initialize: wasm.instance.exports._initialize,
+        allocate_pixels: wasm.instance.exports.allocate_pixels,
+        render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling,
+    };
+}
 async function createGame() {
-    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData, wasm] = await Promise.all([
+    const [wallImageData, keyImageData, bombImageData, playerImageData, nullImageData, wasmRenderer] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
         loadImageData("assets/images/custom/null.png"),
-        WebAssembly.instantiateStreaming(fetch("renderer.wasm"), {
-            "env": make_environment({
-                "fmodf": (x, y) => x % y,
-                "fminf": Math.min,
-                "fmaxf": Math.max,
-            })
-        }),
+        instantiateWasmRenderer("renderer.wasm"),
     ]);
-    const _initialize = wasm.instance.exports._initialize;
-    _initialize();
+    wasmRenderer._initialize();
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
     const bombBlastSound = new Audio("assets/sounds/blast.ogg");
@@ -571,7 +578,7 @@ async function createGame() {
         item.alive = false;
     const game = {
         camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
-        level, wasm
+        level, wasmRenderer
     };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -732,8 +739,7 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImageData, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    const render_floor_and_ceiling = game.wasm.instance.exports.render_floor_and_ceiling;
-    render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
+    game.wasmRenderer.render_floor_and_ceiling(game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
     renderWalls(display, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.visibleSprites);
@@ -768,7 +774,7 @@ function make_environment(...envs) {
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
     const game = await createGame();
-    const display = createDisplay(ctx, game.wasm, SCREEN_WIDTH, SCREEN_HEIGHT);
+    const display = createDisplay(ctx, game.wasmRenderer, SCREEN_WIDTH, SCREEN_HEIGHT);
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
             const direction = CONTROL_KEYS[e.code];
