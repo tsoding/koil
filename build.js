@@ -30,7 +30,7 @@ cmd("c3c", [
     "-D", "PLATFORM_WEB",
     "--reloc=none",
     "--target", "wasm32",
-    "-O3", "-g0", "--link-libc=no", "--no-entry",
+    "-O5", "-g0", "--link-libc=no", "--no-entry",
     "-o", "renderer",
     "-z", "--export-table",
     "-z", "--allow-undefined",
