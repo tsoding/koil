@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { WebSocketServer } from 'ws';
 import * as common from './common.mjs';
 import { Vector2 } from './common.mjs';
@@ -95,6 +96,8 @@ var Stats;
 const SERVER_FPS = 60;
 const SERVER_TOTAL_LIMIT = 2000;
 const SERVER_SINGLE_IP_LIMIT = 10;
+const wasmServer = await instantiateWasmServer('server.wasm');
+wasmServer._initialize();
 const players = new Map();
 const connectionLimits = new Map();
 let idCounter = 0;
@@ -107,7 +110,7 @@ const joinedIds = new Set();
 const leftIds = new Set();
 const pingIds = new Map();
 const bombsThrown = new Set();
-const level = common.createLevel();
+const level = common.createLevel(wasmServer);
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (players.size >= SERVER_TOTAL_LIMIT) {
@@ -353,7 +356,7 @@ function tick() {
     });
     {
         players.forEach((player) => {
-            common.updatePlayer(player, level.scene, deltaTime);
+            common.updatePlayer(wasmServer, player, level.scene, deltaTime);
             level.items.forEach((item, index) => {
                 if (item.alive) {
                     if (common.collectItem(player, item)) {
@@ -372,7 +375,7 @@ function tick() {
         for (let index = 0; index < level.bombs.length; ++index) {
             const bomb = level.bombs[index];
             if (bomb.lifetime > 0) {
-                common.updateBomb(bomb, level.scene, deltaTime);
+                common.updateBomb(wasmServer, bomb, level.scene, deltaTime);
                 if (bomb.lifetime <= 0) {
                     const view = new DataView(new ArrayBuffer(common.BombExplodedStruct.size));
                     common.BombExplodedStruct.kind.write(view, common.MessageKind.BombExploded);
@@ -416,9 +419,17 @@ function tick() {
     bytesReceivedWithinTick = 0;
     messagesRecievedWithinTick = 0;
     if (Stats.ticksCount.counter % SERVER_FPS === 0) {
-        Stats.print();
     }
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
+}
+async function instantiateWasmServer(path) {
+    const wasm = await WebAssembly.instantiate(readFileSync(path));
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory,
+        _initialize: wasm.instance.exports._initialize,
+        allocate_scene: wasm.instance.exports.allocate_scene,
+    };
 }
 Stats.uptime.startedAt = Date.now();
 setTimeout(tick, 1000 / SERVER_FPS);

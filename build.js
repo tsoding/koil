@@ -31,8 +31,19 @@ cmd("c3c", [
     "--reloc=none",
     "--target", "wasm32",
     "-O5", "-g0", "--link-libc=no", "--no-entry",
-    "-o", "renderer",
+    "-o", "client",
     "-z", "--export-table",
     "-z", "--allow-undefined",
-    "renderer.c3"
+    "client.c3", "common.c3",
+])
+cmd("c3c", [
+    "compile",
+    "-D", "PLATFORM_WEB",
+    "--reloc=none",
+    "--target", "wasm32",
+    "-O5", "-g0", "--link-libc=no", "--no-entry",
+    "-o", "server",
+    "-z", "--export-table",
+    "-z", "--allow-undefined",
+    "server.c3", "common.c3",
 ])

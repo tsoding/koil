@@ -1,3 +1,4 @@
+import {readFileSync} from 'fs';
 import {WebSocketServer, WebSocket} from 'ws';
 import * as common from './common.mjs'
 import {Player, Vector2} from './common.mjs';
@@ -130,6 +131,8 @@ interface PlayerOnServer extends Player {
     newMoving: number,
 }
 
+const wasmServer = await instantiateWasmServer('server.wasm');
+wasmServer._initialize();
 const players = new Map<number, PlayerOnServer>();
 const connectionLimits = new Map<string, number>();
 let idCounter = 0;
@@ -142,7 +145,7 @@ const joinedIds = new Set<number>()
 const leftIds = new Set<number>()
 const pingIds = new Map<number, number>()
 const bombsThrown = new Set<number>()
-const level = common.createLevel();
+const level = common.createLevel(wasmServer);
 
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -425,7 +428,7 @@ function tick() {
     // Simulating the world for one server tick.
     {
         players.forEach((player) => {
-            common.updatePlayer(player, level.scene, deltaTime)
+            common.updatePlayer(wasmServer, player, level.scene, deltaTime)
             level.items.forEach((item, index) => {
                 if (item.alive) {
                     if (common.collectItem(player, item)) {
@@ -445,7 +448,7 @@ function tick() {
         for (let index = 0; index < level.bombs.length; ++index) {
             const bomb = level.bombs[index];
             if (bomb.lifetime > 0) {
-                common.updateBomb(bomb, level.scene, deltaTime);
+                common.updateBomb(wasmServer, bomb, level.scene, deltaTime);
                 if (bomb.lifetime <= 0) {
                     const view = new DataView(new ArrayBuffer(common.BombExplodedStruct.size));
                     common.BombExplodedStruct.kind.write(view, common.MessageKind.BombExploded);
@@ -500,6 +503,20 @@ function tick() {
 
     setTimeout(tick, Math.max(0, 1000/SERVER_FPS - tickTime));
 }
+
+interface WasmServer extends common.WasmCommon {
+}
+
+async function instantiateWasmServer(path: string): Promise<WasmServer> {
+    const wasm = await WebAssembly.instantiate(readFileSync(path));
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory as WebAssembly.Memory,
+        _initialize: wasm.instance.exports._initialize as () => void,
+        allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
+    }
+}
+
 Stats.uptime.startedAt = Date.now()
 setTimeout(tick, 1000/SERVER_FPS);
 

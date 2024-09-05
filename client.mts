@@ -126,11 +126,12 @@ function rayStep(p1: Vector2, p2: Vector2): Vector2 {
 
 type Tile = RGBA | ImageData | null;
 
-function castRay(scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
+function castRay(wasmCommon: common.WasmCommon, scene: Scene, p1: Vector2, p2: Vector2): Vector2 {
     let start = p1;
+    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
     while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE*FAR_CLIPPING_PLANE) {
         const c = hittingCell(p1, p2);
-        if (sceneGetTile(scene, c)) break;
+        if (sceneGetTile(walls, scene, c)) break;
         const p3 = rayStep(p1, p2);
         p1 = p2;
         p2 = p3;
@@ -145,7 +146,7 @@ interface Camera {
     fovRight: Vector2;
 }
 
-function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Player, scene: Scene, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
+function renderMinimap(wasmCommon: common.WasmCommon, ctx: CanvasRenderingContext2D, camera: Camera, player: Player, scene: Scene, spritePool: SpritePool, visibleSprites: Array<Sprite>) {
     ctx.save();
 
     // A couple of temporary vectors
@@ -161,9 +162,10 @@ function renderMinimap(ctx: CanvasRenderingContext2D, camera: Camera, player: Pl
     ctx.fillRect(0, 0, scene.width, scene.height);
 
     ctx.lineWidth = 0.05;
+    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
     for (let y = 0; y < scene.height; ++y) {
         for (let x = 0; x < scene.width; ++x) {
-            if (sceneGetTile(scene, p1.set(x, y))) {
+            if (sceneGetTile(walls, scene, p1.set(x, y))) {
                 ctx.fillStyle = "blue";
                 ctx.fillRect(x, y, 1, 1);
             }
@@ -249,8 +251,8 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
     }
 }
 
-function renderColumnOfWall(display: Display, wasmRenderer: WasmRenderer, cell: Tile, x: number, p: Vector2, c: Vector2) {
-    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+function renderColumnOfWall(display: Display, wasmClient: WasmClient, cell: Tile, x: number, p: Vector2, c: Vector2) {
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
     if (cell instanceof RGBA) {
         const stripHeight = display.backImageHeight/display.zBuffer[x];
         const shadow = 1/display.zBuffer[x]*2;
@@ -295,15 +297,16 @@ function renderColumnOfWall(display: Display, wasmRenderer: WasmRenderer, cell: 
     }
 }
 
-function renderWalls(display: Display, wasmRenderer: WasmRenderer, assets: Assets, camera: Camera, scene: Scene) {
+function renderWalls(display: Display, wasmClient: WasmClient, assets: Assets, camera: Camera, scene: Scene) {
     const d = new Vector2().setPolar(camera.direction)
+    const walls = new Uint8ClampedArray(wasmClient.memory.buffer, scene.wallsPtr, scene.width*scene.height);
     for (let x = 0; x < display.backImageWidth; ++x) {
-        const p = castRay(scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageWidth));
+        const p = castRay(wasmClient, scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageWidth));
         const c = hittingCell(camera.position, p);
         const v = p.clone().sub(camera.position);
         display.zBuffer[x] = v.dot(d);
-        if (sceneGetTile(scene, c)) {
-            renderColumnOfWall(display, wasmRenderer, assets.wallImageData, x, p, c);
+        if (sceneGetTile(walls, scene, c)) {
+            renderColumnOfWall(display, wasmClient, assets.wallImageData, x, p, c);
         }
     }
 }
@@ -317,16 +320,13 @@ interface Display {
     zBuffer: Array<number>;
 }
 
-interface WasmRenderer {
-    wasm: WebAssembly.WebAssemblyInstantiatedSource,
-    memory: WebAssembly.Memory,
-    _initialize: () => void,
+interface WasmClient extends common.WasmCommon {
     allocate_pixels: (width: number, height: number) => number,
     render_floor_and_ceiling: (pixels: number, pixels_width: number, pixels_height: number, position_x: number, position_y: number, direction: number) => void,
 }
 
-function createDisplay(ctx: CanvasRenderingContext2D, wasmRenderer: WasmRenderer, width: number, height: number): Display {
-    const backImagePtr: number = wasmRenderer.allocate_pixels(width, height);
+function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, width: number, height: number): Display {
+    const backImagePtr: number = wasmClient.allocate_pixels(width, height);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null) throw new Error("2D context is not supported");
@@ -341,8 +341,8 @@ function createDisplay(ctx: CanvasRenderingContext2D, wasmRenderer: WasmRenderer
     };
 }
 
-function displaySwapBackImageData(display: Display, wasmRenderer: WasmRenderer) {
-    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
     display.backCtx.putImageData(new ImageData(backImageData, display.backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
@@ -393,8 +393,8 @@ function cullAndSortSprites(camera: Camera, spritePool: SpritePool, visibleSprit
     visibleSprites.sort((a, b) => b.pdist - a.pdist);
 }
 
-function renderSprites(display: Display, wasmRenderer: WasmRenderer, sprites: Array<Sprite>) {
-    const backImageData = new Uint8ClampedArray(wasmRenderer.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+function renderSprites(display: Display, wasmClient: WasmClient, sprites: Array<Sprite>) {
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
     for (let sprite of sprites) {
         const cx = display.backImageWidth*sprite.t;
         const cy = display.backImageHeight*0.5;
@@ -543,7 +543,8 @@ function allocateParticles(capacity: number): Array<Particle> {
     return bomb
 }
 
-function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene, particles: Array<Particle>) {
+function updateParticles(wasmCommon: common.WasmCommon, spritePool: SpritePool, deltaTime: number, scene: Scene, particles: Array<Particle>) {
+    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
     for (let particle of particles) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
@@ -551,7 +552,7 @@ function updateParticles(spritePool: SpritePool, deltaTime: number, scene: Scene
 
             const nx = particle.position.x + particle.velocity.x*deltaTime;
             const ny = particle.position.y + particle.velocity.y*deltaTime;
-            if (sceneGetTile(scene, new Vector2(nx, ny))) {
+            if (sceneGetTile(walls, scene, new Vector2(nx, ny))) {
                 const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
                 const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
 
@@ -608,11 +609,11 @@ function explodeBomb(bomb: common.Bomb, player: Player, assets: Assets, particle
     }
 }
 
-function updateBombs(ws: WebSocket, spritePool: SpritePool, player: Player, bombs: Array<common.Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, assets: Assets) {
+function updateBombs(wasmCommon: common.WasmCommon, ws: WebSocket, spritePool: SpritePool, player: Player, bombs: Array<common.Bomb>, particles: Array<Particle>, scene: Scene, deltaTime: number, assets: Assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             pushSprite(spritePool, assets.bombImageData, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE)
-            if (common.updateBomb(bomb, scene, deltaTime)) {
+            if (common.updateBomb(wasmCommon, bomb, scene, deltaTime)) {
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
 
@@ -646,7 +647,7 @@ interface Game {
     ping: number,
     dts: number[],
     level: common.Level,
-    wasmRenderer: WasmRenderer,
+    wasmClient: WasmClient,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -667,7 +668,7 @@ async function loadImageData(url: string): Promise<ImageData> {
     return ctx.getImageData(0, 0, image.width, image.height);
 }
 
-async function instantiateWasmRenderer(url: string): Promise<WasmRenderer> {
+async function instantiateWasmClient(url: string): Promise<WasmClient> {
     const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
         "env": make_environment({
             "fmodf": (x: number, y: number) => x%y,
@@ -680,6 +681,7 @@ async function instantiateWasmRenderer(url: string): Promise<WasmRenderer> {
         wasm,
         memory: wasm.instance.exports.memory as WebAssembly.Memory,
         _initialize: wasm.instance.exports._initialize as () => void,
+        allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
         allocate_pixels: wasm.instance.exports.allocate_pixels as (width: number, height: number) => number,
         render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling as (position_x: number, position_y: number, direction: number) => void,
     };
@@ -692,16 +694,16 @@ async function createGame(): Promise<Game> {
         bombImageData,
         playerImageData,
         nullImageData,
-        wasmRenderer
+        wasmClient
     ] = await Promise.all([
         loadImageData("assets/images/custom/wall.png"),
         loadImageData("assets/images/custom/key.png"),
         loadImageData("assets/images/custom/bomb.png"),
         loadImageData("assets/images/custom/player.png"),
         loadImageData("assets/images/custom/null.png"),
-        instantiateWasmRenderer("renderer.wasm"),
+        instantiateWasmClient("client.wasm"),
     ]);
-    wasmRenderer._initialize();
+    wasmClient._initialize();
 
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
@@ -747,12 +749,12 @@ async function createGame(): Promise<Game> {
         moving: 0,
         hue: 0,
     };
-    const level = common.createLevel();
+    const level = common.createLevel(wasmClient);
     // TODO: make a better initialization of the items on client
     for (const item of level.items) item.alive = false;
     const game: Game = {
         camera, ws, me, ping: 0, players, particles, assets, spritePool, visibleSprites, dts: [],
-        level, wasmRenderer
+        level, wasmClient
     };
 
     ws.binaryType = 'arraybuffer';
@@ -897,13 +899,13 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     resetSpritePool(game.spritePool);
 
     game.players.forEach((player) => {
-        if (player !== game.me) updatePlayer(player, game.level.scene, deltaTime)
+        if (player !== game.me) updatePlayer(game.wasmClient, player, game.level.scene, deltaTime)
     });
-    updatePlayer(game.me, game.level.scene, deltaTime);
+    updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
-    updateBombs(game.ws, game.spritePool, game.me, game.level.bombs, game.particles, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.spritePool, deltaTime, game.level.scene, game.particles)
+    updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particles, game.level.scene, deltaTime, game.assets);
+    updateParticles(game.wasmClient, game.spritePool, deltaTime, game.level.scene, game.particles)
 
     game.players.forEach((player) => {
         if (player !== game.me) {
@@ -912,13 +914,13 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    game.wasmRenderer.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2*Math.PI));
-    renderWalls(display, game.wasmRenderer, game.assets, game.camera, game.level.scene);
+    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2*Math.PI));
+    renderWalls(display, game.wasmClient, game.assets, game.camera, game.level.scene);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
-    renderSprites(display, game.wasmRenderer, game.visibleSprites);
-    displaySwapBackImageData(display, game.wasmRenderer);
+    renderSprites(display, game.wasmClient, game.visibleSprites);
+    displaySwapBackImageData(display, game.wasmClient);
 
-    if (MINIMAP) renderMinimap(display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
+    if (MINIMAP) renderMinimap(game.wasmClient, display.ctx, game.camera, game.me, game.level.scene, game.spritePool, game.visibleSprites);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 
@@ -951,7 +953,7 @@ function make_environment(...envs: any): any {
     // TODO: hot reloading should not break if the game crashes
 
     const game = await createGame();
-    const display = createDisplay(ctx, game.wasmRenderer, SCREEN_WIDTH, SCREEN_HEIGHT);
+    const display = createDisplay(ctx, game.wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
 
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {

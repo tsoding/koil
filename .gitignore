@@ -3,3 +3,4 @@ node_modules/
 .prettierignore
 tsconfig.tsbuildinfo
 *~
+*.wat
