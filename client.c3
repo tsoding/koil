@@ -7,7 +7,6 @@ const float FOV = math::PI*0.5;
 const float EPS = 1e-6;
 
 def Color = char[<4>];
-def Vector2 = float[<2>];
 
 fn Vector2 from_polar(float angle, float len) {
     return {math::cos(angle)*len, math::sin(angle)*len};
@@ -128,5 +127,93 @@ fn void render_column_of_wall(Color *display, int display_width, int display_hei
         display[destP].r = (char)(cell[srcP].r);
         display[destP].g = (char)(cell[srcP].g*shadow);
         display[destP].b = (char)(cell[srcP].b*shadow);
+    }
+}
+
+fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) {
+    float dx = p2.x - p1.x;
+    float dy = p2.y - p1.y;
+    return Vector2{math::floor(p2.x + math::copysign(1.0f, dx)*EPS),
+                   math::floor(p2.y + math::copysign(1.0f, dy)*EPS)};
+}
+
+fn float snap(float x, float dx) {
+    if (dx > 0) return math::ceil(x + math::copysign(1.0f, dx)*EPS);
+    if (dx < 0) return math::floor(x + math::copysign(1.0f, dx)*EPS);
+    return x;
+}
+
+fn Vector2 ray_step(Vector2 p1, Vector2 p2) {
+    // y = k*x + c
+    // x = (y - c)/k
+    //
+    // p1 = (x1, y1)
+    // p2 = (x2, y2)
+    //
+    // | y1 = k*x1 + c
+    // | y2 = k*x2 + c
+    //
+    // dy = y2 - y1
+    // dx = x2 - x1
+    // c = y1 - k*x1
+    // k = dy/dx
+    Vector2 p3 = p2;
+    float dx = p2.x - p1.x;
+    float dy = p2.y - p1.y;
+    if (dx != 0) {
+        float k = dy/dx;
+        float c = p1.y - k*p1.x;
+
+        {
+            float x3 = snap(p2.x, dx);
+            float y3 = x3*k + c;
+            p3 = {x3, y3};
+        }
+
+        if (k != 0) {
+            float y3 = snap(p2.y, dy);
+            float x3 = (y3 - c)/k;
+            Vector2 p3t = {x3, y3};
+            if (p2.distance(p3t) < p2.distance(p3)) {
+                p3 = p3t;
+            }
+        }
+    } else {
+        float y3 = snap(p2.y, dy);
+        float x3 = p2.x;
+        p3 = {x3, y3};
+    }
+
+    return p3;
+}
+
+fn Vector2 cast_ray(bool *scene, int scene_width, int scene_height, Vector2 p1, Vector2 p2) {
+    Vector2 start = p1;
+    while (start.distance(p1) < FAR_CLIPPING_PLANE) {
+        Vector2 c = hitting_cell(p1, p2);
+        if (common::scene_get_tile(scene, scene_width, scene_height, c)) break;
+        Vector2 p3 = ray_step(p1, p2);
+        p1 = p2;
+        p2 = p3;
+    }
+    return p2;
+}
+
+fn void render_walls(Color *display, int display_width, int display_height, float *zbuffer,
+                     Color *wall, int wall_width, int wall_height,
+                     float position_x, float position_y, float direction,
+                     bool *scene, int scene_width, int scene_height) @extern("render_walls") @wasm {
+    Camera camera = { .position = {position_x, position_y}, .direction = direction };
+    camera.update();
+
+    Vector2 d = from_polar(direction, 1.0f);
+    for (int x = 0; x < display_width; ++x) {
+        Vector2 p = cast_ray(scene, scene_width, scene_height, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display_width));
+        Vector2 c = hitting_cell(camera.position, p);
+        Vector2 v = p - camera.position;
+        zbuffer[x] = v.dot(d);
+        if (common::scene_get_tile(scene, scene_width, scene_height, c)) {
+            render_column_of_wall(display, display_width, display_height, zbuffer, wall, wall_width, wall_height, x, p.x, p.y, c.x, c.y);
+        }
     }
 }

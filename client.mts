@@ -251,21 +251,6 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
     }
 }
 
-function renderWalls(display: Display, wasmClient: WasmClient, assets: Assets, camera: Camera, scene: Scene) {
-    const d = new Vector2().setPolar(camera.direction)
-    const walls = new Uint8ClampedArray(wasmClient.memory.buffer, scene.wallsPtr, scene.width*scene.height);
-    const zBuffer = new Float32Array(wasmClient.memory.buffer, display.zBufferPtr, display.backImageWidth);
-    for (let x = 0; x < display.backImageWidth; ++x) {
-        const p = castRay(wasmClient, scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x/display.backImageWidth));
-        const c = hittingCell(camera.position, p);
-        const v = p.clone().sub(camera.position);
-        zBuffer[x] = v.dot(d);
-        if (sceneGetTile(walls, scene, c)) {
-            wasmClient.render_column_of_wall(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, assets.wallImage.ptr, assets.wallImage.width, assets.wallImage.height, x, p.x, p.y, c.x, c.y);
-        }
-    }
-}
-
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
@@ -280,6 +265,7 @@ interface WasmClient extends common.WasmCommon {
     allocate_zbuffer: (width: number) => number,
     render_floor_and_ceiling: (pixels: number, pixels_width: number, pixels_height: number, position_x: number, position_y: number, direction: number) => void,
     render_column_of_wall: (display: number, display_width: number, display_height: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
+    render_walls: (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void;
 }
 
 function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, width: number, height: number): Display {
@@ -659,6 +645,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
         render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling as (position_x: number, position_y: number, direction: number) => void,
         render_column_of_wall: wasm.instance.exports.render_column_of_wall as (display: number, display_width: number, display_height: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
+        render_walls: wasm.instance.exports.render_walls as (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void,
     };
 }
 
@@ -890,7 +877,11 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     })
 
     game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2*Math.PI));
-    renderWalls(display, game.wasmClient, game.assets, game.camera, game.level.scene);
+    game.wasmClient.render_walls(
+        display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr,
+        game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height,
+        game.camera.position.x, game.camera.position.y, game.camera.direction,
+        game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.wasmClient, game.visibleSprites);
     displaySwapBackImageData(display, game.wasmClient);

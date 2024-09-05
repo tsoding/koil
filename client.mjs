@@ -183,20 +183,6 @@ function renderDebugInfo(ctx, deltaTime, game) {
         ctx.fillText(labels[i], padding + shadowOffset, padding - shadowOffset + fontSize * i);
     }
 }
-function renderWalls(display, wasmClient, assets, camera, scene) {
-    const d = new Vector2().setPolar(camera.direction);
-    const walls = new Uint8ClampedArray(wasmClient.memory.buffer, scene.wallsPtr, scene.width * scene.height);
-    const zBuffer = new Float32Array(wasmClient.memory.buffer, display.zBufferPtr, display.backImageWidth);
-    for (let x = 0; x < display.backImageWidth; ++x) {
-        const p = castRay(wasmClient, scene, camera.position, camera.fovLeft.clone().lerp(camera.fovRight, x / display.backImageWidth));
-        const c = hittingCell(camera.position, p);
-        const v = p.clone().sub(camera.position);
-        zBuffer[x] = v.dot(d);
-        if (sceneGetTile(walls, scene, c)) {
-            wasmClient.render_column_of_wall(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, assets.wallImage.ptr, assets.wallImage.width, assets.wallImage.height, x, p.x, p.y, c.x, c.y);
-        }
-    }
-}
 function createDisplay(ctx, wasmClient, width, height) {
     const backImagePtr = wasmClient.allocate_pixels(width, height);
     const zBufferPtr = wasmClient.allocate_zbuffer(width);
@@ -504,6 +490,7 @@ async function instantiateWasmClient(url) {
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
         render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling,
         render_column_of_wall: wasm.instance.exports.render_column_of_wall,
+        render_walls: wasm.instance.exports.render_walls,
     };
 }
 async function createGame() {
@@ -717,7 +704,7 @@ function renderGame(display, deltaTime, time, game) {
         }
     });
     game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
-    renderWalls(display, game.wasmClient, game.assets, game.camera, game.level.scene);
+    game.wasmClient.render_walls(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.wasmClient, game.visibleSprites);
     displaySwapBackImageData(display, game.wasmClient);
