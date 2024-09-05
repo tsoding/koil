@@ -4,6 +4,7 @@ import common;
 const float NEAR_CLIPPING_PLANE = 0.1;
 const float FAR_CLIPPING_PLANE = 10.0;
 const float FOV = math::PI*0.5;
+const float EPS = 1e-6;
 
 def Color = char[<4>];
 def Vector2 = float[<2>];
@@ -30,6 +31,12 @@ fn Color* allocate_pixels(int width, int height) @extern("allocate_pixels") @was
 {
     Color[] pixels = mem::new_array(Color, width*height);
     return &pixels[0];
+}
+
+fn float *allocate_zbuffer(int width) @extern("allocate_zbuffer") @wasm
+{
+    float[] zbuffer = mem::new_array(float, width);
+    return &zbuffer[0];
 }
 
 const Color SCENE_FLOOR1   = {0x17, 0x29, 0x29, 0xff};
@@ -85,5 +92,41 @@ fn void render_floor_and_ceiling(Color *pixels, int pixels_width, int pixels_hei
             pixels[y*pixels_width + x] = {(char[<3>])((float[<3>])sceneGetFloor(t).rgb*fog).clamp(low, high), 255};
             pixels[sz*pixels_width + x] = {(char[<3>])((float[<3>])sceneGetCeiling(t).rgb*fog).clamp(low, high), 255};
         }
+    }
+}
+
+fn void render_column_of_wall(Color *display, int display_width, int display_height, float *zbuffer,
+                              Color *cell, int cell_width, int cell_height,
+                              int x, float px, float py, float cx, float cy) @extern("render_column_of_wall") @wasm {
+    float strip_height = display_height/zbuffer[x];
+    float u = 0;
+    Vector2 p = {px, py};
+    Vector2 c = {cx, cy};
+    Vector2 t = p - c;
+    if (math::abs(t.x) < EPS && t.y > 0) {
+        u = t.y;
+    } else if (math::abs(t.x - 1) < EPS && t.y > 0) {
+        u = 1 - t.y;
+    } else if (math::abs(t.y) < EPS && t.x > 0) {
+        u = 1 - t.x;
+    } else {
+        u = t.x;
+    }
+
+    float y1f = (display_height - strip_height)*0.5f; 
+    int y1 = (int)math::ceil(y1f);
+    int y2 = (int)math::floor(y1 + strip_height);
+    int by1 = math::max(0, y1);
+    int by2 = math::min(display_height, y2);
+    int tx = (int)math::floor(u*cell_width);
+    float sh = cell_height / strip_height;
+    float shadow = math::min(1.0f/zbuffer[x]*4.0f, 1.0f);
+    for (int y = by1; y < by2; ++y) {
+        int ty = (int)math::floor((y - y1f)*sh);
+        int destP = y*display_width + x;
+        int srcP = ty*cell_width + tx;
+        display[destP].r = (char)(cell[srcP].r);
+        display[destP].g = (char)(cell[srcP].g*shadow);
+        display[destP].b = (char)(cell[srcP].b*shadow);
     }
 }

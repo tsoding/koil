@@ -419,6 +419,7 @@ function tick() {
     bytesReceivedWithinTick = 0;
     messagesRecievedWithinTick = 0;
     if (Stats.ticksCount.counter % SERVER_FPS === 0) {
+        Stats.print();
     }
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
