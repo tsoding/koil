@@ -1,6 +1,5 @@
 import * as common from './common.mjs';
 import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, clamp, properMod } from './common.mjs';
-const EPS = 1e-6;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI * 0.5;
@@ -44,59 +43,6 @@ function strokeLine(ctx, p1, p2) {
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
     ctx.stroke();
-}
-function snap(x, dx) {
-    if (dx > 0)
-        return Math.ceil(x + Math.sign(dx) * EPS);
-    if (dx < 0)
-        return Math.floor(x + Math.sign(dx) * EPS);
-    return x;
-}
-function hittingCell(p1, p2) {
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    return new Vector2(Math.floor(p2.x + Math.sign(dx) * EPS), Math.floor(p2.y + Math.sign(dy) * EPS));
-}
-function rayStep(p1, p2) {
-    let p3 = p2.clone();
-    const dx = p2.x - p1.x;
-    const dy = p2.y - p1.y;
-    if (dx !== 0) {
-        const k = dy / dx;
-        const c = p1.y - k * p1.x;
-        {
-            const x3 = snap(p2.x, dx);
-            const y3 = x3 * k + c;
-            p3.set(x3, y3);
-        }
-        if (k !== 0) {
-            const y3 = snap(p2.y, dy);
-            const x3 = (y3 - c) / k;
-            const p3t = new Vector2(x3, y3);
-            if (p2.sqrDistanceTo(p3t) < p2.sqrDistanceTo(p3)) {
-                p3.copy(p3t);
-            }
-        }
-    }
-    else {
-        const y3 = snap(p2.y, dy);
-        const x3 = p2.x;
-        p3.set(x3, y3);
-    }
-    return p3;
-}
-function castRay(wasmCommon, scene, p1, p2) {
-    let start = p1;
-    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width * scene.height);
-    while (start.sqrDistanceTo(p1) < FAR_CLIPPING_PLANE * FAR_CLIPPING_PLANE) {
-        const c = hittingCell(p1, p2);
-        if (sceneGetTile(walls, scene, c))
-            break;
-        const p3 = rayStep(p1, p2);
-        p1 = p2;
-        p2 = p3;
-    }
-    return p2;
 }
 function renderMinimap(wasmCommon, ctx, camera, player, scene, spritePool, visibleSprites) {
     ctx.save();

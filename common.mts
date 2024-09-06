@@ -279,18 +279,6 @@ function allocUint8Field(allocator: { size: number }): Field {
     }
 }
 
-function allocUint16Field(allocator: { size: number }): Field {
-    const offset = allocator.size;
-    const size = UINT16_SIZE;
-    allocator.size += size;
-    return {
-        offset,
-        size,
-        read: (view) => view.getUint16(offset),
-        write: (view, value) => view.setUint16(offset, value)
-    }
-}
-
 function allocUint32Field(allocator: { size: number }): Field {
     const offset = allocator.size;
     const size = UINT32_SIZE;
