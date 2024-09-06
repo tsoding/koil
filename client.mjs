@@ -1,5 +1,5 @@
 import * as common from './common.mjs';
-import { RGBA, Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, clamp, properMod } from './common.mjs';
+import { Vector2, Vector3, sceneGetTile, updatePlayer, PLAYER_SIZE, SERVER_PORT, clamp, properMod } from './common.mjs';
 const NEAR_CLIPPING_PLANE = 0.1;
 const FAR_CLIPPING_PLANE = 10.0;
 const FOV = Math.PI * 0.5;
@@ -13,7 +13,6 @@ const PARTICLE_LIFETIME = 1.0;
 const PARTICLE_DAMP = 0.8;
 const PARTICLE_SCALE = 0.05;
 const PARTICLE_MAX_SPEED = 8;
-const PARTICLE_COLOR = new RGBA(1, 0.5, 0.15, 1);
 const MINIMAP = false;
 const MINIMAP_SPRITES = true;
 const MINIMAP_SPRITE_SIZE = 0.2;

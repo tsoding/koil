@@ -1,6 +1,6 @@
 import * as common from './common.mjs';
 import {
-    RGBA, Vector2, Vector3, Scene, Player,
+    Vector2, Vector3, Scene, Player,
     sceneGetTile, updatePlayer,
     PLAYER_SIZE, SERVER_PORT,
     clamp, properMod
@@ -23,7 +23,6 @@ const PARTICLE_LIFETIME = 1.0;
 const PARTICLE_DAMP = 0.8;
 const PARTICLE_SCALE = 0.05;
 const PARTICLE_MAX_SPEED = 8;
-const PARTICLE_COLOR = new RGBA(1, 0.5, 0.15, 1);
 
 const MINIMAP = false;
 const MINIMAP_SPRITES = true;

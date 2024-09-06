@@ -7,25 +7,6 @@ export const BOMB_THROW_VELOCITY = 5;
 export const BOMB_GRAVITY = 10;
 export const BOMB_DAMP = 0.8;
 export const BOMB_SCALE = 0.25;
-export class RGBA {
-    r;
-    g;
-    b;
-    a;
-    constructor(r, g, b, a) {
-        this.r = r;
-        this.g = g;
-        this.b = b;
-        this.a = a;
-    }
-    toStyle() {
-        return `rgba(`
-            + `${Math.floor(this.r * 255)}, `
-            + `${Math.floor(this.g * 255)}, `
-            + `${Math.floor(this.b * 255)}, `
-            + `${this.a})`;
-    }
-}
 export class Vector2 {
     x;
     y;
