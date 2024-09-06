@@ -278,7 +278,7 @@ function updateCamera(player, camera) {
     const halfFov = FOV * 0.5;
     const fovLen = NEAR_CLIPPING_PLANE / Math.cos(halfFov);
     camera.position.copy(player.position);
-    camera.direction = player.direction;
+    camera.direction = properMod(player.direction, 2 * Math.PI);
     camera.fovLeft.setPolar(camera.direction - halfFov, fovLen).add(camera.position);
     camera.fovRight.setPolar(camera.direction + halfFov, fovLen).add(camera.position);
 }
@@ -649,7 +649,7 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImage, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, properMod(game.camera.direction, 2 * Math.PI));
+    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, game.camera.direction);
     game.wasmClient.render_walls(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.wasmClient, game.visibleSprites);
