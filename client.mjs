@@ -195,35 +195,19 @@ function renderSprites(display, wasmClient, sprites) {
         const y2 = Math.floor(y1 + spriteSize - 1);
         const by1 = Math.max(0, y1);
         const by2 = Math.min(display.backImageHeight - 1, y2);
-        if (sprite.image instanceof WasmImage) {
-            const src = new Uint8ClampedArray(wasmClient.memory.buffer, sprite.image.ptr, sprite.image.width * sprite.image.height * 4);
-            const dest = backImageData;
-            for (let x = bx1; x <= bx2; ++x) {
-                if (sprite.pdist < zBuffer[x]) {
-                    for (let y = by1; y <= by2; ++y) {
-                        const tx = Math.floor((x - x1) / spriteSize * sprite.cropSize.x);
-                        const ty = Math.floor((y - y1) / spriteSize * sprite.cropSize.y);
-                        const srcP = ((ty + sprite.cropPosition.y) * sprite.image.width + (tx + sprite.cropPosition.x)) * 4;
-                        const destP = (y * display.backImageWidth + x) * 4;
-                        const alpha = src[srcP + 3] / 255;
-                        dest[destP + 0] = dest[destP + 0] * (1 - alpha) + src[srcP + 0] * alpha;
-                        dest[destP + 1] = dest[destP + 1] * (1 - alpha) + src[srcP + 1] * alpha;
-                        dest[destP + 2] = dest[destP + 2] * (1 - alpha) + src[srcP + 2] * alpha;
-                    }
-                }
-            }
-        }
-        else if (sprite.image instanceof RGBA) {
-            const dest = backImageData;
-            for (let x = bx1; x <= bx2; ++x) {
-                if (sprite.pdist < zBuffer[x]) {
-                    for (let y = by1; y <= by2; ++y) {
-                        const destP = (y * display.backImageWidth + x) * 4;
-                        const alpha = sprite.image.a;
-                        dest[destP + 0] = dest[destP + 0] * (1 - alpha) + sprite.image.r * 255 * alpha;
-                        dest[destP + 1] = dest[destP + 1] * (1 - alpha) + sprite.image.g * 255 * alpha;
-                        dest[destP + 2] = dest[destP + 2] * (1 - alpha) + sprite.image.b * 255 * alpha;
-                    }
+        const src = new Uint8ClampedArray(wasmClient.memory.buffer, sprite.image.ptr, sprite.image.width * sprite.image.height * 4);
+        const dest = backImageData;
+        for (let x = bx1; x <= bx2; ++x) {
+            if (sprite.pdist < zBuffer[x]) {
+                for (let y = by1; y <= by2; ++y) {
+                    const tx = Math.floor((x - x1) / spriteSize * sprite.cropSize.x);
+                    const ty = Math.floor((y - y1) / spriteSize * sprite.cropSize.y);
+                    const srcP = ((ty + sprite.cropPosition.y) * sprite.image.width + (tx + sprite.cropPosition.x)) * 4;
+                    const destP = (y * display.backImageWidth + x) * 4;
+                    const alpha = src[srcP + 3] / 255;
+                    dest[destP + 0] = dest[destP + 0] * (1 - alpha) + src[srcP + 0] * alpha;
+                    dest[destP + 1] = dest[destP + 1] * (1 - alpha) + src[srcP + 1] * alpha;
+                    dest[destP + 2] = dest[destP + 2] * (1 - alpha) + src[srcP + 2] * alpha;
                 }
             }
         }
@@ -314,7 +298,7 @@ function allocateParticles(capacity) {
     }
     return bomb;
 }
-function updateParticles(wasmCommon, spritePool, deltaTime, scene, particles) {
+function updateParticles(assets, wasmCommon, spritePool, deltaTime, scene, particles) {
     const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width * scene.height);
     for (let particle of particles) {
         if (particle.lifetime > 0) {
@@ -344,7 +328,7 @@ function updateParticles(wasmCommon, spritePool, deltaTime, scene, particles) {
                 particle.position.z = nz;
             }
             if (particle.lifetime > 0) {
-                pushSprite(spritePool, PARTICLE_COLOR, new Vector2(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
+                pushSprite(spritePool, assets.particleImage, new Vector2(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
             }
         }
     }
@@ -442,11 +426,12 @@ async function instantiateWasmClient(url) {
 async function createGame() {
     const wasmClient = await instantiateWasmClient("client.wasm");
     wasmClient._initialize();
-    const [wallImage, keyImage, bombImage, playerImage, nullImage,] = await Promise.all([
+    const [wallImage, keyImage, bombImage, playerImage, particleImage, nullImage,] = await Promise.all([
         loadWasmImage(wasmClient, "assets/images/custom/wall.png"),
         loadWasmImage(wasmClient, "assets/images/custom/key.png"),
         loadWasmImage(wasmClient, "assets/images/custom/bomb.png"),
         loadWasmImage(wasmClient, "assets/images/custom/player.png"),
+        loadWasmImage(wasmClient, "assets/images/custom/particle.png"),
         loadWasmImage(wasmClient, "assets/images/custom/null.png"),
     ]);
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
@@ -457,6 +442,7 @@ async function createGame() {
         keyImage,
         bombImage,
         playerImage,
+        particleImage,
         nullImage,
         bombRicochetSound,
         itemPickupSound,
@@ -642,7 +628,7 @@ function renderGame(display, deltaTime, time, game) {
     updateCamera(game.me, game.camera);
     updateItems(game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
     updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particles, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.wasmClient, game.spritePool, deltaTime, game.level.scene, game.particles);
+    updateParticles(game.assets, game.wasmClient, game.spritePool, deltaTime, game.level.scene, game.particles);
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
