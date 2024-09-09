@@ -2,11 +2,14 @@
   "name": "raycasting",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "build": "node build.js",
+    "build": "node --experimental-strip-types build.ts",
     "watch": "tsc -w",
-    "serve": "node serve.js"
+    "serve": "node --experimental-strip-types serve.ts"
+  },
+  "engines" : {
+    "node" : ">=22.6.0"
   },
   "author": "Alexey Kutepov <reximkut@gmail.com>",
   "license": "MIT",
@@ -15,7 +18,7 @@
   },
   "devDependencies": {
     "http-server": "^14.1.1",
-    "typescript": "^5.4.5",
+    "typescript": "^5.5.4",
     "@types/ws": "^8.5.10"
   }
 }

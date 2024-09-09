@@ -31,7 +31,7 @@ const MINIMAP_SCALE = 0.07;
 
 const SPRITE_ANGLES_COUNT = 8;
 
-const CONTROL_KEYS: {[key: string]: common.Moving} = {
+const CONTROL_KEYS: Record<string, common.Moving> = {
     'ArrowLeft'  : common.Moving.TurningLeft,
     'ArrowRight' : common.Moving.TurningRight,
     'ArrowUp'    : common.Moving.MovingForward,
