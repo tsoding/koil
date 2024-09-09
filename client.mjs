@@ -129,7 +129,7 @@ function renderDebugInfo(ctx, deltaTime, game) {
     }
 }
 function createDisplay(ctx, wasmClient, width, height) {
-    const backImagePtr = wasmClient.allocate_pixels(width, height);
+    const backImagePtr = wasmClient.allocate_buffer(width, height);
     const zBufferPtr = wasmClient.allocate_zbuffer(width);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
@@ -146,7 +146,7 @@ function createDisplay(ctx, wasmClient, width, height) {
     };
 }
 function displaySwapBackImageData(display, wasmClient) {
-    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth * display.backImageHeight * 4);
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr + 24, display.backImageWidth * display.backImageHeight * 4);
     display.backCtx.putImageData(new ImageData(backImageData, display.backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
@@ -179,7 +179,7 @@ function cullAndSortSprites(camera, spritePool, visibleSprites) {
     visibleSprites.sort((a, b) => b.pdist - a.pdist);
 }
 function renderSprites(display, wasmClient, sprites) {
-    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth * display.backImageHeight * 4);
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr + 24, display.backImageWidth * display.backImageHeight * 4);
     const zBuffer = new Float32Array(wasmClient.memory.buffer, display.zBufferPtr, display.backImageWidth);
     for (let sprite of sprites) {
         const cx = display.backImageWidth * sprite.t;
@@ -416,6 +416,7 @@ async function instantiateWasmClient(url) {
         _initialize: wasm.instance.exports._initialize,
         allocate_scene: wasm.instance.exports.allocate_scene,
         allocate_pixels: wasm.instance.exports.allocate_pixels,
+        allocate_buffer: wasm.instance.exports.allocate_buffer,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
         render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling,
         render_column_of_wall: wasm.instance.exports.render_column_of_wall,
@@ -634,8 +635,8 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.spritePool, game.assets.playerImage, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, game.camera.direction);
-    game.wasmClient.render_walls(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
+    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, game.camera.position.x, game.camera.position.y, game.camera.direction);
+    game.wasmClient.render_walls(display.backImagePtr, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
     cullAndSortSprites(game.camera, game.spritePool, game.visibleSprites);
     renderSprites(display, game.wasmClient, game.visibleSprites);
     displaySwapBackImageData(display, game.wasmClient);

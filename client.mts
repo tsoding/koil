@@ -188,14 +188,15 @@ interface Display {
 
 interface WasmClient extends common.WasmCommon {
     allocate_pixels: (width: number, height: number) => number,
+    allocate_buffer: (width: number, height: number) => number,
     allocate_zbuffer: (width: number) => number,
-    render_floor_and_ceiling: (pixels: number, pixels_width: number, pixels_height: number, position_x: number, position_y: number, direction: number) => void,
-    render_column_of_wall: (display: number, display_width: number, display_height: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
-    render_walls: (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void;
+    render_floor_and_ceiling: (display: number, position_x: number, position_y: number, direction: number) => void,
+    render_column_of_wall: (display: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
+    render_walls: (display: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void;
 }
 
 function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, width: number, height: number): Display {
-    const backImagePtr: number = wasmClient.allocate_pixels(width, height);
+    const backImagePtr: number = wasmClient.allocate_buffer(width, height);
     const zBufferPtr: number = wasmClient.allocate_zbuffer(width);
     const backCanvas = new OffscreenCanvas(width, height);
     const backCtx = backCanvas.getContext("2d");
@@ -212,7 +213,7 @@ function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, wi
 }
 
 function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
-    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr+24, display.backImageWidth*display.backImageHeight*4);
     display.backCtx.putImageData(new ImageData(backImageData, display.backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
@@ -264,7 +265,7 @@ function cullAndSortSprites(camera: Camera, spritePool: SpritePool, visibleSprit
 }
 
 function renderSprites(display: Display, wasmClient: WasmClient, sprites: Array<Sprite>) {
-    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr+24, display.backImageWidth*display.backImageHeight*4);
     const zBuffer = new Float32Array(wasmClient.memory.buffer, display.zBufferPtr, display.backImageWidth);
     for (let sprite of sprites) {
         const cx = display.backImageWidth*sprite.t;
@@ -554,10 +555,11 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         _initialize: wasm.instance.exports._initialize as () => void,
         allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
         allocate_pixels: wasm.instance.exports.allocate_pixels as (width: number, height: number) => number,
+        allocate_buffer: wasm.instance.exports.allocate_buffer as (width: number, height: number) => number,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
-        render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling as (position_x: number, position_y: number, direction: number) => void,
-        render_column_of_wall: wasm.instance.exports.render_column_of_wall as (display: number, display_width: number, display_height: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
-        render_walls: wasm.instance.exports.render_walls as (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void,
+        render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling as (display: number, position_x: number, position_y: number, direction: number) => void,
+        render_column_of_wall: wasm.instance.exports.render_column_of_wall as (display: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
+        render_walls: wasm.instance.exports.render_walls as (display: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void,
     };
 }
 
@@ -791,9 +793,9 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, game.camera.direction);
+    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, game.camera.position.x, game.camera.position.y, game.camera.direction);
     game.wasmClient.render_walls(
-        display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr,
+        display.backImagePtr, display.zBufferPtr,
         game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height,
         game.camera.position.x, game.camera.position.y, game.camera.direction,
         game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);

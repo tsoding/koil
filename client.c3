@@ -38,6 +38,21 @@ fn float *allocate_zbuffer(int width) @extern("allocate_zbuffer") @wasm
     return &zbuffer[0];
 }
 
+struct Buffer {
+    Color [] data;
+    int width;
+    int height;
+}
+
+fn Buffer* allocate_buffer(int width, int height) @extern("allocate_buffer") @wasm
+{
+    return mem::new(Buffer, {
+        mem::new_array(Color, width*height),
+        width,
+        height
+    });
+}
+
 const Color SCENE_FLOOR1   = {0x17, 0x29, 0x29, 0xff};
 const Color SCENE_FLOOR2   = {0x2f, 0x41, 0x41, 0xff};
 const Color SCENE_CEILING1 = {0x29, 0x17, 0x17, 0xff};
@@ -59,14 +74,14 @@ fn Color sceneGetCeiling(Vector2 p) {
     }
 }
 
-fn void render_floor_and_ceiling(Color *pixels, int pixels_width, int pixels_height, float position_x, float position_y, float direction) @extern("render_floor_and_ceiling") @wasm {
+fn void render_floor_and_ceiling(Buffer *display, float position_x, float position_y, float direction) @extern("render_floor_and_ceiling") @wasm {
     Camera camera = { .position = {position_x, position_y}, .direction = direction };
     camera.update();
 
-    int pz = pixels_height/2;
+    int pz = display.height/2;
     float bp = (camera.fovLeft - camera.position).length();
-    for (int y = pixels_height/2; y < pixels_height; ++y) {
-        int sz = pixels_height - y - 1;
+    for (int y = display.height/2; y < display.height; ++y) {
+        int sz = display.height - y - 1;
 
         int ap = pz - sz;
         float b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
@@ -82,22 +97,22 @@ fn void render_floor_and_ceiling(Color *pixels, int pixels_width, int pixels_hei
         //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
         //   fewer rows.
 
-        for (int x = 0; x < pixels_width; ++x) {
-            Vector2 t = t1.lerp(t2, (float)x/pixels_width);
+        for (int x = 0; x < display.width; ++x) {
+            Vector2 t = t1.lerp(t2, (float)x/display.width);
 
             float fog = (t - camera.position).length();
             float[<3>] low = 0;
             float[<3>] high = 255;
-            pixels[y*pixels_width + x] = {(char[<3>])((float[<3>])sceneGetFloor(t).rgb*fog).clamp(low, high), 255};
-            pixels[sz*pixels_width + x] = {(char[<3>])((float[<3>])sceneGetCeiling(t).rgb*fog).clamp(low, high), 255};
+            display.data[y*display.width + x] = {(char[<3>])((float[<3>])sceneGetFloor(t).rgb*fog).clamp(low, high), 255};
+            display.data[sz*display.width + x] = {(char[<3>])((float[<3>])sceneGetCeiling(t).rgb*fog).clamp(low, high), 255};
         }
     }
 }
 
-fn void render_column_of_wall(Color *display, int display_width, int display_height, float *zbuffer,
+fn void render_column_of_wall(Buffer *display, float *zbuffer,
                               Color *cell, int cell_width, int cell_height,
                               int x, float px, float py, float cx, float cy) @extern("render_column_of_wall") @wasm {
-    float strip_height = display_height/zbuffer[x];
+    float strip_height = display.height/zbuffer[x];
     float u = 0;
     Vector2 p = {px, py};
     Vector2 c = {cx, cy};
@@ -112,21 +127,21 @@ fn void render_column_of_wall(Color *display, int display_width, int display_hei
         u = t.x;
     }
 
-    float y1f = (display_height - strip_height)*0.5f; 
+    float y1f = (display.height - strip_height)*0.5f;
     int y1 = (int)math::ceil(y1f);
     int y2 = (int)math::floor(y1 + strip_height);
     int by1 = math::max(0, y1);
-    int by2 = math::min(display_height, y2);
+    int by2 = math::min(display.height, y2);
     int tx = (int)math::floor(u*cell_width);
     float sh = cell_height / strip_height;
     float shadow = math::min(1.0f/zbuffer[x]*4.0f, 1.0f);
     for (int y = by1; y < by2; ++y) {
         int ty = (int)math::floor((y - y1f)*sh);
-        int destP = y*display_width + x;
+        int destP = y*display.width + x;
         int srcP = ty*cell_width + tx;
-        display[destP].r = (char)(cell[srcP].r);
-        display[destP].g = (char)(cell[srcP].g*shadow);
-        display[destP].b = (char)(cell[srcP].b*shadow);
+        display.data[destP].r = (char)(cell[srcP].r);
+        display.data[destP].g = (char)(cell[srcP].g*shadow);
+        display.data[destP].b = (char)(cell[srcP].b*shadow);
     }
 }
 
@@ -199,7 +214,7 @@ fn Vector2 cast_ray(bool *scene, int scene_width, int scene_height, Vector2 p1, 
     return p2;
 }
 
-fn void render_walls(Color *display, int display_width, int display_height, float *zbuffer,
+fn void render_walls(Buffer *display, float *zbuffer,
                      Color *wall, int wall_width, int wall_height,
                      float position_x, float position_y, float direction,
                      bool *scene, int scene_width, int scene_height) @extern("render_walls") @wasm {
@@ -207,13 +222,13 @@ fn void render_walls(Color *display, int display_width, int display_height, floa
     camera.update();
 
     Vector2 d = from_polar(direction, 1.0f);
-    for (int x = 0; x < display_width; ++x) {
-        Vector2 p = cast_ray(scene, scene_width, scene_height, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display_width));
+    for (int x = 0; x < display.width; ++x) {
+        Vector2 p = cast_ray(scene, scene_width, scene_height, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display.width));
         Vector2 c = hitting_cell(camera.position, p);
         Vector2 v = p - camera.position;
         zbuffer[x] = v.dot(d);
         if (common::scene_get_tile(scene, scene_width, scene_height, c)) {
-            render_column_of_wall(display, display_width, display_height, zbuffer, wall, wall_width, wall_height, x, p.x, p.y, c.x, c.y);
+            render_column_of_wall(display, zbuffer, wall, wall_width, wall_height, x, p.x, p.y, c.x, c.y);
         }
     }
 }
