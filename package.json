@@ -4,12 +4,12 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "build": "node --experimental-strip-types build.ts",
+    "build": "node --experimental-transform-types build.ts",
     "watch": "tsc -w",
-    "serve": "node --experimental-strip-types serve.ts"
+    "serve": "node --experimental-transform-types serve.ts"
   },
   "engines" : {
-    "node" : ">=22.6.0"
+    "node" : ">=22.7.0"
   },
   "author": "Alexey Kutepov <reximkut@gmail.com>",
   "license": "MIT",

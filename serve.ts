@@ -15,6 +15,6 @@ function cmd(program : string, args: string[] = [] ): ReturnType<typeof spawn> {
     return p;
 }
 
-cmd('node', ["--experimental-strip-types", 'server.mts'])
+cmd('node', ["--experimental-transform-types", 'server.mts'])
 // TODO: prod mode where we are listening to address 0.0.0.0
 cmd('http-server', ['-p', '6969', '-a', '127.0.0.1', '-s', '-c-1', '-d', 'false'])
