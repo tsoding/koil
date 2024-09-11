@@ -5,8 +5,49 @@ const float NEAR_CLIPPING_PLANE = 0.1;
 const float FAR_CLIPPING_PLANE = 10.0;
 const float FOV = math::PI*0.5;
 const float EPS = 1e-6;
+const usz SPRITE_POOL_CAPACITY = 100;
+
+const bool MINIMAP_SPRITES = true;
+const float MINIMAP_SPRITE_SIZE = 0.2;
+const float MINIMAP_SCALE = 0.07;
 
 def Color = char[<4>];
+
+struct Image {
+    Color *pixels;
+    int width;
+    int height;
+}
+
+struct Sprite {
+    Image image;
+    // TODO: Use Vector3 instead
+    Vector2 position;
+    float z;
+    float scale;
+    Vector2 crop_position;
+    Vector2 crop_size;
+
+    float dist;  // Actual distance.
+    float pdist; // Perpendicular distance.
+    float t;     // Normalized horizontal position on the screen
+}
+
+struct SpritePool {
+    Sprite[SPRITE_POOL_CAPACITY] items;
+    int length;
+    Sprite[SPRITE_POOL_CAPACITY] visible_items;
+    int visible_length;
+}
+
+fn Sprite *allocate_sprite_pool() @extern("allocate_sprite_pool") @wasm {
+    return mem::new(Sprite);
+}
+
+fn void reset_sprite_pool(SpritePool *sprite_pool) @extern("reset_sprite_pool") @wasm {
+    sprite_pool.length = 0;
+    sprite_pool.visible_length = 0;
+}
 
 fn Vector2 from_polar(float angle, float len) {
     return {math::cos(angle)*len, math::sin(angle)*len};
@@ -216,4 +257,203 @@ fn void render_walls(Color *display, int display_width, int display_height, floa
             render_column_of_wall(display, display_width, display_height, zbuffer, wall, wall_width, wall_height, x, p.x, p.y, c.x, c.y);
         }
     }
+}
+
+// TODO: @translate
+fn void render_minimap(Color *display, int display_width, int display_height,
+                       float camera_position_x, float camera_position_y, float camera_direction,
+                       float player_position_x, float player_position_y,
+                       bool *scene, int scene_width, int scene_height,
+                       SpritePool *sprite_pool) @extern("render_minimap") @wasm {
+    // ctx.save();
+
+    // // A couple of temporary vectors
+    // const p1 = new Vector2();
+    // const p2 = new Vector2();
+
+    // const cellSize = ctx.canvas.width*MINIMAP_SCALE;
+
+    // ctx.translate(ctx.canvas.width*0.03, ctx.canvas.height*0.03);
+    // ctx.scale(cellSize, cellSize);
+
+    // ctx.fillStyle = "#181818";
+    // ctx.fillRect(0, 0, scene.width, scene.height);
+
+    // ctx.lineWidth = 0.05;
+    // const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
+    // for (let y = 0; y < scene.height; ++y) {
+    //     for (let x = 0; x < scene.width; ++x) {
+    //         if (sceneGetTile(walls, scene, p1.set(x, y))) {
+    //             ctx.fillStyle = "blue";
+    //             ctx.fillRect(x, y, 1, 1);
+    //         }
+    //     }
+    // }
+
+    // // Grid
+    // ctx.strokeStyle = "#303030";
+    // for (let x = 0; x <= scene.width; ++x) {
+    //     strokeLine(ctx, p1.set(x, 0), p2.set(x, scene.height));
+    // }
+    // for (let y = 0; y <= scene.height; ++y) {
+    //     strokeLine(ctx, p1.set(0, y), p2.set(scene.width, y));
+    // }
+
+    // ctx.fillStyle = "magenta";
+    // ctx.fillRect(player.position.x - PLAYER_SIZE*0.5,
+    //              player.position.y - PLAYER_SIZE*0.5,
+    //              PLAYER_SIZE, PLAYER_SIZE);
+
+    // ctx.strokeStyle = "magenta";
+    // strokeLine(ctx, camera.fovLeft, camera.fovRight);
+    // strokeLine(ctx, camera.position, camera.fovLeft);
+    // strokeLine(ctx, camera.position, camera.fovRight);
+
+    // if (MINIMAP_SPRITES) {
+    //     ctx.strokeStyle = "yellow";
+    //     ctx.fillStyle = "white"
+    //     for (let i = 0; i < spritePool.length; ++i) {
+    //         const sprite = spritePool.items[i];
+    //         ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE*0.5,
+    //                      sprite.position.y - MINIMAP_SPRITE_SIZE*0.5,
+    //                      MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
+
+    //     }
+
+    //     const sp = new Vector2();
+    //     for (let sprite of visibleSprites) {
+    //         strokeLine(ctx, player.position, sprite.position);
+    //         sp.copy(sprite.position).sub(player.position).norm().scale(sprite.dist).add(player.position);
+    //         ctx.fillRect(sp.x - MINIMAP_SPRITE_SIZE*0.5,
+    //                      sp.y - MINIMAP_SPRITE_SIZE*0.5,
+    //                      MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
+    //     }
+    // }
+
+    // ctx.restore();
+}
+
+// TODO: @translate
+fn void cull_and_sort_sprites(float camera_position_x, float camera_position_y, float camera_direction,
+                              SpritePool *sprite_pool) @extern("cull_and_sort_sprites") @wasm {
+    // const sp = new Vector2();
+    // const dir = new Vector2().setPolar(camera.direction);
+    // const fov = camera.fovRight.clone().sub(camera.fovLeft);
+
+    // visibleSprites.length = 0;
+    // for (let i = 0; i < spritePool.length; ++i) {
+    //     const sprite = spritePool.items[i];
+
+    //     sp.copy(sprite.position).sub(camera.position);
+    //     const spl = sp.length();
+    //     if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
+    //     if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
+
+    //     const cos = sp.dot(dir)/spl;
+    //     // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
+    //     // It may or may not impact the performance of renderSprites()
+    //     if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
+    //     sprite.dist = NEAR_CLIPPING_PLANE/cos;
+    //     sp.norm().scale(sprite.dist).add(camera.position).sub(camera.fovLeft);
+    //     sprite.t = sp.length()/fov.length()*Math.sign(sp.dot(fov));
+    //     sprite.pdist = sprite.position.clone().sub(camera.position).dot(dir);
+
+    //     // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
+    //     if (sprite.pdist < NEAR_CLIPPING_PLANE) continue;
+    //     if (sprite.pdist >= FAR_CLIPPING_PLANE) continue;
+
+    //     visibleSprites.push(sprite);
+    // }
+
+    // visibleSprites.sort((a, b) => b.pdist - a.pdist);
+}
+
+// TODO: @translate
+fn void push_sprite(SpritePool *sprite_pool,
+                    Color *image_pixels, int image_width, int image_height,
+                    float x, float y, float z,
+                    float scale,
+                    float crop_position_x, float crop_position_y,
+                    float crop_size_x, float crop_size_y) @extern("push_sprite") @wasm {
+    // if (spritePool.length >= spritePool.items.length) {
+    //     spritePool.items.push({
+    //         image,
+    //         position: new Vector2(),
+    //         z,
+    //         scale,
+    //         pdist: 0,
+    //         dist: 0,
+    //         t: 0,
+    //         cropPosition: new Vector2(),
+    //         cropSize: new Vector2(),
+    //     })
+    // }
+
+    // const last = spritePool.length;
+
+    // spritePool.items[last].image = image;
+    // spritePool.items[last].position.copy(position);
+    // spritePool.items[last].z = z;
+    // spritePool.items[last].scale = scale;
+    // spritePool.items[last].pdist = 0;
+    // spritePool.items[last].dist = 0;
+    // spritePool.items[last].t = 0;
+
+    // if (image instanceof WasmImage) {
+    //     if (cropPosition === undefined) {
+    //         spritePool.items[last].cropPosition.set(0, 0);
+    //     } else {
+    //         spritePool.items[last].cropPosition.copy(cropPosition);
+    //     }
+    //     if (cropSize === undefined) {
+    //         spritePool.items[last]
+    //             .cropSize
+    //             .set(image.width, image.height)
+    //             .sub(spritePool.items[last].cropPosition);
+    //     } else {
+    //         spritePool.items[last].cropSize.copy(cropSize);
+    //     }
+    // } else {
+    //     spritePool.items[last].cropPosition.set(0, 0);
+    //     spritePool.items[last].cropSize.set(0, 0);
+    // }
+
+    // spritePool.length += 1;
+}
+
+// TODO: @translate
+fn void render_sprites(Color *display, int display_width, int display_height, SpritePool *sprite_pool) @extern("render_sprites") @wasm {
+    // const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
+    // const zBuffer = new Float32Array(wasmClient.memory.buffer, display.zBufferPtr, display.backImageWidth);
+    // for (let sprite of sprites) {
+    //     const cx = display.backImageWidth*sprite.t;
+    //     const cy = display.backImageHeight*0.5;
+    //     const maxSpriteSize = display.backImageHeight/sprite.pdist;
+    //     const spriteSize = maxSpriteSize*sprite.scale;
+    //     const x1 = Math.floor(cx - spriteSize*0.5);
+    //     const x2 = Math.floor(x1 + spriteSize - 1);
+    //     const bx1 = Math.max(0, x1);
+    //     const bx2 = Math.min(display.backImageWidth-1, x2);
+    //     const y1 = Math.floor(cy + maxSpriteSize*0.5 - maxSpriteSize*sprite.z);
+    //     const y2 = Math.floor(y1 + spriteSize - 1);
+    //     const by1 = Math.max(0, y1);
+    //     const by2 = Math.min(display.backImageHeight-1, y2);
+
+    //     const src = new Uint8ClampedArray(wasmClient.memory.buffer, sprite.image.ptr, sprite.image.width*sprite.image.height*4);
+    //     const dest = backImageData;
+    //     for (let x = bx1; x <= bx2; ++x) {
+    //         if (sprite.pdist < zBuffer[x]) {
+    //             for (let y = by1; y <= by2; ++y) {
+    //                 const tx = Math.floor((x - x1)/spriteSize*sprite.cropSize.x);
+    //                 const ty = Math.floor((y - y1)/spriteSize*sprite.cropSize.y);
+    //                 const srcP = ((ty + sprite.cropPosition.y)*sprite.image.width + (tx + sprite.cropPosition.x))*4;
+    //                 const destP = (y*display.backImageWidth + x)*4;
+    //                 const alpha = src[srcP + 3]/255;
+    //                 dest[destP + 0] = dest[destP + 0]*(1 - alpha) + src[srcP + 0]*alpha;
+    //                 dest[destP + 1] = dest[destP + 1]*(1 - alpha) + src[srcP + 1]*alpha;
+    //                 dest[destP + 2] = dest[destP + 2]*(1 - alpha) + src[srcP + 2]*alpha;
+    //             }
+    //         }
+    //     }
+    // }
 }
