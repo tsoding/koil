@@ -1,6 +1,6 @@
 import * as common from './common.mjs';
 import {
-    Vector2, Vector3, Scene, Player,
+    Vector2, Vector3, type Scene, type Player,
     sceneGetTile, updatePlayer,
     PLAYER_SIZE, SERVER_PORT,
     clamp, properMod
