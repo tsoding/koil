@@ -29,7 +29,7 @@ function createSpritePool(wasmClient) {
     return { ptr };
 }
 function renderMinimap(wasmClient, display, camera, player, scene, spritePool) {
-    wasmClient.render_minimap(display.minimapPtr, display.minimapWidth, display.minimapHeight, camera.position.x, camera.position.y, camera.direction, player.position.x, player.position.y, scene.wallsPtr, scene.width, scene.height, spritePool.ptr);
+    wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, camera.position.x, camera.position.y, camera.direction, player.position.x, player.position.y, scene.wallsPtr, scene.width, scene.height, spritePool.ptr);
 }
 function renderDebugInfo(ctx, deltaTime, game) {
     const fontSize = 28;
@@ -82,25 +82,29 @@ function createDisplay(ctx, wasmClient, backImageWidth, backImageHeight) {
     return {
         ctx,
         backCtx,
-        backImagePtr,
-        backImageWidth,
-        backImageHeight,
-        minimapWidth,
-        minimapHeight,
-        minimapPtr,
+        backImage: {
+            ptr: backImagePtr,
+            width: backImageWidth,
+            height: backImageHeight,
+        },
+        minimap: {
+            ptr: minimapPtr,
+            width: minimapWidth,
+            height: minimapHeight,
+        },
         zBufferPtr,
     };
 }
 function displaySwapBackImageData(display, wasmClient) {
-    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth * display.backImageHeight * 4);
-    display.backCtx.putImageData(new ImageData(backImageData, display.backImageWidth), 0, 0);
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImage.ptr, display.backImage.width * display.backImage.height * 4);
+    display.backCtx.putImageData(new ImageData(backImageData, display.backImage.width), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 function cullAndSortSprites(wasmClient, camera, spritePool) {
     wasmClient.cull_and_sort_sprites(camera.position.x, camera.position.y, camera.direction, spritePool.ptr);
 }
 function renderSprites(display, wasmClient, spritePool) {
-    wasmClient.render_sprites(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, spritePool.ptr);
+    wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, spritePool.ptr);
 }
 function pushSprite(wasmClient, spritePool, image, position, z, scale, cropPosition, cropSize) {
     const cropPosition1 = new Vector2();
@@ -501,8 +505,8 @@ function renderGame(display, deltaTime, time, game) {
             pushSprite(game.wasmClient, game.spritePool, game.assets.playerImage, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
-    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, game.camera.direction);
-    game.wasmClient.render_walls(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
+    game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
+    game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
     cullAndSortSprites(game.wasmClient, game.camera, game.spritePool);
     renderSprites(display, game.wasmClient, game.spritePool);
     displaySwapBackImageData(display, game.wasmClient);

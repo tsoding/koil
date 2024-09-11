@@ -55,7 +55,7 @@ interface Camera {
 }
 
 function renderMinimap(wasmClient: WasmClient, display: Display, camera: Camera, player: Player, scene: Scene, spritePool: SpritePool) {
-    wasmClient.render_minimap(display.minimapPtr, display.minimapWidth, display.minimapHeight,
+    wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height,
                               camera.position.x, camera.position.y, camera.direction,
                               player.position.x, player.position.y,
                               scene.wallsPtr, scene.width, scene.height,
@@ -101,17 +101,8 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
-
-    // TODO: replace with minimap: WasmImage
-    minimapPtr: number;
-    minimapWidth: number;
-    minimapHeight: number;
-
-    // TODO: replace with backImage: WasmImage
-    backImagePtr: number;
-    backImageWidth: number;
-    backImageHeight: number;
-
+    minimap: WasmImage;
+    backImage: WasmImage;
     zBufferPtr: number;
 }
 
@@ -151,19 +142,23 @@ function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, ba
     return {
         ctx,
         backCtx,
-        backImagePtr,
-        backImageWidth,
-        backImageHeight,
-        minimapWidth,
-        minimapHeight,
-        minimapPtr,
+        backImage: {
+            ptr: backImagePtr,
+            width: backImageWidth,
+            height: backImageHeight,
+        },
+        minimap: {
+            ptr: minimapPtr,
+            width: minimapWidth,
+            height: minimapHeight,
+        },
         zBufferPtr,
     };
 }
 
 function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
-    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
-    display.backCtx.putImageData(new ImageData(backImageData, display.backImageWidth), 0, 0);
+    const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImage.ptr, display.backImage.width*display.backImage.height*4);
+    display.backCtx.putImageData(new ImageData(backImageData, display.backImage.width), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
@@ -172,7 +167,7 @@ function cullAndSortSprites(wasmClient: WasmClient, camera: Camera, spritePool: 
 }
 
 function renderSprites(display: Display, wasmClient: WasmClient, spritePool: SpritePool) {
-    wasmClient.render_sprites(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, spritePool.ptr)
+    wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, spritePool.ptr)
 }
 
 function pushSprite(wasmClient: WasmClient, spritePool: SpritePool, image: WasmImage, position: Vector2, z: number, scale: number, cropPosition?: Vector2, cropSize?: Vector2) {
@@ -647,9 +642,9 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     })
 
-    game.wasmClient.render_floor_and_ceiling(display.backImagePtr, display.backImageWidth, display.backImageHeight, game.camera.position.x, game.camera.position.y, game.camera.direction);
+    game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
     game.wasmClient.render_walls(
-        display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr,
+        display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr,
         game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height,
         game.camera.position.x, game.camera.position.y, game.camera.direction,
         game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
