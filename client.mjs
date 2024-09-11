@@ -100,12 +100,6 @@ function displaySwapBackImageData(display, wasmClient) {
     display.backCtx.putImageData(new ImageData(backImageData, display.backImage.width), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
-function cullAndSortSprites(wasmClient, camera, spritePool) {
-    wasmClient.cull_and_sort_sprites(camera.position.x, camera.position.y, camera.direction, spritePool.ptr);
-}
-function renderSprites(display, wasmClient, spritePool) {
-    wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, spritePool.ptr);
-}
 function pushSprite(wasmClient, spritePool, image, position, z, scale, cropPosition, cropSize) {
     const cropPosition1 = new Vector2();
     const cropSize1 = new Vector2();
@@ -507,8 +501,8 @@ function renderGame(display, deltaTime, time, game) {
     });
     game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
     game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
-    cullAndSortSprites(game.wasmClient, game.camera, game.spritePool);
-    renderSprites(display, game.wasmClient, game.spritePool);
+    game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePool.ptr);
+    game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePool.ptr);
     displaySwapBackImageData(display, game.wasmClient);
     if (MINIMAP)
         renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePool);
