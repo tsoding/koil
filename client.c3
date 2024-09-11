@@ -1,4 +1,5 @@
 import std::math;
+import std::sort;
 import common;
 
 const float NEAR_CLIPPING_PLANE = 0.1;
@@ -25,8 +26,8 @@ struct Sprite {
     Vector2 position;
     float z;
     float scale;
-    Vector2 crop_position;
-    Vector2 crop_size;
+    IVector2 crop_position;
+    IVector2 crop_size;
 
     float dist;  // Actual distance.
     float pdist; // Perpendicular distance.
@@ -36,12 +37,12 @@ struct Sprite {
 struct SpritePool {
     Sprite[SPRITE_POOL_CAPACITY] items;
     int length;
-    Sprite[SPRITE_POOL_CAPACITY] visible_items;
+    Sprite*[SPRITE_POOL_CAPACITY] visible_items;
     int visible_length;
 }
 
-fn Sprite *allocate_sprite_pool() @extern("allocate_sprite_pool") @wasm {
-    return mem::new(Sprite);
+fn SpritePool *allocate_sprite_pool() @extern("allocate_sprite_pool") @wasm {
+    return mem::new(SpritePool);
 }
 
 fn void reset_sprite_pool(SpritePool *sprite_pool) @extern("reset_sprite_pool") @wasm {
@@ -333,127 +334,103 @@ fn void render_minimap(Color *display, int display_width, int display_height,
     // ctx.restore();
 }
 
-// TODO: @translate
 fn void cull_and_sort_sprites(float camera_position_x, float camera_position_y, float camera_direction,
                               SpritePool *sprite_pool) @extern("cull_and_sort_sprites") @wasm {
-    // const sp = new Vector2();
-    // const dir = new Vector2().setPolar(camera.direction);
-    // const fov = camera.fovRight.clone().sub(camera.fovLeft);
+    Camera camera = { .position = {camera_position_x, camera_position_y}, .direction = camera_direction };
+    camera.update();
 
-    // visibleSprites.length = 0;
-    // for (let i = 0; i < spritePool.length; ++i) {
-    //     const sprite = spritePool.items[i];
+    Vector2 dir = from_polar(camera_direction, 1.0f);
+    Vector2 fov = camera.fovRight - camera.fovLeft;
 
-    //     sp.copy(sprite.position).sub(camera.position);
-    //     const spl = sp.length();
-    //     if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
-    //     if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
+    sprite_pool.visible_length = 0;
+    for (int i = 0; i < sprite_pool.length; ++i) {
+        Sprite *sprite = &sprite_pool.items[i];
 
-    //     const cos = sp.dot(dir)/spl;
-    //     // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
-    //     // It may or may not impact the performance of renderSprites()
-    //     if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
-    //     sprite.dist = NEAR_CLIPPING_PLANE/cos;
-    //     sp.norm().scale(sprite.dist).add(camera.position).sub(camera.fovLeft);
-    //     sprite.t = sp.length()/fov.length()*Math.sign(sp.dot(fov));
-    //     sprite.pdist = sprite.position.clone().sub(camera.position).dot(dir);
+        Vector2 sp = sprite.position - camera.position;
+        float spl = sp.length();
+        if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
+        if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
 
-    //     // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
-    //     if (sprite.pdist < NEAR_CLIPPING_PLANE) continue;
-    //     if (sprite.pdist >= FAR_CLIPPING_PLANE) continue;
+        float cos = sp.dot(dir)/spl;
+        // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
+        // It may or may not impact the performance of renderSprites()
+        if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
+        sprite.dist = NEAR_CLIPPING_PLANE/cos;
+        sp = (sp.normalize()*sprite.dist) + camera.position - camera.fovLeft;
+        sprite.t = sp.length()/fov.length()*math::copysign(1.0f, sp.dot(fov));
+        sprite.pdist = (sprite.position - camera.position).dot(dir);
 
-    //     visibleSprites.push(sprite);
-    // }
+        // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
+        if (sprite.pdist < NEAR_CLIPPING_PLANE) continue;
+        if (sprite.pdist >= FAR_CLIPPING_PLANE) continue;
 
-    // visibleSprites.sort((a, b) => b.pdist - a.pdist);
+        sprite_pool.visible_items[sprite_pool.visible_length++] = sprite;
+    }
+
+    quicksort(sprite_pool.visible_items[0..sprite_pool.visible_length-1],
+              fn int(Sprite *a, Sprite *b) => (int)math::copysign(1.0f, b.pdist - a.pdist));
 }
 
-// TODO: @translate
 fn void push_sprite(SpritePool *sprite_pool,
                     Color *image_pixels, int image_width, int image_height,
                     float x, float y, float z,
                     float scale,
-                    float crop_position_x, float crop_position_y,
-                    float crop_size_x, float crop_size_y) @extern("push_sprite") @wasm {
-    // if (spritePool.length >= spritePool.items.length) {
-    //     spritePool.items.push({
-    //         image,
-    //         position: new Vector2(),
-    //         z,
-    //         scale,
-    //         pdist: 0,
-    //         dist: 0,
-    //         t: 0,
-    //         cropPosition: new Vector2(),
-    //         cropSize: new Vector2(),
-    //     })
-    // }
+                    int crop_position_x, int crop_position_y,
+                    int crop_size_x, int crop_size_y) @extern("push_sprite") @wasm {
+    if (sprite_pool.length >= SPRITE_POOL_CAPACITY) return;
 
-    // const last = spritePool.length;
+    usz last = sprite_pool.length;
 
-    // spritePool.items[last].image = image;
-    // spritePool.items[last].position.copy(position);
-    // spritePool.items[last].z = z;
-    // spritePool.items[last].scale = scale;
-    // spritePool.items[last].pdist = 0;
-    // spritePool.items[last].dist = 0;
-    // spritePool.items[last].t = 0;
+    sprite_pool.items[last].image.pixels = image_pixels;
+    sprite_pool.items[last].image.width = image_width;
+    sprite_pool.items[last].image.height = image_height;
+    sprite_pool.items[last].position.x = x;
+    sprite_pool.items[last].position.y = y;
+    sprite_pool.items[last].z = z;
+    sprite_pool.items[last].scale = scale;
+    sprite_pool.items[last].pdist = 0;
+    sprite_pool.items[last].dist = 0;
+    sprite_pool.items[last].t = 0;
+    sprite_pool.items[last].crop_position.x = crop_position_x;
+    sprite_pool.items[last].crop_position.y = crop_position_y;
+    sprite_pool.items[last].crop_size.x = crop_size_x;
+    sprite_pool.items[last].crop_size.y = crop_size_y;
 
-    // if (image instanceof WasmImage) {
-    //     if (cropPosition === undefined) {
-    //         spritePool.items[last].cropPosition.set(0, 0);
-    //     } else {
-    //         spritePool.items[last].cropPosition.copy(cropPosition);
-    //     }
-    //     if (cropSize === undefined) {
-    //         spritePool.items[last]
-    //             .cropSize
-    //             .set(image.width, image.height)
-    //             .sub(spritePool.items[last].cropPosition);
-    //     } else {
-    //         spritePool.items[last].cropSize.copy(cropSize);
-    //     }
-    // } else {
-    //     spritePool.items[last].cropPosition.set(0, 0);
-    //     spritePool.items[last].cropSize.set(0, 0);
-    // }
-
-    // spritePool.length += 1;
+    sprite_pool.length += 1;
 }
 
-// TODO: @translate
-fn void render_sprites(Color *display, int display_width, int display_height, SpritePool *sprite_pool) @extern("render_sprites") @wasm {
-    // const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, display.backImagePtr, display.backImageWidth*display.backImageHeight*4);
-    // const zBuffer = new Float32Array(wasmClient.memory.buffer, display.zBufferPtr, display.backImageWidth);
-    // for (let sprite of sprites) {
-    //     const cx = display.backImageWidth*sprite.t;
-    //     const cy = display.backImageHeight*0.5;
-    //     const maxSpriteSize = display.backImageHeight/sprite.pdist;
-    //     const spriteSize = maxSpriteSize*sprite.scale;
-    //     const x1 = Math.floor(cx - spriteSize*0.5);
-    //     const x2 = Math.floor(x1 + spriteSize - 1);
-    //     const bx1 = Math.max(0, x1);
-    //     const bx2 = Math.min(display.backImageWidth-1, x2);
-    //     const y1 = Math.floor(cy + maxSpriteSize*0.5 - maxSpriteSize*sprite.z);
-    //     const y2 = Math.floor(y1 + spriteSize - 1);
-    //     const by1 = Math.max(0, y1);
-    //     const by2 = Math.min(display.backImageHeight-1, y2);
+fn void render_sprites(Color *display, int display_width, int display_height, float *zbuffer,
+                       SpritePool *sprite_pool) @extern("render_sprites") @wasm {
+    for (int i = 0; i < sprite_pool.visible_length; ++i) {
+        Sprite *sprite = sprite_pool.visible_items[i];
+        float cx = display_width*sprite.t;
+        float cy = display_height*0.5f;
+        float maxSpriteSize = display_height/sprite.pdist;
+        float spriteSize = maxSpriteSize*sprite.scale;
+        int x1 = (int)math::floor(cx - spriteSize*0.5f);
+        int x2 = (int)math::floor(x1 + spriteSize - 1.0f);
+        int bx1 = math::max(0, x1);
+        int bx2 = math::min(display_width-1, x2);
+        int y1 = (int)math::floor(cy + maxSpriteSize*0.5f - maxSpriteSize*sprite.z);
+        int y2 = (int)math::floor(y1 + spriteSize - 1);
+        int by1 = math::max(0, y1);
+        int by2 = math::min(display_height-1, y2);
 
-    //     const src = new Uint8ClampedArray(wasmClient.memory.buffer, sprite.image.ptr, sprite.image.width*sprite.image.height*4);
-    //     const dest = backImageData;
-    //     for (let x = bx1; x <= bx2; ++x) {
-    //         if (sprite.pdist < zBuffer[x]) {
-    //             for (let y = by1; y <= by2; ++y) {
-    //                 const tx = Math.floor((x - x1)/spriteSize*sprite.cropSize.x);
-    //                 const ty = Math.floor((y - y1)/spriteSize*sprite.cropSize.y);
-    //                 const srcP = ((ty + sprite.cropPosition.y)*sprite.image.width + (tx + sprite.cropPosition.x))*4;
-    //                 const destP = (y*display.backImageWidth + x)*4;
-    //                 const alpha = src[srcP + 3]/255;
-    //                 dest[destP + 0] = dest[destP + 0]*(1 - alpha) + src[srcP + 0]*alpha;
-    //                 dest[destP + 1] = dest[destP + 1]*(1 - alpha) + src[srcP + 1]*alpha;
-    //                 dest[destP + 2] = dest[destP + 2]*(1 - alpha) + src[srcP + 2]*alpha;
-    //             }
-    //         }
-    //     }
-    // }
+        Color *src = sprite.image.pixels;
+        Color *dest = display;
+        for (int x = bx1; x <= bx2; ++x) {
+            if (sprite.pdist < zbuffer[x]) {
+                for (int y = by1; y <= by2; ++y) {
+                    int tx = (int)math::floor((float)(x - x1)/spriteSize*sprite.crop_size.x);
+                    int ty = (int)math::floor((float)(y - y1)/spriteSize*sprite.crop_size.y);
+                    int srcP = (ty + sprite.crop_position.y)*sprite.image.width + (tx + sprite.crop_position.x);
+                    int destP = y*display_width + x;
+                    float alpha = src[srcP].a/255.0f;
+                    dest[destP].r = (char)(dest[destP].r*(1 - alpha) + src[srcP].r*alpha);
+                    dest[destP].g = (char)(dest[destP].g*(1 - alpha) + src[srcP].g*alpha);
+                    dest[destP].b = (char)(dest[destP].b*(1 - alpha) + src[srcP].b*alpha);
+                }
+            }
+        }
+    }
 }

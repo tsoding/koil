@@ -100,7 +100,7 @@ function cullAndSortSprites(wasmClient, camera, spritePool) {
     wasmClient.cull_and_sort_sprites(camera.position.x, camera.position.y, camera.direction, spritePool.ptr);
 }
 function renderSprites(display, wasmClient, spritePool) {
-    wasmClient.render_sprites(display.backImagePtr, display.backImageWidth, display.backImageHeight, spritePool.ptr);
+    wasmClient.render_sprites(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, spritePool.ptr);
 }
 function pushSprite(wasmClient, spritePool, image, position, z, scale, cropPosition, cropSize) {
     const cropPosition1 = new Vector2();

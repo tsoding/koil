@@ -2,6 +2,7 @@ module common;
 import std::math;
 
 def Vector2 = float[<2>];
+def IVector2 = int[<2>];
 def Vector3 = float[<3>];
 def Vector4 = float[<4>];
 

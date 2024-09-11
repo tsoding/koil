@@ -135,7 +135,7 @@ interface WasmClient extends common.WasmCommon {
                   scale: number,
                   crop_position_x: number, crop_position_y: number,
                   crop_size_x: number, crop_size_y: number) => void;
-    render_sprites: (display: number, display_width: number, display_height: number, sprite_pool: number) => void,
+    render_sprites: (display: number, display_width: number, display_height: number, zbuffer: number, sprite_pool: number) => void,
 }
 
 function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
@@ -167,25 +167,12 @@ function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
-interface Sprite {
-    image: WasmImage;
-    position: Vector2;
-    z: number;
-    scale: number;
-    cropPosition: Vector2;
-    cropSize: Vector2;
-
-    dist: number;  // Actual distance.
-    pdist: number; // Perpendicular distance.
-    t: number;     // Normalized horizontal position on the screen
-}
-
 function cullAndSortSprites(wasmClient: WasmClient, camera: Camera, spritePool: SpritePool) {
     wasmClient.cull_and_sort_sprites(camera.position.x, camera.position.y, camera.direction, spritePool.ptr);
 }
 
 function renderSprites(display: Display, wasmClient: WasmClient, spritePool: SpritePool) {
-    wasmClient.render_sprites(display.backImagePtr, display.backImageWidth, display.backImageHeight, spritePool.ptr)
+    wasmClient.render_sprites(display.backImagePtr, display.backImageWidth, display.backImageHeight, display.zBufferPtr, spritePool.ptr)
 }
 
 function pushSprite(wasmClient: WasmClient, spritePool: SpritePool, image: WasmImage, position: Vector2, z: number, scale: number, cropPosition?: Vector2, cropSize?: Vector2) {
@@ -427,7 +414,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         render_minimap: wasm.instance.exports.render_minimap as (display: number, display_width: number, display_height: number, camera_position_x: number, camera_position_y: number, camera_direction: number, player_position_x: number, player_position_y: number, scene: number, scene_width: number, scene_height: number, sprite_pool: number) => void,
         cull_and_sort_sprites: wasm.instance.exports.cull_and_sort_sprites as (camera_position_x: number, camera_position_y: number, camera_direction: number, sprite_pool: number) => void,
         push_sprite: wasm.instance.exports.push_sprite as (sprite_pool: number, image_pixels: number, image_width: number, image_height: number, x: number, y: number, z: number, scale: number, crop_position_x: number, crop_position_y: number, crop_size_x: number, crop_size_y: number) => void,
-        render_sprites: wasm.instance.exports.render_sprites as (display: number, display_width: number, display_height: number, sprite_pool: number) => void,
+        render_sprites: wasm.instance.exports.render_sprites as (display: number, display_width: number, display_height: number, zbuffer: number, sprite_pool: number) => void,
     };
 }
 
