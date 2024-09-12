@@ -7,12 +7,20 @@ const float FAR_CLIPPING_PLANE = 10.0;
 const float FOV = math::PI*0.5;
 const float EPS = 1e-6;
 const usz SPRITE_POOL_CAPACITY = 100;
+const usz PARTICLE_POOL_CAPACITY = 1000;
+const float PARTICLE_LIFETIME = 1.0f;
+const float PARTICLE_MAX_SPEED = 8;
+const float PARTICLE_DAMP = 0.8;
+const float PARTICLE_SCALE = 0.05;
 
 const bool MINIMAP_SPRITES = true;
 const float MINIMAP_SPRITE_SIZE = 0.2;
 const float MINIMAP_SCALE = 0.07;
 
 def Color = char[<4>];
+
+// TODO: Use std::math::random instead (when you finally figure out how to use it)
+extern fn float js_random();
 
 struct Image {
     Color *pixels;
@@ -52,6 +60,24 @@ fn void reset_sprite_pool(SpritePool *sprite_pool) @extern("reset_sprite_pool") 
 
 fn Vector2 from_polar(float angle, float len) {
     return {math::cos(angle)*len, math::sin(angle)*len};
+}
+
+struct Particle {
+    float lifetime;
+    // TODO: Use Vector3 instead
+    Vector2 position;
+    float position_z;
+    Vector2 velocity;
+    float velocity_z;
+}
+
+struct ParticlePool {
+    Particle[PARTICLE_POOL_CAPACITY] items;
+    int length;
+}
+
+fn ParticlePool *allocate_particle_pool() @extern("allocate_particle_pool") @wasm {
+    return mem::new(ParticlePool);
 }
 
 struct Camera {
@@ -430,6 +456,69 @@ fn void render_sprites(Color *display, int display_width, int display_height, fl
                     dest[destP].g = (char)(dest[destP].g*(1 - alpha) + src[srcP].g*alpha);
                     dest[destP].b = (char)(dest[destP].b*(1 - alpha) + src[srcP].b*alpha);
                 }
+            }
+        }
+    }
+}
+
+fn void emit_particle(float source_x, float source_y, float source_z, ParticlePool *particle_pool) @extern("emit_particle") @wasm {
+    foreach (&particle: particle_pool.items) {
+        if (particle.lifetime <= 0) {
+            particle.lifetime = PARTICLE_LIFETIME;
+
+            particle.position.x = source_x;
+            particle.position.y = source_y;
+            particle.position_z = source_z;
+
+            float angle = js_random()*2.0f*(float)math::PI;
+            particle.velocity.x = math::cos(angle);
+            particle.velocity.y = math::sin(angle);
+            particle.velocity_z = js_random()*0.5f + 0.5f;
+
+            float velocity_mag = PARTICLE_MAX_SPEED*js_random();
+            particle.velocity *= velocity_mag;
+            particle.velocity_z *= velocity_mag;
+            break;
+        }
+    }
+}
+
+fn void update_particles(Color *image_pixels, int image_width, int image_height,
+                         SpritePool *sprite_pool,
+                         float deltaTime,
+                         bool *scene, int scene_width, int scene_height,
+                         ParticlePool *particle_pool) @extern("update_particles") @wasm {
+    foreach (&particle: particle_pool.items) {
+        if (particle.lifetime > 0) {
+            particle.lifetime -= deltaTime;
+            particle.velocity_z -= common::BOMB_GRAVITY*deltaTime;
+
+            Vector2 new_position = particle.position + particle.velocity*deltaTime;
+            if (common::scene_get_tile(scene, scene_width, scene_height, new_position)) {
+                float dx = math::abs(math::floor(particle.position.x) - math::floor(new_position.x));
+                float dy = math::abs(math::floor(particle.position.y) - math::floor(new_position.y));
+
+                if (dx > 0) particle.velocity.x *= -1;
+                if (dy > 0) particle.velocity.y *= -1;
+                particle.velocity *= PARTICLE_DAMP;
+            } else {
+                particle.position = new_position;
+            }
+
+            float nz = particle.position_z + particle.velocity_z*deltaTime;
+            if (nz < PARTICLE_SCALE || nz > 1.0) {
+                particle.velocity_z *= -1;
+                particle.velocity *= PARTICLE_DAMP;
+            } else {
+                particle.position_z = nz;
+            }
+
+            if (particle.lifetime > 0) {
+                push_sprite(sprite_pool,
+                            image_pixels, image_width, image_height,
+                            particle.position.x, particle.position.y, particle.position_z,
+                            PARTICLE_SCALE,
+                            0, 0, image_width, image_height);
             }
         }
     }

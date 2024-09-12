@@ -1,6 +1,8 @@
 module common;
 import std::math;
 
+const float BOMB_GRAVITY = 10;
+
 def Vector2 = float[<2>];
 def IVector2 = int[<2>];
 def Vector3 = float[<3>];

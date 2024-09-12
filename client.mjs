@@ -1,5 +1,5 @@
 import * as common from './common.mjs';
-import { Vector2, Vector3, sceneGetTile, updatePlayer, SERVER_PORT, clamp, properMod } from './common.mjs';
+import { Vector2, updatePlayer, SERVER_PORT, clamp, properMod } from './common.mjs';
 const NEAR_CLIPPING_PLANE = 0.1;
 const FOV = Math.PI * 0.5;
 const SCREEN_FACTOR = 30;
@@ -8,10 +8,6 @@ const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 const ITEM_FREQ = 0.7;
 const ITEM_AMP = 0.07;
 const BOMB_PARTICLE_COUNT = 50;
-const PARTICLE_LIFETIME = 1.0;
-const PARTICLE_DAMP = 0.8;
-const PARTICLE_SCALE = 0.05;
-const PARTICLE_MAX_SPEED = 8;
 const MINIMAP = false;
 const SPRITE_ANGLES_COUNT = 8;
 const CONTROL_KEYS = {
@@ -146,65 +142,11 @@ function updateItems(wasmClient, ws, spritePool, time, me, items, assets) {
         }
     }
 }
-function allocateParticles(capacity) {
-    let bomb = [];
-    for (let i = 0; i < capacity; ++i) {
-        bomb.push({
-            position: new Vector3(),
-            velocity: new Vector3(),
-            lifetime: 0,
-        });
-    }
-    return bomb;
+function updateParticles(wasmClient, assets, spritePool, deltaTime, scene, particlesPtr) {
+    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePool.ptr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
 }
-function updateParticles(wasmClient, assets, wasmCommon, spritePool, deltaTime, scene, particles) {
-    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width * scene.height);
-    for (let particle of particles) {
-        if (particle.lifetime > 0) {
-            particle.lifetime -= deltaTime;
-            particle.velocity.z -= common.BOMB_GRAVITY * deltaTime;
-            const nx = particle.position.x + particle.velocity.x * deltaTime;
-            const ny = particle.position.y + particle.velocity.y * deltaTime;
-            if (sceneGetTile(walls, scene, new Vector2(nx, ny))) {
-                const dx = Math.abs(Math.floor(particle.position.x) - Math.floor(nx));
-                const dy = Math.abs(Math.floor(particle.position.y) - Math.floor(ny));
-                if (dx > 0)
-                    particle.velocity.x *= -1;
-                if (dy > 0)
-                    particle.velocity.y *= -1;
-                particle.velocity.scale(PARTICLE_DAMP);
-            }
-            else {
-                particle.position.x = nx;
-                particle.position.y = ny;
-            }
-            const nz = particle.position.z + particle.velocity.z * deltaTime;
-            if (nz < PARTICLE_SCALE || nz > 1.0) {
-                particle.velocity.z *= -1;
-                particle.velocity.scale(PARTICLE_DAMP);
-            }
-            else {
-                particle.position.z = nz;
-            }
-            if (particle.lifetime > 0) {
-                pushSprite(wasmClient, spritePool, assets.particleImage, new Vector2(particle.position.x, particle.position.y), particle.position.z, PARTICLE_SCALE);
-            }
-        }
-    }
-}
-function emitParticle(source, particles) {
-    for (let particle of particles) {
-        if (particle.lifetime <= 0) {
-            particle.lifetime = PARTICLE_LIFETIME;
-            particle.position.copy(source);
-            const angle = Math.random() * 2 * Math.PI;
-            particle.velocity.x = Math.cos(angle);
-            particle.velocity.y = Math.sin(angle);
-            particle.velocity.z = Math.random() * 0.5 + 0.5;
-            particle.velocity.scale(PARTICLE_MAX_SPEED * Math.random());
-            break;
-        }
-    }
+function emitParticle(wasmClient, source, particlesPtr) {
+    wasmClient.emit_particle(source.x, source.y, source.z, particlesPtr);
 }
 function playSound(sound, playerPosition, objectPosition) {
     const maxVolume = 1;
@@ -213,13 +155,13 @@ function playSound(sound, playerPosition, objectPosition) {
     sound.currentTime = 0;
     sound.play();
 }
-function explodeBomb(bomb, player, assets, particles) {
+function explodeBomb(wasmClient, bomb, player, assets, particlesPtr) {
     playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
     for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-        emitParticle(bomb.position, particles);
+        emitParticle(wasmClient, bomb.position, particlesPtr);
     }
 }
-function updateBombs(wasmClient, ws, spritePool, player, bombs, particles, scene, deltaTime, assets) {
+function updateBombs(wasmClient, ws, spritePool, player, bombs, particlesPtr, scene, deltaTime, assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
             pushSprite(wasmClient, spritePool, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE);
@@ -227,7 +169,7 @@ function updateBombs(wasmClient, ws, spritePool, player, bombs, particles, scene
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
             if (ws.readyState != WebSocket.OPEN && bomb.lifetime <= 0) {
-                explodeBomb(bomb, player, assets, particles);
+                explodeBomb(wasmClient, bomb, player, assets, particlesPtr);
             }
         }
     }
@@ -268,6 +210,7 @@ async function instantiateWasmClient(url) {
             "fmodf": (x, y) => x % y,
             "fminf": Math.min,
             "fmaxf": Math.max,
+            "js_random": Math.random,
         })
     });
     return {
@@ -286,6 +229,9 @@ async function instantiateWasmClient(url) {
         cull_and_sort_sprites: wasm.instance.exports.cull_and_sort_sprites,
         push_sprite: wasm.instance.exports.push_sprite,
         render_sprites: wasm.instance.exports.render_sprites,
+        allocate_particle_pool: wasm.instance.exports.allocate_particle_pool,
+        emit_particle: wasm.instance.exports.emit_particle,
+        update_particles: wasm.instance.exports.update_particles,
     };
 }
 async function createGame() {
@@ -313,7 +259,7 @@ async function createGame() {
         itemPickupSound,
         bombBlastSound,
     };
-    const particles = allocateParticles(1000);
+    const particlesPtr = wasmClient.allocate_particle_pool();
     const spritePool = createSpritePool(wasmClient);
     const players = new Map();
     const camera = {
@@ -337,7 +283,7 @@ async function createGame() {
     for (const item of level.items)
         item.alive = false;
     const game = {
-        camera, ws, me, ping: 0, players, particles, assets, spritePool, dts: [],
+        camera, ws, me, ping: 0, players, particlesPtr, assets, spritePool, dts: [],
         level, wasmClient
     };
     ws.binaryType = 'arraybuffer';
@@ -467,7 +413,7 @@ async function createGame() {
             game.level.bombs[index].position.x = common.BombExplodedStruct.x.read(view);
             game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
             game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
-            explodeBomb(level.bombs[index], me, assets, particles);
+            explodeBomb(wasmClient, level.bombs[index], me, assets, particlesPtr);
         }
         else {
             console.error("Received bogus-amogus message from server.", view);
@@ -491,8 +437,8 @@ function renderGame(display, deltaTime, time, game) {
     updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.wasmClient, game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
-    updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particles, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.wasmClient, game.assets, game.wasmClient, game.spritePool, deltaTime, game.level.scene, game.particles);
+    updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
+    updateParticles(game.wasmClient, game.assets, game.spritePool, deltaTime, game.level.scene, game.particlesPtr);
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
