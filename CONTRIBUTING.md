@@ -1,5 +1,7 @@
 I have very limited resources in terms of handling feedback on my projects. So here are the limitations to keep in mind:
 
+Unless I explicitly allowed specific contributions during discussions in the [Issue Tracker](https://github.com/tsoding/koil/issues),
+
 - I only look into **small** PRs that suggest
   - bug fixes,
   - documentation fixes.
@@ -9,3 +11,5 @@ I have very limited resources in terms of handling feedback on my projects. So h
 - What qualifies as a bug, a feature, or refactoring is entirely upon my interpretation.
 
 If you want to stir the project in a particular direction in terms of features feel free to fork it, I don't mind.
+
+- [@rexim](https://github.com/rexim)
