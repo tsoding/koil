@@ -692,3 +692,18 @@ export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scen
         player.position.y = ny;
     }
 }
+
+export function make_environment(...envs: any): any {
+    return new Proxy(envs, {
+        get(_target, prop, _receiver) {
+            for (let env of envs) {
+                if (env.hasOwnProperty(prop)) {
+                    return env[prop];
+                }
+            }
+            return (...args: any) => {
+                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`)
+            }
+        }
+    });
+}

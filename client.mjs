@@ -206,7 +206,7 @@ async function loadWasmImage(wasmClient, url) {
 }
 async function instantiateWasmClient(url) {
     const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
-        "env": make_environment({
+        "env": common.make_environment({
             "fmodf": (x, y) => x % y,
             "fminf": Math.min,
             "fmaxf": Math.max,
@@ -453,20 +453,6 @@ function renderGame(display, deltaTime, time, game) {
     if (MINIMAP)
         renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePool);
     renderDebugInfo(display.ctx, deltaTime, game);
-}
-function make_environment(...envs) {
-    return new Proxy(envs, {
-        get(_target, prop, _receiver) {
-            for (let env of envs) {
-                if (env.hasOwnProperty(prop)) {
-                    return env[prop];
-                }
-            }
-            return (...args) => {
-                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`);
-            };
-        }
-    });
 }
 (async () => {
     const gameCanvas = document.getElementById("game");

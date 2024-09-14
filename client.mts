@@ -316,7 +316,7 @@ async function loadWasmImage(wasmClient: WasmClient, url: string): Promise<WasmI
 
 async function instantiateWasmClient(url: string): Promise<WasmClient> {
     const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
-        "env": make_environment({
+        "env": common.make_environment({
             "fmodf": (x: number, y: number) => x%y,
             "fminf": Math.min,
             "fmaxf": Math.max,
@@ -587,21 +587,6 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
 
     if (MINIMAP) renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePool);
     renderDebugInfo(display.ctx, deltaTime, game);
-}
-
-function make_environment(...envs: any): any {
-    return new Proxy(envs, {
-        get(_target, prop, _receiver) {
-            for (let env of envs) {
-                if (env.hasOwnProperty(prop)) {
-                    return env[prop];
-                }
-            }
-            return (...args: any) => {
-                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`)
-            }
-        }
-    });
 }
 
 (async () => {

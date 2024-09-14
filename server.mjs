@@ -2,100 +2,29 @@ import { readFileSync } from 'fs';
 import { WebSocketServer } from 'ws';
 import * as common from './common.mjs';
 import { Vector2 } from './common.mjs';
-var Stats;
-(function (Stats) {
-    const AVERAGE_CAPACITY = 30;
-    const stats = {};
-    function average(samples) {
-        return samples.reduce((a, b) => a + b, 0) / samples.length;
-    }
-    function pluralNumber(num, singular, plural) {
-        return num === 1 ? singular : plural;
-    }
-    function displayTimeInterval(diffMs) {
-        const result = [];
-        const diffSecs = Math.floor(diffMs / 1000);
-        const days = Math.floor(diffSecs / 60 / 60 / 24);
-        if (days > 0)
-            result.push(`${days} ${pluralNumber(days, 'day', 'days')}`);
-        const hours = Math.floor(diffSecs / 60 / 60 % 24);
-        if (hours > 0)
-            result.push(`${hours} ${pluralNumber(hours, 'hour', 'hours')}`);
-        const mins = Math.floor(diffSecs / 60 % 60);
-        if (mins > 0)
-            result.push(`${mins} ${pluralNumber(mins, 'min', 'mins')}`);
-        const secs = Math.floor(diffSecs % 60);
-        if (secs > 0)
-            result.push(`${secs} ${pluralNumber(secs, 'sec', 'secs')}`);
-        return result.length === 0 ? '0 secs' : result.join(' ');
-    }
-    function getStat(stat) {
-        switch (stat.kind) {
-            case 'counter': return stat.counter.toString();
-            case 'average': return average(stat.samples).toString();
-            case 'timer': return displayTimeInterval(Date.now() - stat.startedAt);
-        }
-    }
-    function registerCounter(name, description) {
-        const stat = {
-            kind: 'counter',
-            counter: 0,
-            description,
-        };
-        stats[name] = stat;
-        return stat;
-    }
-    function pushSample(sample) {
-        while (this.samples.length > AVERAGE_CAPACITY)
-            this.samples.shift();
-        this.samples.push(sample);
-    }
-    function registerAverage(name, description) {
-        const stat = {
-            kind: 'average',
-            samples: [],
-            description,
-            pushSample,
-        };
-        stats[name] = stat;
-        return stat;
-    }
-    function registerTimer(name, description) {
-        const stat = {
-            kind: 'timer',
-            startedAt: 0,
-            description,
-        };
-        stats[name] = stat;
-        return stat;
-    }
-    function print() {
-        console.log("Stats:");
-        for (let key in stats) {
-            console.log(`  ${stats[key].description}`, getStat(stats[key]));
-        }
-    }
-    Stats.print = print;
-    Stats.uptime = registerTimer("uptime", "Uptime");
-    Stats.ticksCount = registerCounter("ticksCount", "Ticks count");
-    Stats.tickTimes = registerAverage("tickTimes", "Average time to process a tick");
-    Stats.messagesSent = registerCounter("messagesSent", "Total messages sent");
-    Stats.messagesReceived = registerCounter("messagesReceived", "Total messages received");
-    Stats.tickMessagesSent = registerAverage("tickMessagesSent", "Average messages sent per tick");
-    Stats.tickMessagesReceived = registerAverage("tickMessagesReceived", "Average messages received per tick");
-    Stats.bytesSent = registerCounter("bytesSent", "Total bytes sent");
-    Stats.bytesReceived = registerCounter("bytesReceived", "Total bytes received");
-    Stats.tickByteSent = registerAverage("tickByteSent", "Average bytes sent per tick");
-    Stats.tickByteReceived = registerAverage("tickByteReceived", "Average bytes received per tick");
-    Stats.playersCurrently = registerCounter("playersCurrently", "Currently players");
-    Stats.playersJoined = registerCounter("playersJoined", "Total players joined");
-    Stats.playersLeft = registerCounter("playersLeft", "Total players left");
-    Stats.bogusAmogusMessages = registerCounter("bogusAmogusMessages", "Total bogus-amogus messages");
-    Stats.playersRejected = registerCounter("playersRejected", "Total players rejected");
-})(Stats || (Stats = {}));
 const SERVER_FPS = 60;
 const SERVER_TOTAL_LIMIT = 2000;
 const SERVER_SINGLE_IP_LIMIT = 10;
+var StatEntry;
+(function (StatEntry) {
+    StatEntry[StatEntry["UPTIME"] = 0] = "UPTIME";
+    StatEntry[StatEntry["TICKS_COUNT"] = 1] = "TICKS_COUNT";
+    StatEntry[StatEntry["TICK_TIMES"] = 2] = "TICK_TIMES";
+    StatEntry[StatEntry["MESSAGES_SENT"] = 3] = "MESSAGES_SENT";
+    StatEntry[StatEntry["MESSAGES_RECEIVED"] = 4] = "MESSAGES_RECEIVED";
+    StatEntry[StatEntry["TICK_MESSAGES_SENT"] = 5] = "TICK_MESSAGES_SENT";
+    StatEntry[StatEntry["TICK_MESSAGES_RECEIVED"] = 6] = "TICK_MESSAGES_RECEIVED";
+    StatEntry[StatEntry["BYTES_SENT"] = 7] = "BYTES_SENT";
+    StatEntry[StatEntry["BYTES_RECEIVED"] = 8] = "BYTES_RECEIVED";
+    StatEntry[StatEntry["TICK_BYTE_SENT"] = 9] = "TICK_BYTE_SENT";
+    StatEntry[StatEntry["TICK_BYTE_RECEIVED"] = 10] = "TICK_BYTE_RECEIVED";
+    StatEntry[StatEntry["PLAYERS_CURRENTLY"] = 11] = "PLAYERS_CURRENTLY";
+    StatEntry[StatEntry["PLAYERS_JOINED"] = 12] = "PLAYERS_JOINED";
+    StatEntry[StatEntry["PLAYERS_LEFT"] = 13] = "PLAYERS_LEFT";
+    StatEntry[StatEntry["BOGUS_AMOGUS_MESSAGES"] = 14] = "BOGUS_AMOGUS_MESSAGES";
+    StatEntry[StatEntry["PLAYERS_REJECTED"] = 15] = "PLAYERS_REJECTED";
+    StatEntry[StatEntry["COUNT"] = 16] = "COUNT";
+})(StatEntry || (StatEntry = {}));
 const wasmServer = await instantiateWasmServer('server.wasm');
 wasmServer._initialize();
 const players = new Map();
@@ -114,12 +43,12 @@ const level = common.createLevel(wasmServer);
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (players.size >= SERVER_TOTAL_LIMIT) {
-        Stats.playersRejected.counter += 1;
+        wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
         ws.close();
         return;
     }
     if (req.socket.remoteAddress === undefined) {
-        Stats.playersRejected.counter += 1;
+        wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
         ws.close();
         return;
     }
@@ -127,7 +56,7 @@ wss.on("connection", (ws, req) => {
     {
         let count = connectionLimits.get(remoteAddress) || 0;
         if (count >= SERVER_SINGLE_IP_LIMIT) {
-            Stats.playersRejected.counter += 1;
+            wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
             ws.close();
             return;
         }
@@ -151,18 +80,18 @@ wss.on("connection", (ws, req) => {
     };
     players.set(id, player);
     joinedIds.add(id);
-    Stats.playersJoined.counter += 1;
-    Stats.playersCurrently.counter += 1;
+    wasmServer.stats_inc_counter(StatEntry.PLAYERS_JOINED, 1);
+    wasmServer.stats_inc_counter(StatEntry.PLAYERS_CURRENTLY, 1);
     ws.addEventListener("message", (event) => {
-        Stats.messagesReceived.counter += 1;
+        wasmServer.stats_inc_counter(StatEntry.MESSAGES_RECEIVED, 1);
         messagesRecievedWithinTick += 1;
         if (!(event.data instanceof ArrayBuffer)) {
-            Stats.bogusAmogusMessages.counter += 1;
+            wasmServer.stats_inc_counter(StatEntry.BOGUS_AMOGUS_MESSAGES, 1);
             ws.close();
             return;
         }
         const view = new DataView(event.data);
-        Stats.bytesReceived.counter += view.byteLength;
+        wasmServer.stats_inc_counter(StatEntry.BYTES_RECEIVED, view.byteLength);
         bytesReceivedWithinTick += view.byteLength;
         if (common.AmmaMovingStruct.verify(view)) {
             const direction = common.AmmaMovingStruct.direction.read(view);
@@ -184,7 +113,7 @@ wss.on("connection", (ws, req) => {
             pingIds.set(id, common.PingStruct.timestamp.read(view));
         }
         else {
-            Stats.bogusAmogusMessages.counter += 1;
+            wasmServer.stats_inc_counter(StatEntry.BOGUS_AMOGUS_MESSAGES, 1);
             ws.close();
             return;
         }
@@ -200,8 +129,8 @@ wss.on("connection", (ws, req) => {
             }
         }
         players.delete(id);
-        Stats.playersLeft.counter += 1;
-        Stats.playersCurrently.counter -= 1;
+        wasmServer.stats_inc_counter(StatEntry.PLAYERS_LEFT, 1);
+        wasmServer.stats_inc_counter(StatEntry.PLAYERS_CURRENTLY, -1);
         if (!joinedIds.delete(id)) {
             leftIds.add(id);
         }
@@ -404,35 +333,43 @@ function tick() {
         }
     });
     const tickTime = performance.now() - timestamp;
-    Stats.ticksCount.counter += 1;
-    Stats.tickTimes.pushSample(tickTime / 1000);
-    Stats.messagesSent.counter += messageSentCounter;
-    Stats.tickMessagesSent.pushSample(messageSentCounter);
-    Stats.tickMessagesReceived.pushSample(messagesRecievedWithinTick);
-    Stats.bytesSent.counter += bytesSentCounter;
-    Stats.tickByteSent.pushSample(bytesSentCounter);
-    Stats.tickByteReceived.pushSample(bytesReceivedWithinTick);
+    wasmServer.stats_inc_counter(StatEntry.TICKS_COUNT, 1);
+    wasmServer.stats_push_sample(StatEntry.TICK_TIMES, tickTime / 1000);
+    wasmServer.stats_inc_counter(StatEntry.MESSAGES_SENT, messageSentCounter);
+    wasmServer.stats_push_sample(StatEntry.TICK_MESSAGES_SENT, messageSentCounter);
+    wasmServer.stats_push_sample(StatEntry.TICK_MESSAGES_RECEIVED, messagesRecievedWithinTick);
+    wasmServer.stats_inc_counter(StatEntry.BYTES_SENT, bytesSentCounter);
+    wasmServer.stats_push_sample(StatEntry.TICK_BYTE_SENT, bytesSentCounter);
+    wasmServer.stats_push_sample(StatEntry.TICK_BYTE_RECEIVED, bytesReceivedWithinTick);
     joinedIds.clear();
     leftIds.clear();
     pingIds.clear();
     bombsThrown.clear();
     bytesReceivedWithinTick = 0;
     messagesRecievedWithinTick = 0;
-    if (Stats.ticksCount.counter % SERVER_FPS === 0) {
-        Stats.print();
-    }
+    wasmServer.stats_print_per_n_ticks(SERVER_FPS);
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
+function js_now_secs() {
+    return Math.floor(Date.now() / 1000);
+}
+function js_write(buffer, buffer_len) {
+    console.log(new TextDecoder().decode(new Uint8ClampedArray(wasmServer.memory.buffer, buffer, buffer_len)));
+}
 async function instantiateWasmServer(path) {
-    const wasm = await WebAssembly.instantiate(readFileSync(path));
+    const wasm = await WebAssembly.instantiate(readFileSync(path), {
+        "env": { js_now_secs, js_write },
+    });
     return {
         wasm,
         memory: wasm.instance.exports.memory,
         _initialize: wasm.instance.exports._initialize,
         allocate_scene: wasm.instance.exports.allocate_scene,
+        stats_inc_counter: wasm.instance.exports.stats_inc_counter,
+        stats_push_sample: wasm.instance.exports.stats_push_sample,
+        stats_print_per_n_ticks: wasm.instance.exports.stats_print_per_n_ticks,
     };
 }
-Stats.uptime.startedAt = Date.now();
 setTimeout(tick, 1000 / SERVER_FPS);
 console.log(`Listening to ws://0.0.0.0:${common.SERVER_PORT}`);
 //# sourceMappingURL=server.mjs.map

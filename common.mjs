@@ -603,4 +603,18 @@ export function updatePlayer(wasmCommon, player, scene, deltaTime) {
         player.position.y = ny;
     }
 }
+export function make_environment(...envs) {
+    return new Proxy(envs, {
+        get(_target, prop, _receiver) {
+            for (let env of envs) {
+                if (env.hasOwnProperty(prop)) {
+                    return env[prop];
+                }
+            }
+            return (...args) => {
+                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`);
+            };
+        }
+    });
+}
 //# sourceMappingURL=common.mjs.map
