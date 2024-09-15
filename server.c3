@@ -190,9 +190,9 @@ fn void stats_inc_counter(StatEntry entry, int delta) @extern("stats_inc_counter
 
 fn void entry() @init(2048) @private {
     // NOTE: ideally we need to override os::native_fputc_fn as well
-    // because io::printn uses it print newline at the end of the
-    // message. But since js_write is implemented as a single
-    // console.log(), that newline is added implicitly anyway.
+    // because io::printn uses it to print newline at the end of the
+    // message. But since js_write() in server.mts is implemented as a
+    // single console.log(), that newline is added implicitly anyway.
     os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
         js_write(&buffer[0], buffer.len);
         return buffer.len;

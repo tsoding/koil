@@ -416,8 +416,8 @@ function js_now_secs(): number {
 }
 
 // NOTE: This implicitly adds newline, but given how we using this
-// function in server.c3 it's actually fine. It's called once per
-// io::printn().
+// function in server.c3 it's actually fine. This function is called
+// once per io::printn() anyway.
 function js_write(buffer: number, buffer_len: number) {
     console.log(new TextDecoder().decode(new Uint8ClampedArray(wasmServer.memory.buffer, buffer, buffer_len)));
 }
