@@ -328,15 +328,26 @@ export const BombExplodedStruct = (() => {
 })();
 
 export const ItemSpawnedStruct = (() => {
-    const allocator = { size: 0 };
-    const kind     = allocUint8Field(allocator);
+    const allocator = { size: 0 };    
     const itemKind = allocUint8Field(allocator);
     const index    = allocUint32Field(allocator);
     const x        = allocFloat32Field(allocator);
     const y        = allocFloat32Field(allocator);
     const size     = allocator.size;
-    const verify   = verifier(kind, MessageKind.ItemSpawned, size);
-    return {kind, itemKind, index, x, y, size, verify};
+    return { itemKind, index, x, y, size };
+})();
+
+export const ItemsSpawnedHeaderStruct = (() => {
+    const allocator = { size: 0 };
+    const kind     = allocUint8Field(allocator);
+    const size     = allocator.size;
+    const itemSize = ItemSpawnedStruct.size;
+    const verify = (view: DataView) =>
+        view.byteLength >= size &&
+        (view.byteLength - size)%itemSize === 0 &&
+        kind.read(view) == MessageKind.ItemSpawned;
+    const count = (view: DataView) => (view.byteLength - size)/itemSize
+    return {kind, count, size, verify};
 })();
 
 export const PingStruct = (() => {

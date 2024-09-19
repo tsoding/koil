@@ -166,23 +166,46 @@ function tick() {
     if (joinedIds.size > 0) {
         // Initialize joined player
         {
-            const count = players.size;
-            const buffer = new ArrayBuffer(common.PlayersJoinedHeaderStruct.size + count*common.PlayerStruct.size);
-            const headerView = new DataView(buffer, 0, common.PlayersJoinedHeaderStruct.size);
-            common.PlayersJoinedHeaderStruct.kind.write(headerView, common.MessageKind.PlayerJoined);
+            // Reconstructing the state of the other players batch
+            const playersCount = players.size;
+            const bufferPlayersState = new ArrayBuffer(common.PlayersJoinedHeaderStruct.size + playersCount*common.PlayerStruct.size);
+            const playersJoinedHeaderView = new DataView(bufferPlayersState, 0, common.PlayersJoinedHeaderStruct.size);
+            common.PlayersJoinedHeaderStruct.kind.write(playersJoinedHeaderView, common.MessageKind.PlayerJoined);
+            {
+                let index = 0;
+                players.forEach((player) => {
+                    const playerView = new DataView(bufferPlayersState, common.PlayersJoinedHeaderStruct.size + index*common.PlayerStruct.size);
+                    common.PlayerStruct.id.write(playerView, player.id);
+                    common.PlayerStruct.x.write(playerView, player.position.x);
+                    common.PlayerStruct.y.write(playerView, player.position.y);
+                    common.PlayerStruct.direction.write(playerView, player.direction);
+                    common.PlayerStruct.hue.write(playerView, player.hue/360*256);
+                    common.PlayerStruct.moving.write(playerView, player.moving);
+                    index += 1;
+                })
+            }
 
-            // Reconstructing the state of the other players
-            let index = 0;
-            players.forEach((player) => {
-                const playerView = new DataView(buffer, common.PlayersJoinedHeaderStruct.size + index*common.PlayerStruct.size);
-                common.PlayerStruct.id.write(playerView, player.id);
-                common.PlayerStruct.x.write(playerView, player.position.x);
-                common.PlayerStruct.y.write(playerView, player.position.y);
-                common.PlayerStruct.direction.write(playerView, player.direction);
-                common.PlayerStruct.hue.write(playerView, player.hue/360*256);
-                common.PlayerStruct.moving.write(playerView, player.moving);
-                index += 1;
+            // Reconstructing the state of items batch
+            let itemsCount = 0;
+            level.items.forEach((item) => {
+                if (item.alive) itemsCount += 1;
             })
+            const bufferItemsState = new ArrayBuffer(common.ItemsSpawnedHeaderStruct.size + itemsCount*common.ItemSpawnedStruct.size);
+            const itemsSpawnedHeaderView = new DataView(bufferItemsState, 0, common.ItemSpawnedStruct.size);
+            common.ItemsSpawnedHeaderStruct.kind.write(itemsSpawnedHeaderView, common.MessageKind.ItemSpawned);
+            {
+                let index = 0;
+                level.items.forEach((item, itemIndex) => {
+                    if (item.alive) {
+                        const itemSpawnedView = new DataView(bufferItemsState, common.ItemsSpawnedHeaderStruct.size + index*common.ItemSpawnedStruct.size);
+                        common.ItemSpawnedStruct.itemKind.write(itemSpawnedView, item.kind);
+                        common.ItemSpawnedStruct.index.write(itemSpawnedView, itemIndex);
+                        common.ItemSpawnedStruct.x.write(itemSpawnedView, item.position.x);
+                        common.ItemSpawnedStruct.y.write(itemSpawnedView, item.position.y);
+                        index += 1;
+                    }
+                })
+            }
 
             // Greeting all the joined players and notifying them about other players
             joinedIds.forEach((joinedId) => {
@@ -201,24 +224,14 @@ function tick() {
                     messageSentCounter += 1
 
                     // Reconstructing the state of the other players
-                    joinedPlayer.ws.send(buffer);
-                    bytesSentCounter += buffer.byteLength;
+                    joinedPlayer.ws.send(bufferPlayersState);
+                    bytesSentCounter += bufferPlayersState.byteLength;
                     messageSentCounter += 1
 
                     // Reconstructing the state of items
-                    level.items.forEach((item, index) => {
-                        if (item.alive) {
-                            const view = new DataView(new ArrayBuffer(common.ItemSpawnedStruct.size));
-                            common.ItemSpawnedStruct.kind.write(view, common.MessageKind.ItemSpawned);
-                            common.ItemSpawnedStruct.index.write(view, index);
-                            common.ItemSpawnedStruct.x.write(view, item.position.x);
-                            common.ItemSpawnedStruct.y.write(view, item.position.y);
-                            common.ItemSpawnedStruct.itemKind.write(view, item.kind);
-                            joinedPlayer.ws.send(view);
-                            bytesSentCounter += view.byteLength;
-                            messageSentCounter += 1
-                        }
-                    });
+                    joinedPlayer.ws.send(bufferItemsState);
+                    bytesSentCounter += bufferItemsState.byteLength;
+                    messageSentCounter += 1
 
                     // TODO: Reconstructing the state of bombs
                 }

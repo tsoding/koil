@@ -375,17 +375,21 @@ async function createGame() {
                 playSound(assets.itemPickupSound, game.me.position, game.level.items[index].position);
             }
         }
-        else if (common.ItemSpawnedStruct.verify(view)) {
-            const index = common.ItemSpawnedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.items.length)) {
-                console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
+        else if (common.ItemsSpawnedHeaderStruct.verify(view)) {
+            const count = common.ItemsSpawnedHeaderStruct.count(view);
+            for (let i = 0; i < count; ++i) {
+                const itemSpawnedView = new DataView(event.data, common.ItemsSpawnedHeaderStruct.size + i * common.ItemSpawnedStruct.size, common.ItemSpawnedStruct.size);
+                const index = common.ItemSpawnedStruct.index.read(itemSpawnedView);
+                if (!(0 <= index && index < game.level.items.length)) {
+                    console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
+                    ws?.close();
+                    return;
+                }
+                game.level.items[index].alive = true;
+                game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(itemSpawnedView);
+                game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(itemSpawnedView);
+                game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(itemSpawnedView);
             }
-            game.level.items[index].alive = true;
-            game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(view);
-            game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(view);
-            game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(view);
         }
         else if (common.BombSpawnedStruct.verify(view)) {
             const index = common.BombSpawnedStruct.index.read(view);
