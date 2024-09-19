@@ -492,16 +492,20 @@ async function createGame(): Promise<Game> {
             }
         } else if (common.PongStruct.verify(view)) {
             game.ping = performance.now() - common.PongStruct.timestamp.read(view);
-        } else if (common.ItemCollectedStruct.verify(view)) {
-            const index = common.ItemCollectedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.items.length)) {
-                console.error(`Received bogus-amogus ItemCollected message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
-            }
-            if (game.level.items[index].alive) {
-                game.level.items[index].alive = false;
-                playSound(assets.itemPickupSound, game.me.position, game.level.items[index].position);
+        } else if (common.ItemsCollectedBatchStruct.verify(view)) {
+            const count = common.ItemsCollectedBatchStruct.count(view);
+
+            for (let i = 0; i < count; ++i) {
+                const itemIndex = common.ItemsCollectedBatchStruct.item(event.data, i).getUint32(0, true);
+                if (!(0 <= itemIndex && itemIndex < game.level.items.length)) {
+                    console.error(`Received bogus-amogus ItemCollected message from server. Invalid index ${itemIndex}`);
+                    ws?.close();
+                    return;
+                }
+                if (game.level.items[itemIndex].alive) {
+                    game.level.items[itemIndex].alive = false;
+                    playSound(assets.itemPickupSound, game.me.position, game.level.items[itemIndex].position);
+                }
             }
         } else if (common.ItemsSpawnedHeaderStruct.verify(view)) {
             const count = common.ItemsSpawnedHeaderStruct.count(view);

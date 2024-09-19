@@ -289,22 +289,25 @@ function tick() {
         });
     });
     {
+        let collectedItemIds = [];
         players.forEach((player) => {
             common.updatePlayer(wasmServer, player, level.scene, deltaTime);
-            level.items.forEach((item, index) => {
+            level.items.forEach((item, itemIndex) => {
                 if (item.alive) {
                     if (common.collectItem(player, item)) {
-                        const view = new DataView(new ArrayBuffer(common.ItemCollectedStruct.size));
-                        common.ItemCollectedStruct.kind.write(view, common.MessageKind.ItemCollected);
-                        common.ItemCollectedStruct.index.write(view, index);
-                        players.forEach((anotherPlayer) => {
-                            anotherPlayer.ws.send(view);
-                            bytesSentCounter += view.byteLength;
-                            messageSentCounter += 1;
-                        });
+                        collectedItemIds.push(itemIndex);
                     }
                 }
             });
+        });
+        const bufferItemsCollected = common.ItemsCollectedBatchStruct.allocateAndInit(collectedItemIds.length);
+        for (let i = 0; i < collectedItemIds.length; ++i) {
+            common.ItemsCollectedBatchStruct.item(bufferItemsCollected, i).setUint32(0, collectedItemIds[i], true);
+        }
+        players.forEach((player) => {
+            player.ws.send(bufferItemsCollected);
+            bytesSentCounter += bufferItemsCollected.byteLength;
+            messageSentCounter += 1;
         });
         for (let index = 0; index < level.bombs.length; ++index) {
             const bomb = level.bombs[index];

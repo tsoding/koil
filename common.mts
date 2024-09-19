@@ -310,15 +310,7 @@ export function BatchMessageStruct<Item extends { size: number }>(messageKind: M
     return {kind, headerSize, verify, count, item, itemType, allocateAndInit};
 };
 
-// TODO: Batch up the Item messages
-export const ItemCollectedStruct = (() => {
-    const allocator = { size: 0 };
-    const kind      = allocUint8Field(allocator);
-    const index     = allocUint32Field(allocator);
-    const size      = allocator.size;
-    const verify    = verifier(kind, MessageKind.ItemCollected, size);
-    return {kind, index, size, verify};
-})();
+export const ItemsCollectedBatchStruct = BatchMessageStruct(MessageKind.ItemCollected, { size: UINT32_SIZE });
 
 export const BombSpawnedStruct = (() => {
     const allocator = { size: 0 };
