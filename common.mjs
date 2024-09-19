@@ -265,6 +265,16 @@ function verifier(kindField, kind, size) {
     return (view) => view.byteLength == size &&
         kindField.read(view) == kind;
 }
+export const BatchMessageStruct = (messageKind, itemSize) => {
+    const allocator = { size: 0 };
+    const kind = allocUint8Field(allocator);
+    const size = allocator.size;
+    const verify = (view) => view.byteLength >= size &&
+        (view.byteLength - size) % itemSize === 0 &&
+        kind.read(view) == messageKind;
+    const count = (view) => (view.byteLength - size) / itemSize;
+    return { kind, count, size, verify };
+};
 export const ItemCollectedStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -308,17 +318,7 @@ export const ItemSpawnedStruct = (() => {
     const size = allocator.size;
     return { itemKind, index, x, y, size };
 })();
-export const ItemsSpawnedHeaderStruct = (() => {
-    const allocator = { size: 0 };
-    const kind = allocUint8Field(allocator);
-    const size = allocator.size;
-    const itemSize = ItemSpawnedStruct.size;
-    const verify = (view) => view.byteLength >= size &&
-        (view.byteLength - size) % itemSize === 0 &&
-        kind.read(view) == MessageKind.ItemSpawned;
-    const count = (view) => (view.byteLength - size) / itemSize;
-    return { kind, count, size, verify };
-})();
+export const ItemsSpawnedHeaderStruct = BatchMessageStruct(MessageKind.ItemSpawned, ItemSpawnedStruct.size);
 export const PingStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -374,28 +374,8 @@ export const PlayerStruct = (() => {
     const size = allocator.size;
     return { id, x, y, direction, hue, moving, size };
 })();
-export const PlayersJoinedHeaderStruct = (() => {
-    const allocator = { size: 0 };
-    const kind = allocUint8Field(allocator);
-    const size = allocator.size;
-    const itemSize = PlayerStruct.size;
-    const verify = (view) => view.byteLength >= size &&
-        (view.byteLength - size) % itemSize === 0 &&
-        kind.read(view) == MessageKind.PlayerJoined;
-    const count = (view) => (view.byteLength - size) / itemSize;
-    return { kind, count, size, verify };
-})();
-export const PlayersMovingHeaderStruct = (() => {
-    const allocator = { size: 0 };
-    const kind = allocUint8Field(allocator);
-    const size = allocator.size;
-    const itemSize = PlayerStruct.size;
-    const verify = (view) => view.byteLength >= size &&
-        (view.byteLength - size) % itemSize === 0 &&
-        kind.read(view) == MessageKind.PlayerMoving;
-    const count = (view) => (view.byteLength - size) / itemSize;
-    return { kind, count, size, verify };
-})();
+export const PlayersJoinedHeaderStruct = BatchMessageStruct(MessageKind.PlayerJoined, PlayerStruct.size);
+export const PlayersMovingHeaderStruct = BatchMessageStruct(MessageKind.PlayerMoving, PlayerStruct.size);
 export const PlayersLeftHeaderStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
