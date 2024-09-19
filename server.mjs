@@ -229,15 +229,15 @@ function tick() {
     }
     if (leftIds.size > 0) {
         const count = leftIds.size;
-        const view = common.PlayersLeftHeaderStruct.allocateAndInit(count);
+        const buffer = common.PlayersLeftHeaderStruct.allocateAndInit(count);
         let index = 0;
         leftIds.forEach((leftId) => {
-            common.PlayersLeftHeaderStruct.items(index).id.write(view, leftId);
+            common.PlayersLeftHeaderStruct.item(buffer, index).setUint32(0, leftId, true);
             index += 1;
         });
         players.forEach((player) => {
-            player.ws.send(view);
-            bytesSentCounter += view.byteLength;
+            player.ws.send(buffer);
+            bytesSentCounter += buffer.byteLength;
             messageSentCounter += 1;
         });
     }

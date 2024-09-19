@@ -470,7 +470,7 @@ async function createGame(): Promise<Game> {
         } else if (common.PlayersLeftHeaderStruct.verify(view)) {
             const count = common.PlayersLeftHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const id = common.PlayersLeftHeaderStruct.items(i).id.read(view);
+                const id = common.PlayersLeftHeaderStruct.item(event.data, i).getUint32(0, true);
                 players.delete(id);
             }
         } else if (common.PlayersMovingHeaderStruct.verify(view)) {

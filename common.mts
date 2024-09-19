@@ -426,32 +426,7 @@ export const PlayerStruct = (() => {
 
 export const PlayersJoinedHeaderStruct = BatchMessageStruct(MessageKind.PlayerJoined, PlayerStruct);
 export const PlayersMovingHeaderStruct = BatchMessageStruct(MessageKind.PlayerMoving, PlayerStruct);
-export const PlayersLeftHeaderStruct = (() => {
-    const allocator = { size: 0 };
-    const kind = allocUint8Field(allocator);
-    const headerSize = allocator.size;
-    const itemSize = UINT32_SIZE;
-    const items = (index: number) => {
-        return {
-            id: {
-                read: (view: DataView): number => view.getUint32(headerSize + index*itemSize, true),
-                write: (view: DataView, value: number): void => view.setUint32(headerSize + index*itemSize, value, true)
-            }
-        }
-    }
-    const verify = (view: DataView) =>
-        view.byteLength >= headerSize &&
-        (view.byteLength - headerSize)%itemSize === 0 &&
-        kind.read(view) === MessageKind.PlayerLeft;
-    const allocateAndInit = (countItems: number): DataView => {
-        const buffer = new ArrayBuffer(headerSize + itemSize*countItems);
-        const view = new DataView(buffer);
-        kind.write(view, MessageKind.PlayerLeft);
-        return view;
-    }
-    const count = (view: DataView) => (view.byteLength - headerSize)/itemSize
-    return {kind, count, items, itemSize, headerSize, verify, allocateAndInit};
-})();
+export const PlayersLeftHeaderStruct = BatchMessageStruct(MessageKind.PlayerLeft, { size: UINT32_SIZE });
 
 // It's such mod that properMod(-1, 100) === 99
 export function properMod(a: number, b: number): number {
