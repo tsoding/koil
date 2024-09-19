@@ -313,7 +313,7 @@ async function createGame() {
         else if (common.PlayersJoinedHeaderStruct.verify(view)) {
             const count = common.PlayersJoinedHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersJoinedHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
+                const playerView = common.PlayersJoinedHeaderStruct.item(event.data, i);
                 const id = common.PlayerStruct.id.read(playerView);
                 const player = players.get(id);
                 if (player !== undefined) {
@@ -346,7 +346,7 @@ async function createGame() {
         else if (common.PlayersMovingHeaderStruct.verify(view)) {
             const count = common.PlayersMovingHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const playerView = new DataView(event.data, common.PlayersMovingHeaderStruct.size + i * common.PlayerStruct.size, common.PlayerStruct.size);
+                const playerView = common.PlayersMovingHeaderStruct.item(event.data, i);
                 const id = common.PlayerStruct.id.read(playerView);
                 const player = players.get(id);
                 if (player === undefined) {
@@ -378,17 +378,17 @@ async function createGame() {
         else if (common.ItemsSpawnedHeaderStruct.verify(view)) {
             const count = common.ItemsSpawnedHeaderStruct.count(view);
             for (let i = 0; i < count; ++i) {
-                const itemSpawnedView = new DataView(event.data, common.ItemsSpawnedHeaderStruct.size + i * common.ItemSpawnedStruct.size, common.ItemSpawnedStruct.size);
-                const index = common.ItemSpawnedStruct.index.read(itemSpawnedView);
-                if (!(0 <= index && index < game.level.items.length)) {
-                    console.error(`Received bogus-amogus ItemSpawned message from server. Invalid index ${index}`);
+                const itemSpawnedView = common.ItemsSpawnedHeaderStruct.item(event.data, i);
+                const itemIndex = common.ItemSpawnedStruct.itemIndex.read(itemSpawnedView);
+                if (!(0 <= itemIndex && itemIndex < game.level.items.length)) {
+                    console.error(`Received bogus-amogus ItemSpawned message from server. Invalid item index ${itemIndex}`);
                     ws?.close();
                     return;
                 }
-                game.level.items[index].alive = true;
-                game.level.items[index].kind = common.ItemSpawnedStruct.itemKind.read(itemSpawnedView);
-                game.level.items[index].position.x = common.ItemSpawnedStruct.x.read(itemSpawnedView);
-                game.level.items[index].position.y = common.ItemSpawnedStruct.y.read(itemSpawnedView);
+                game.level.items[itemIndex].alive = true;
+                game.level.items[itemIndex].kind = common.ItemSpawnedStruct.itemKind.read(itemSpawnedView);
+                game.level.items[itemIndex].position.x = common.ItemSpawnedStruct.x.read(itemSpawnedView);
+                game.level.items[itemIndex].position.y = common.ItemSpawnedStruct.y.read(itemSpawnedView);
             }
         }
         else if (common.BombSpawnedStruct.verify(view)) {

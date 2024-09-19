@@ -146,13 +146,11 @@ function tick() {
     if (joinedIds.size > 0) {
         {
             const playersCount = players.size;
-            const bufferPlayersState = new ArrayBuffer(common.PlayersJoinedHeaderStruct.size + playersCount * common.PlayerStruct.size);
-            const playersJoinedHeaderView = new DataView(bufferPlayersState, 0, common.PlayersJoinedHeaderStruct.size);
-            common.PlayersJoinedHeaderStruct.kind.write(playersJoinedHeaderView, common.MessageKind.PlayerJoined);
+            const bufferPlayersState = common.PlayersJoinedHeaderStruct.allocateAndInit(playersCount);
             {
                 let index = 0;
                 players.forEach((player) => {
-                    const playerView = new DataView(bufferPlayersState, common.PlayersJoinedHeaderStruct.size + index * common.PlayerStruct.size);
+                    const playerView = common.PlayersJoinedHeaderStruct.item(bufferPlayersState, index);
                     common.PlayerStruct.id.write(playerView, player.id);
                     common.PlayerStruct.x.write(playerView, player.position.x);
                     common.PlayerStruct.y.write(playerView, player.position.y);
@@ -167,16 +165,14 @@ function tick() {
                 if (item.alive)
                     itemsCount += 1;
             });
-            const bufferItemsState = new ArrayBuffer(common.ItemsSpawnedHeaderStruct.size + itemsCount * common.ItemSpawnedStruct.size);
-            const itemsSpawnedHeaderView = new DataView(bufferItemsState, 0, common.ItemSpawnedStruct.size);
-            common.ItemsSpawnedHeaderStruct.kind.write(itemsSpawnedHeaderView, common.MessageKind.ItemSpawned);
+            const bufferItemsState = common.ItemsSpawnedHeaderStruct.allocateAndInit(itemsCount);
             {
                 let index = 0;
                 level.items.forEach((item, itemIndex) => {
                     if (item.alive) {
-                        const itemSpawnedView = new DataView(bufferItemsState, common.ItemsSpawnedHeaderStruct.size + index * common.ItemSpawnedStruct.size);
+                        const itemSpawnedView = common.ItemsSpawnedHeaderStruct.item(bufferItemsState, index);
                         common.ItemSpawnedStruct.itemKind.write(itemSpawnedView, item.kind);
-                        common.ItemSpawnedStruct.index.write(itemSpawnedView, itemIndex);
+                        common.ItemSpawnedStruct.itemIndex.write(itemSpawnedView, itemIndex);
                         common.ItemSpawnedStruct.x.write(itemSpawnedView, item.position.x);
                         common.ItemSpawnedStruct.y.write(itemSpawnedView, item.position.y);
                         index += 1;
@@ -207,14 +203,12 @@ function tick() {
         }
         {
             const count = joinedIds.size;
-            const buffer = new ArrayBuffer(common.PlayersJoinedHeaderStruct.size + count * common.PlayerStruct.size);
-            const headerView = new DataView(buffer, 0, common.PlayersJoinedHeaderStruct.size);
-            common.PlayersJoinedHeaderStruct.kind.write(headerView, common.MessageKind.PlayerJoined);
+            const buffer = common.PlayersJoinedHeaderStruct.allocateAndInit(count);
             let index = 0;
             joinedIds.forEach((joinedId) => {
                 const joinedPlayer = players.get(joinedId);
                 if (joinedPlayer !== undefined) {
-                    const playerView = new DataView(buffer, common.PlayersJoinedHeaderStruct.size + index * common.PlayerStruct.size);
+                    const playerView = common.PlayersJoinedHeaderStruct.item(buffer, index);
                     common.PlayerStruct.id.write(playerView, joinedPlayer.id);
                     common.PlayerStruct.x.write(playerView, joinedPlayer.position.x);
                     common.PlayerStruct.y.write(playerView, joinedPlayer.position.y);
@@ -255,14 +249,12 @@ function tick() {
             }
         });
         if (count > 0) {
-            const buffer = new ArrayBuffer(common.PlayersMovingHeaderStruct.size + count * common.PlayerStruct.size);
-            const headerView = new DataView(buffer, 0, common.PlayersMovingHeaderStruct.size);
-            common.PlayersMovingHeaderStruct.kind.write(headerView, common.MessageKind.PlayerMoving);
+            const buffer = common.PlayersMovingHeaderStruct.allocateAndInit(count);
             let index = 0;
             players.forEach((player) => {
                 if (player.newMoving !== player.moving) {
                     player.moving = player.newMoving;
-                    const playerView = new DataView(buffer, common.PlayersMovingHeaderStruct.size + index * common.PlayerStruct.size);
+                    const playerView = common.PlayersMovingHeaderStruct.item(buffer, index);
                     common.PlayerStruct.id.write(playerView, player.id);
                     common.PlayerStruct.x.write(playerView, player.position.x);
                     common.PlayerStruct.y.write(playerView, player.position.y);
