@@ -479,18 +479,23 @@ async function createGame(): Promise<Game> {
                 game.level.bombs[bombIndex].velocity.y = common.BombSpawnedStruct.dy.read(bombSpawnedView);
                 game.level.bombs[bombIndex].velocity.z = common.BombSpawnedStruct.dz.read(bombSpawnedView);
             }
-        } else if (common.BombExplodedStruct.verify(view)) {
-            const index = common.BombExplodedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.bombs.length)) {
-                console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
+        } else if (common.BombsExplodedHeaderStruct.verify(view)) {
+            const count = common.BombsExplodedHeaderStruct.count(view);
+
+            for (let index = 0; index < count; ++index) {
+                const bombExplodedView = common.BombsExplodedHeaderStruct.item(event.data, index);
+                const bombIndex = common.BombExplodedStruct.bombIndex.read(bombExplodedView);
+                if (!(0 <= bombIndex && bombIndex < game.level.bombs.length)) {
+                    console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${bombIndex}`);
+                    ws?.close();
+                    return;
+                }
+                game.level.bombs[bombIndex].lifetime = 0.0;
+                game.level.bombs[bombIndex].position.x = common.BombExplodedStruct.x.read(bombExplodedView);
+                game.level.bombs[bombIndex].position.y = common.BombExplodedStruct.y.read(bombExplodedView);
+                game.level.bombs[bombIndex].position.z = common.BombExplodedStruct.z.read(bombExplodedView);
+                explodeBomb(wasmClient, level.bombs[bombIndex], me, assets, particlesPtr);
             }
-            game.level.bombs[index].lifetime = 0.0;
-            game.level.bombs[index].position.x = common.BombExplodedStruct.x.read(view);
-            game.level.bombs[index].position.y = common.BombExplodedStruct.y.read(view);
-            game.level.bombs[index].position.z = common.BombExplodedStruct.z.read(view);
-            explodeBomb(wasmClient, level.bombs[index], me, assets, particlesPtr);
         } else {
             console.error("Received bogus-amogus message from server.", view)
             ws?.close();

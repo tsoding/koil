@@ -343,25 +343,33 @@ function tick() {
             messageSentCounter += 1;
         });
 
-        for (let index = 0; index < level.bombs.length; ++index) {
-            const bomb = level.bombs[index];
+        const bombsExploded = [];
+        for (let bombIndex = 0; bombIndex < level.bombs.length; ++bombIndex) {
+            const bomb = level.bombs[bombIndex];
             if (bomb.lifetime > 0) {
                 common.updateBomb(wasmServer, bomb, level.scene, deltaTime);
                 if (bomb.lifetime <= 0) {
-                    const view = new DataView(new ArrayBuffer(common.BombExplodedStruct.size));
-                    common.BombExplodedStruct.kind.write(view, common.MessageKind.BombExploded);
-                    common.BombExplodedStruct.index.write(view, index);
-                    common.BombExplodedStruct.x.write(view, bomb.position.x);
-                    common.BombExplodedStruct.y.write(view, bomb.position.y);
-                    common.BombExplodedStruct.z.write(view, bomb.position.z);
-                    players.forEach((player) => {
-                        player.ws.send(view);
-                        bytesSentCounter += view.byteLength;
-                        messageSentCounter += 1;
-                    })
+                    bombsExploded.push(bombIndex);
                 }
             }
         }
+
+        const bombsExplodedBuffer = common.BombsExplodedHeaderStruct.allocateAndInit(bombsExploded.length);
+        for (let index = 0; index < bombsExploded.length; ++index) {
+            const bombIndex = bombsExploded[index];
+            const bomb = level.bombs[bombIndex];
+            const view = common.BombsExplodedHeaderStruct.item(bombsExplodedBuffer, index);
+            common.BombExplodedStruct.bombIndex.write(view, bombIndex);
+            common.BombExplodedStruct.x.write(view, bomb.position.x);
+            common.BombExplodedStruct.y.write(view, bomb.position.y);
+            common.BombExplodedStruct.z.write(view, bomb.position.z);
+        }
+
+        players.forEach((player) => {
+            player.ws.send(bombsExplodedBuffer);
+            bytesSentCounter += bombsExplodedBuffer.byteLength;
+            messageSentCounter += 1;
+        })
     }
 
     // Sending out pings
