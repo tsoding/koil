@@ -256,24 +256,28 @@ function tick() {
             });
         }
     }
-    bombsThrown.forEach((index) => {
-        const bomb = level.bombs[index];
-        const view = new DataView(new ArrayBuffer(common.BombSpawnedStruct.size));
-        common.BombSpawnedStruct.kind.write(view, common.MessageKind.BombSpawned);
-        common.BombSpawnedStruct.index.write(view, index);
-        common.BombSpawnedStruct.x.write(view, bomb.position.x);
-        common.BombSpawnedStruct.y.write(view, bomb.position.y);
-        common.BombSpawnedStruct.z.write(view, bomb.position.z);
-        common.BombSpawnedStruct.dx.write(view, bomb.velocity.x);
-        common.BombSpawnedStruct.dy.write(view, bomb.velocity.y);
-        common.BombSpawnedStruct.dz.write(view, bomb.velocity.z);
-        common.BombSpawnedStruct.lifetime.write(view, bomb.lifetime);
+    if (bombsThrown.size > 0) {
+        const bombsThrownBuffer = common.BombsSpawnedHeaderStruct.allocateAndInit(bombsThrown.size);
+        let index = 0;
+        bombsThrown.forEach((bombIndex) => {
+            const bomb = level.bombs[bombIndex];
+            const view = common.BombsSpawnedHeaderStruct.item(bombsThrownBuffer, index);
+            common.BombSpawnedStruct.bombIndex.write(view, bombIndex);
+            common.BombSpawnedStruct.x.write(view, bomb.position.x);
+            common.BombSpawnedStruct.y.write(view, bomb.position.y);
+            common.BombSpawnedStruct.z.write(view, bomb.position.z);
+            common.BombSpawnedStruct.dx.write(view, bomb.velocity.x);
+            common.BombSpawnedStruct.dy.write(view, bomb.velocity.y);
+            common.BombSpawnedStruct.dz.write(view, bomb.velocity.z);
+            common.BombSpawnedStruct.lifetime.write(view, bomb.lifetime);
+            index += 1;
+        });
         players.forEach((player) => {
-            player.ws.send(view);
-            bytesSentCounter += view.byteLength;
+            player.ws.send(bombsThrownBuffer);
+            bytesSentCounter += bombsThrownBuffer.byteLength;
             messageSentCounter += 1;
         });
-    });
+    }
     {
         players.forEach((player) => {
             common.updatePlayer(wasmServer, player, level.scene, deltaTime);

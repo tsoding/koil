@@ -287,8 +287,7 @@ export function BatchMessageStruct(messageKind, itemType) {
 ;
 export const BombSpawnedStruct = (() => {
     const allocator = { size: 0 };
-    const kind = allocUint8Field(allocator);
-    const index = allocUint32Field(allocator);
+    const bombIndex = allocUint32Field(allocator);
     const x = allocFloat32Field(allocator);
     const y = allocFloat32Field(allocator);
     const z = allocFloat32Field(allocator);
@@ -297,9 +296,9 @@ export const BombSpawnedStruct = (() => {
     const dz = allocFloat32Field(allocator);
     const lifetime = allocFloat32Field(allocator);
     const size = allocator.size;
-    const verify = verifier(kind, MessageKind.BombSpawned, size);
-    return { kind, index, x, y, z, dx, dy, dz, lifetime, size, verify };
+    return { bombIndex, x, y, z, dx, dy, dz, lifetime, size };
 })();
+export const BombsSpawnedHeaderStruct = BatchMessageStruct(MessageKind.BombSpawned, BombSpawnedStruct);
 export const BombExplodedStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);

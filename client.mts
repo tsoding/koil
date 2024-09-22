@@ -460,20 +460,25 @@ async function createGame(): Promise<Game> {
                 ws?.close();
                 return;
             }
-        } else if (common.BombSpawnedStruct.verify(view)) {
-            const index = common.BombSpawnedStruct.index.read(view);
-            if (!(0 <= index && index < game.level.bombs.length)) {
-                console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${index}`);
-                ws?.close();
-                return;
+        } else if (common.BombsSpawnedHeaderStruct.verify(view)) {
+            const count = common.BombsSpawnedHeaderStruct.count(view);
+
+            for (let index = 0; index < count; ++index) {
+                const bombSpawnedView = common.BombsSpawnedHeaderStruct.item(event.data, index);
+                const bombIndex = common.BombSpawnedStruct.bombIndex.read(bombSpawnedView);
+                if (!(0 <= bombIndex && bombIndex < game.level.bombs.length)) {
+                    console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${bombIndex}`);
+                    ws?.close();
+                    return;
+                }
+                game.level.bombs[bombIndex].lifetime = common.BombSpawnedStruct.lifetime.read(bombSpawnedView);
+                game.level.bombs[bombIndex].position.x = common.BombSpawnedStruct.x.read(bombSpawnedView);
+                game.level.bombs[bombIndex].position.y = common.BombSpawnedStruct.y.read(bombSpawnedView);
+                game.level.bombs[bombIndex].position.z = common.BombSpawnedStruct.z.read(bombSpawnedView);
+                game.level.bombs[bombIndex].velocity.x = common.BombSpawnedStruct.dx.read(bombSpawnedView);
+                game.level.bombs[bombIndex].velocity.y = common.BombSpawnedStruct.dy.read(bombSpawnedView);
+                game.level.bombs[bombIndex].velocity.z = common.BombSpawnedStruct.dz.read(bombSpawnedView);
             }
-            game.level.bombs[index].lifetime = common.BombSpawnedStruct.lifetime.read(view);
-            game.level.bombs[index].position.x = common.BombSpawnedStruct.x.read(view);
-            game.level.bombs[index].position.y = common.BombSpawnedStruct.y.read(view);
-            game.level.bombs[index].position.z = common.BombSpawnedStruct.z.read(view);
-            game.level.bombs[index].velocity.x = common.BombSpawnedStruct.dx.read(view);
-            game.level.bombs[index].velocity.y = common.BombSpawnedStruct.dy.read(view);
-            game.level.bombs[index].velocity.z = common.BombSpawnedStruct.dz.read(view);
         } else if (common.BombExplodedStruct.verify(view)) {
             const index = common.BombExplodedStruct.index.read(view);
             if (!(0 <= index && index < game.level.bombs.length)) {
