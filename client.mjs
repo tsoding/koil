@@ -18,12 +18,8 @@ const CONTROL_KEYS = {
     'KeyW': common.Moving.MovingForward,
     'KeyS': common.Moving.MovingBackward,
 };
-function createSpritePool(wasmClient) {
-    const ptr = wasmClient.allocate_sprite_pool();
-    return { ptr };
-}
-function renderMinimap(wasmClient, display, camera, player, scene, spritePool) {
-    wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, camera.position.x, camera.position.y, camera.direction, player.position.x, player.position.y, scene.wallsPtr, scene.width, scene.height, spritePool.ptr);
+function renderMinimap(wasmClient, display, camera, player, scene, spritePoolPtr) {
+    wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, camera.position.x, camera.position.y, camera.direction, player.position.x, player.position.y, scene.wallsPtr, scene.width, scene.height, spritePoolPtr);
 }
 function renderDebugInfo(ctx, deltaTime, game) {
     const fontSize = 28;
@@ -94,7 +90,7 @@ function displaySwapBackImageData(display, wasmClient) {
     display.backCtx.putImageData(new ImageData(backImageData, display.backImage.width), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
-function pushSprite(wasmClient, spritePool, image, position, z, scale, cropPosition, cropSize) {
+function pushSprite(wasmClient, spritePoolPtr, image, position, z, scale, cropPosition, cropSize) {
     const cropPosition1 = new Vector2();
     const cropSize1 = new Vector2();
     if (cropPosition === undefined) {
@@ -109,7 +105,7 @@ function pushSprite(wasmClient, spritePool, image, position, z, scale, cropPosit
     else {
         cropSize1.copy(cropSize);
     }
-    wasmClient.push_sprite(spritePool.ptr, image.ptr, image.width, image.height, position.x, position.y, z, scale, cropPosition1.x, cropPosition1.y, cropSize1.x, cropSize1.y);
+    wasmClient.push_sprite(spritePoolPtr, image.ptr, image.width, image.height, position.x, position.y, z, scale, cropPosition1.x, cropPosition1.y, cropSize1.x, cropSize1.y);
 }
 function updateCamera(player, camera) {
     const halfFov = FOV * 0.5;
@@ -119,14 +115,14 @@ function updateCamera(player, camera) {
     camera.fovLeft.setPolar(camera.direction - halfFov, fovLen).add(camera.position);
     camera.fovRight.setPolar(camera.direction + halfFov, fovLen).add(camera.position);
 }
-function updateItems(wasmClient, ws, spritePool, time, me, itemsPtr, assets) {
-    wasmClient.render_items(spritePool.ptr, itemsPtr, time, assets.keyImage.ptr, assets.keyImage.width, assets.keyImage.height, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height);
+function updateItems(wasmClient, ws, spritePoolPtr, time, me, itemsPtr, assets) {
+    wasmClient.render_items(spritePoolPtr, itemsPtr, time, assets.keyImage.ptr, assets.keyImage.width, assets.keyImage.height, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height);
     if (ws.readyState != WebSocket.OPEN) {
         wasmClient.update_items_offline(itemsPtr, me.position.x, me.position.y);
     }
 }
-function updateParticles(wasmClient, assets, spritePool, deltaTime, scene, particlesPtr) {
-    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePool.ptr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
+function updateParticles(wasmClient, assets, spritePoolPtr, deltaTime, scene, particlesPtr) {
+    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePoolPtr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
 }
 function emitParticle(wasmClient, source, particlesPtr) {
     wasmClient.emit_particle(source.x, source.y, source.z, particlesPtr);
@@ -144,10 +140,10 @@ function explodeBomb(wasmClient, bomb, player, assets, particlesPtr) {
         emitParticle(wasmClient, bomb.position, particlesPtr);
     }
 }
-function updateBombs(wasmClient, ws, spritePool, player, bombs, particlesPtr, scene, deltaTime, assets) {
+function updateBombs(wasmClient, ws, spritePoolPtr, player, bombs, particlesPtr, scene, deltaTime, assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
-            pushSprite(wasmClient, spritePool, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE);
+            pushSprite(wasmClient, spritePoolPtr, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE);
             if (common.updateBomb(wasmClient, bomb, scene, deltaTime)) {
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
@@ -255,7 +251,7 @@ async function createGame() {
         bombBlastSound,
     };
     const particlesPtr = wasmClient.allocate_particle_pool();
-    const spritePool = createSpritePool(wasmClient);
+    const spritePoolPtr = wasmClient.allocate_sprite_pool();
     const players = new Map();
     const camera = {
         position: new Vector2(),
@@ -277,7 +273,7 @@ async function createGame() {
     const level = common.createLevel(wasmClient);
     wasmClient.kill_all_items(level.itemsPtr);
     const game = {
-        camera, ws, me, ping: 0, players, particlesPtr, assets, spritePool, dts: [],
+        camera, ws, me, ping: 0, players, particlesPtr, assets, spritePoolPtr, dts: [],
         level, wasmClient
     };
     ws.binaryType = 'arraybuffer';
@@ -412,29 +408,29 @@ function spriteAngleIndex(cameraPosition, entity) {
     return Math.floor(properMod(properMod(entity.direction, 2 * Math.PI) - properMod(entity.position.clone().sub(cameraPosition).angle(), 2 * Math.PI) - Math.PI + Math.PI / 8, 2 * Math.PI) / (2 * Math.PI) * SPRITE_ANGLES_COUNT);
 }
 function renderGame(display, deltaTime, time, game) {
-    game.wasmClient.reset_sprite_pool(game.spritePool.ptr);
+    game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
     game.players.forEach((player) => {
         if (player !== game.me)
             updatePlayer(game.wasmClient, player, game.level.scene, deltaTime);
     });
     updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
-    updateItems(game.wasmClient, game.ws, game.spritePool, time, game.me, game.level.itemsPtr, game.assets);
-    updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.wasmClient, game.assets, game.spritePool, deltaTime, game.level.scene, game.particlesPtr);
+    updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
+    updateBombs(game.wasmClient, game.ws, game.spritePoolPtr, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
+    updateParticles(game.wasmClient, game.assets, game.spritePoolPtr, deltaTime, game.level.scene, game.particlesPtr);
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
-            pushSprite(game.wasmClient, game.spritePool, game.assets.playerImage, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
+            pushSprite(game.wasmClient, game.spritePoolPtr, game.assets.playerImage, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
         }
     });
     game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
     game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
-    game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePool.ptr);
-    game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePool.ptr);
+    game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePoolPtr);
+    game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr);
     displaySwapBackImageData(display, game.wasmClient);
     if (MINIMAP)
-        renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePool);
+        renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePoolPtr);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 (async () => {

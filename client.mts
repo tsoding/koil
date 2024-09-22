@@ -30,15 +30,6 @@ const CONTROL_KEYS: {[key: string]: common.Moving} = {
     'KeyS'       : common.Moving.MovingBackward,
 };
 
-interface SpritePool {
-    ptr: number,
-}
-
-function createSpritePool(wasmClient: WasmClient): SpritePool {
-    const ptr = wasmClient.allocate_sprite_pool();
-    return {ptr};
-}
-
 interface Camera {
     position: Vector2;
     direction: number;
@@ -46,12 +37,12 @@ interface Camera {
     fovRight: Vector2;
 }
 
-function renderMinimap(wasmClient: WasmClient, display: Display, camera: Camera, player: Player, scene: Scene, spritePool: SpritePool) {
+function renderMinimap(wasmClient: WasmClient, display: Display, camera: Camera, player: Player, scene: Scene, spritePoolPtr: number) {
     wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height,
                               camera.position.x, camera.position.y, camera.direction,
                               player.position.x, player.position.y,
                               scene.wallsPtr, scene.width, scene.height,
-                              spritePool.ptr);
+                              spritePoolPtr);
 }
 
 function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game: Game) {
@@ -164,7 +155,7 @@ function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
-function pushSprite(wasmClient: WasmClient, spritePool: SpritePool, image: WasmImage, position: Vector2, z: number, scale: number, cropPosition?: Vector2, cropSize?: Vector2) {
+function pushSprite(wasmClient: WasmClient, spritePoolPtr: number, image: WasmImage, position: Vector2, z: number, scale: number, cropPosition?: Vector2, cropSize?: Vector2) {
     const cropPosition1 = new Vector2();
     const cropSize1 = new Vector2();
 
@@ -179,7 +170,7 @@ function pushSprite(wasmClient: WasmClient, spritePool: SpritePool, image: WasmI
         cropSize1.copy(cropSize);
     }
 
-    wasmClient.push_sprite(spritePool.ptr,
+    wasmClient.push_sprite(spritePoolPtr,
                            image.ptr, image.width, image.height,
                            position.x, position.y, z,
                            scale,
@@ -196,9 +187,9 @@ function updateCamera(player: Player, camera: Camera) {
     camera.fovRight.setPolar(camera.direction+halfFov, fovLen).add(camera.position);
 }
 
-function updateItems(wasmClient: WasmClient, ws: WebSocket, spritePool: SpritePool, time: number, me: Player, itemsPtr: number, assets: Assets) {
+function updateItems(wasmClient: WasmClient, ws: WebSocket, spritePoolPtr: number, time: number, me: Player, itemsPtr: number, assets: Assets) {
     // Rendering the items as sprites
-    wasmClient.render_items(spritePool.ptr, itemsPtr, time, assets.keyImage.ptr, assets.keyImage.width, assets.keyImage.height, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height);
+    wasmClient.render_items(spritePoolPtr, itemsPtr, time, assets.keyImage.ptr, assets.keyImage.width, assets.keyImage.height, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height);
 
     // Offline mode. Updating items state without asking the server.
     if (ws.readyState != WebSocket.OPEN) {
@@ -206,8 +197,8 @@ function updateItems(wasmClient: WasmClient, ws: WebSocket, spritePool: SpritePo
     }
 }
 
-function updateParticles(wasmClient: WasmClient, assets: Assets, spritePool: SpritePool, deltaTime: number, scene: Scene, particlesPtr: number) {
-    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePool.ptr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
+function updateParticles(wasmClient: WasmClient, assets: Assets, spritePoolPtr: number, deltaTime: number, scene: Scene, particlesPtr: number) {
+    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePoolPtr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
 }
 
 function emitParticle(wasmClient: WasmClient, source: Vector3, particlesPtr: number) {
@@ -229,10 +220,10 @@ function explodeBomb(wasmClient: WasmClient, bomb: common.Bomb, player: Player, 
     }
 }
 
-function updateBombs(wasmClient: WasmClient, ws: WebSocket, spritePool: SpritePool, player: Player, bombs: Array<common.Bomb>, particlesPtr: number, scene: Scene, deltaTime: number, assets: Assets) {
+function updateBombs(wasmClient: WasmClient, ws: WebSocket, spritePoolPtr: number, player: Player, bombs: Array<common.Bomb>, particlesPtr: number, scene: Scene, deltaTime: number, assets: Assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
-            pushSprite(wasmClient, spritePool, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE)
+            pushSprite(wasmClient, spritePoolPtr, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE)
             if (common.updateBomb(wasmClient, bomb, scene, deltaTime)) {
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
@@ -261,7 +252,7 @@ interface Game {
     ws: WebSocket,
     me: Player,
     players: Map<number, Player>,
-    spritePool: SpritePool,
+    spritePoolPtr: number,
     particlesPtr: number,
     assets: Assets,
     ping: number,
@@ -384,7 +375,7 @@ async function createGame(): Promise<Game> {
     }
 
     const particlesPtr = wasmClient.allocate_particle_pool();
-    const spritePool = createSpritePool(wasmClient);
+    const spritePoolPtr = wasmClient.allocate_sprite_pool();
 
     const players = new Map<number, Player>();
 
@@ -416,7 +407,7 @@ async function createGame(): Promise<Game> {
     // TODO: make a better initialization of the items on client
     wasmClient.kill_all_items(level.itemsPtr);
     const game: Game = {
-        camera, ws, me, ping: 0, players, particlesPtr, assets, spritePool, dts: [],
+        camera, ws, me, ping: 0, players, particlesPtr, assets, spritePoolPtr, dts: [],
         level, wasmClient
     };
 
@@ -548,21 +539,21 @@ function spriteAngleIndex(cameraPosition: Vector2, entity: Player): number {
 }
 
 function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    game.wasmClient.reset_sprite_pool(game.spritePool.ptr);
+    game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
 
     game.players.forEach((player) => {
         if (player !== game.me) updatePlayer(game.wasmClient, player, game.level.scene, deltaTime)
     });
     updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
-    updateItems(game.wasmClient, game.ws, game.spritePool, time, game.me, game.level.itemsPtr, game.assets);
-    updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.wasmClient, game.assets, game.spritePool, deltaTime, game.level.scene, game.particlesPtr)
+    updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
+    updateBombs(game.wasmClient, game.ws, game.spritePoolPtr, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
+    updateParticles(game.wasmClient, game.assets, game.spritePoolPtr, deltaTime, game.level.scene, game.particlesPtr)
 
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
-            pushSprite(game.wasmClient, game.spritePool, game.assets.playerImage, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
+            pushSprite(game.wasmClient, game.spritePoolPtr, game.assets.playerImage, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
         }
     })
 
@@ -572,11 +563,11 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height,
         game.camera.position.x, game.camera.position.y, game.camera.direction,
         game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
-    game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePool.ptr)
-    game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePool.ptr)
+    game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePoolPtr)
+    game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr)
     displaySwapBackImageData(display, game.wasmClient);
 
-    if (MINIMAP) renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePool);
+    if (MINIMAP) renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePoolPtr);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 
