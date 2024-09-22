@@ -531,10 +531,6 @@ fn void update_particles(Color *image_pixels, int image_width, int image_height,
     }
 }
 
-// TODO: make a better initialization of the items on client
-// The problem is that on the server all the items must be alive,
-// but on the client we first need them to be dead so we can recieve
-// the actual state of the items from the server.
 fn void kill_all_items(Item[]* items) @extern("kill_all_items") @wasm {
     foreach (&item: *items) {
         item.alive = false;

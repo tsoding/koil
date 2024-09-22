@@ -1,6 +1,6 @@
 import * as common from './common.mjs';
 import {
-    Vector2, Vector3, Scene, Player,
+    Vector2, Scene, Player,
     updatePlayer,
     SERVER_PORT,
     clamp, properMod
@@ -35,14 +35,6 @@ interface Camera {
     direction: number;
     fovLeft: Vector2;
     fovRight: Vector2;
-}
-
-function renderMinimap(wasmClient: WasmClient, display: Display, camera: Camera, player: Player, scene: Scene, spritePoolPtr: number) {
-    wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height,
-                              camera.position.x, camera.position.y, camera.direction,
-                              player.position.x, player.position.y,
-                              scene.wallsPtr, scene.width, scene.height,
-                              spritePoolPtr);
 }
 
 function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game: Game) {
@@ -174,14 +166,6 @@ function updateItems(wasmClient: WasmClient, ws: WebSocket, spritePoolPtr: numbe
     }
 }
 
-function updateParticles(wasmClient: WasmClient, assets: Assets, spritePoolPtr: number, deltaTime: number, scene: Scene, particlesPtr: number) {
-    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePoolPtr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
-}
-
-function emitParticle(wasmClient: WasmClient, source: Vector3, particlesPtr: number) {
-    wasmClient.emit_particle(source.x, source.y, source.z, particlesPtr);
-}
-
 function playSound(sound: HTMLAudioElement, playerPosition: Vector2, objectPosition: Vector2) {
     const maxVolume = 1;
     const distanceToPlayer = objectPosition.distanceTo(playerPosition);
@@ -193,7 +177,7 @@ function playSound(sound: HTMLAudioElement, playerPosition: Vector2, objectPosit
 function explodeBomb(wasmClient: WasmClient, bomb: common.Bomb, player: Player, assets: Assets, particlesPtr: number) {
     playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
     for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-        emitParticle(wasmClient, bomb.position, particlesPtr);
+        wasmClient.emit_particle(bomb.position.x, bomb.position.y, bomb.position.z, particlesPtr);
     }
 }
 
@@ -382,6 +366,9 @@ async function createGame(): Promise<Game> {
     };
     const level = common.createLevel(wasmClient);
     // TODO: make a better initialization of the items on client
+    // The problem is that on the server all the items must be alive,
+    // but on the client we first need them to be dead so we can recieve
+    // the actual state of the items from the server.
     wasmClient.kill_all_items(level.itemsPtr);
     const game: Game = {
         camera, ws, me, ping: 0, players, particlesPtr, assets, spritePoolPtr, dts: [],
@@ -525,7 +512,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     updateCamera(game.me, game.camera);
     updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
     updateBombs(game.wasmClient, game.ws, game.spritePoolPtr, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.wasmClient, game.assets, game.spritePoolPtr, deltaTime, game.level.scene, game.particlesPtr)
+    game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.particlesPtr);
 
     game.players.forEach((player) => {
         if (player !== game.me) {
@@ -540,7 +527,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr)
     displaySwapBackImageData(display, game.wasmClient);
 
-    if (MINIMAP) renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePoolPtr);
+    if (MINIMAP) game.wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.me.position.x, game.me.position.y, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.spritePoolPtr);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 

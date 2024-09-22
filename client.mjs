@@ -18,9 +18,6 @@ const CONTROL_KEYS = {
     'KeyW': common.Moving.MovingForward,
     'KeyS': common.Moving.MovingBackward,
 };
-function renderMinimap(wasmClient, display, camera, player, scene, spritePoolPtr) {
-    wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, camera.position.x, camera.position.y, camera.direction, player.position.x, player.position.y, scene.wallsPtr, scene.width, scene.height, spritePoolPtr);
-}
 function renderDebugInfo(ctx, deltaTime, game) {
     const fontSize = 28;
     ctx.font = `${fontSize}px bold`;
@@ -104,12 +101,6 @@ function updateItems(wasmClient, ws, spritePoolPtr, time, me, itemsPtr, assets) 
         wasmClient.update_items_offline(itemsPtr, me.position.x, me.position.y);
     }
 }
-function updateParticles(wasmClient, assets, spritePoolPtr, deltaTime, scene, particlesPtr) {
-    wasmClient.update_particles(assets.particleImage.ptr, assets.particleImage.width, assets.particleImage.height, spritePoolPtr, deltaTime, scene.wallsPtr, scene.width, scene.height, particlesPtr);
-}
-function emitParticle(wasmClient, source, particlesPtr) {
-    wasmClient.emit_particle(source.x, source.y, source.z, particlesPtr);
-}
 function playSound(sound, playerPosition, objectPosition) {
     const maxVolume = 1;
     const distanceToPlayer = objectPosition.distanceTo(playerPosition);
@@ -120,7 +111,7 @@ function playSound(sound, playerPosition, objectPosition) {
 function explodeBomb(wasmClient, bomb, player, assets, particlesPtr) {
     playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
     for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-        emitParticle(wasmClient, bomb.position, particlesPtr);
+        wasmClient.emit_particle(bomb.position.x, bomb.position.y, bomb.position.z, particlesPtr);
     }
 }
 function updateBombs(wasmClient, ws, spritePoolPtr, player, bombs, particlesPtr, scene, deltaTime, assets) {
@@ -400,7 +391,7 @@ function renderGame(display, deltaTime, time, game) {
     updateCamera(game.me, game.camera);
     updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
     updateBombs(game.wasmClient, game.ws, game.spritePoolPtr, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
-    updateParticles(game.wasmClient, game.assets, game.spritePoolPtr, deltaTime, game.level.scene, game.particlesPtr);
+    game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.particlesPtr);
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
@@ -413,7 +404,7 @@ function renderGame(display, deltaTime, time, game) {
     game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr);
     displaySwapBackImageData(display, game.wasmClient);
     if (MINIMAP)
-        renderMinimap(game.wasmClient, display, game.camera, game.me, game.level.scene, game.spritePoolPtr);
+        game.wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.me.position.x, game.me.position.y, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.spritePoolPtr);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 (async () => {
