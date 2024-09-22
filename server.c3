@@ -164,7 +164,6 @@ fn String display_time_interval(uint diffSecs) {
 
 fn void stats_print_per_n_ticks(int n) @extern("stats_print_per_n_ticks") @wasm {
     if (stats[StatEntry.TICKS_COUNT].counter.value%n == 0) {
-        io::printn(string::tformat("STARTED AT: %s", stats[StatEntry.UPTIME].timer.started_at));
         io::printn("Stats:");
         foreach (&stat: stats) {
             io::printn(string::tformat("  %s %s", stat.description, get_stat(stat)));
