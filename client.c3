@@ -1,6 +1,7 @@
+import common;
 import std::math;
 import std::sort;
-import common;
+import std::io;
 
 const float NEAR_CLIPPING_PLANE = 0.1;
 const float FAR_CLIPPING_PLANE = 10.0;
@@ -12,6 +13,9 @@ const float PARTICLE_LIFETIME = 1.0f;
 const float PARTICLE_MAX_SPEED = 8;
 const float PARTICLE_DAMP = 0.8;
 const float PARTICLE_SCALE = 0.05;
+
+const float ITEM_FREQ = 0.7;
+const float ITEM_AMP = 0.07;
 
 const bool MINIMAP_SPRITES = true;
 const float MINIMAP_SPRITE_SIZE = 0.2;
@@ -31,6 +35,7 @@ struct Image {
 struct Sprite {
     Image image;
     // TODO: Use Vector3 instead
+    // We can't do it right now due to some alignment restriction stuff
     Vector2 position;
     float z;
     float scale;
@@ -65,6 +70,7 @@ fn Vector2 from_polar(float angle, float len) {
 struct Particle {
     float lifetime;
     // TODO: Use Vector3 instead
+    // We can't do it right now due to some alignment restriction stuff
     Vector2 position;
     float position_z;
     Vector2 velocity;
@@ -287,6 +293,7 @@ fn void render_walls(Color *display, int display_width, int display_height, floa
 }
 
 // TODO: @translate
+// It's not really needed right now so it can be translated later
 fn void render_minimap(Color *display, int display_width, int display_height,
                        float camera_position_x, float camera_position_y, float camera_direction,
                        float player_position_x, float player_position_y,
@@ -522,4 +529,119 @@ fn void update_particles(Color *image_pixels, int image_width, int image_height,
             }
         }
     }
+}
+
+// TODO: make a better initialization of the items on client
+// The problem is that on the server all the items must be alive,
+// but on the client we first need them to be dead so we can recieve
+// the actual state of the items from the server.
+fn void kill_all_items(Item[]* items) @extern("kill_all_items") @wasm {
+    foreach (&item: *items) {
+        item.alive = false;
+    }
+}
+
+fn bool verify_items_collected_batch_message(Message *message) @extern("verify_items_collected_batch_message") @wasm {
+    if (message.size < ItemsCollectedBatchMessage.sizeof) return false;
+    if ((message.size - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return false;
+    ItemsCollectedBatchMessage* items_collected_batch_message = (ItemsCollectedBatchMessage*)message;
+    if (items_collected_batch_message.kind != MessageKind.ITEM_COLLECTED) return false;
+    return true;
+}
+
+fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items) @extern("apply_items_collected_batch_message_to_level_items") @wasm {
+    usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
+
+    for (usz i = 0; i < count; ++i) {
+        int itemIndex = message.ids[i];
+
+        if (!(0 <= itemIndex && itemIndex < items.len)) {
+            io::printn(string::tformat("Received bogus-amogus ItemCollected message from server. Invalid index %d", itemIndex));
+            return false;
+        }
+
+        Item *item = &(*items)[itemIndex];
+
+        if (item.alive) {
+            item.alive = false;
+            // TODO: play the pickup sound on picking up the item
+            // playSound(assets.itemPickupSound, game.me.position, item.position);
+        }
+    }
+
+    return true;
+}
+
+fn bool verify_items_spawned_batch_message(Message *message) @extern("verify_items_spawned_batch_message") @wasm {
+    if (message.size < ItemsSpawnedBatchMessage.sizeof) return false;
+    if ((message.size - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return false;
+    ItemsSpawnedBatchMessage* items_spawned_batch_message = (ItemsSpawnedBatchMessage*)message;
+    if (items_spawned_batch_message.kind != MessageKind.ITEM_SPAWNED) return false;
+    return true;
+}
+
+fn bool apply_items_spawned_batch_message_to_level_items(ItemsSpawnedBatchMessage *message, Item[]* items) @extern("apply_items_spawned_batch_message_to_level_items") @wasm {
+    usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
+    for (usz i = 0; i < count; ++i) {
+        int itemIndex = message.items[i].itemIndex;
+        if (!(0 <= itemIndex && itemIndex < items.len)) {
+            io::printn(string::tformat("Received bogus-amogus ItemSpawned message from server. Invalid item index %d", itemIndex));
+            return false;
+        }
+        Item *item = &(*items)[itemIndex];
+        item.alive = true;
+        item.kind = message.items[i].itemKind;
+        item.position.x = message.items[i].x;
+        item.position.y = message.items[i].y;
+    }
+
+    return true;
+}
+
+fn void render_items(SpritePool *sprite_pool, Item[]* items, float time,
+                     Color *key_image_pixels, int key_image_width, int key_image_height,
+                     Color *bomb_image_pixels, int bomb_image_width, int bomb_image_height) @extern("render_items") @wasm {
+    foreach (item: *items) {
+        if (item.alive) {
+            float z = 0.25f + ITEM_AMP - ITEM_AMP*math::sin(ITEM_FREQ*(float)math::PI*time + item.position.x + item.position.y);
+            switch (item.kind) {
+                case KEY:
+                    push_sprite(sprite_pool,
+                                key_image_pixels, key_image_width, key_image_height,
+                                item.position.x, item.position.y, z,
+                                0.25f,
+                                0, 0,
+                                key_image_width, key_image_height);
+                case BOMB:
+                    push_sprite(sprite_pool,
+                                bomb_image_pixels, bomb_image_width, bomb_image_height,
+                                item.position.x, item.position.y, z,
+                                0.25f,
+                                0, 0,
+                                bomb_image_width, bomb_image_height);
+            }
+        }
+    }
+}
+
+fn void update_items_offline(Item[]* items, float player_position_x, float player_position_y) @extern("update_items_offline") @wasm {
+    foreach (item_index, item: *items) {
+        if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
+            // TODO: play the pickup sound on picking up the item
+            // playSound(assets.itemPickupSound, me.position, item.position);
+        }
+    }
+}
+
+
+fn void entry() @init(2048) @private {
+    // NOTE: ideally we need to override os::native_fputc_fn as well
+    // because io::printn uses it to print newline at the end of the
+    // message. But since js_write() in server.mts is implemented as a
+    // single console.log(), that newline is added implicitly anyway.
+    os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
+        common::js_write(&buffer[0], buffer.len);
+        return buffer.len;
+    };
+    common::temp_mark = allocator::temp().used;
 }

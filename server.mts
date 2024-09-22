@@ -35,7 +35,6 @@ interface PlayerOnServer extends Player {
 }
 
 const wasmServer = await instantiateWasmServer('server.wasm');
-wasmServer._initialize();
 const players = new Map<number, PlayerOnServer>();
 const connectionLimits = new Map<string, number>();
 let idCounter = 0;
@@ -49,6 +48,7 @@ const leftIds = new Set<number>()
 const pingIds = new Map<number, number>()
 const bombsThrown = new Set<number>()
 const level = common.createLevel(wasmServer);
+const collectedItemsPtr = wasmServer.allocate_collected_items();
 
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -184,24 +184,11 @@ function tick() {
             }
 
             // Reconstructing the state of items batch
-            let itemsCount = 0;
-            level.items.forEach((item) => {
-                if (item.alive) itemsCount += 1;
-            })
-            const bufferItemsState = common.ItemsSpawnedHeaderStruct.allocateAndInit(itemsCount);
-            {
-                let index = 0;
-                level.items.forEach((item, itemIndex) => {
-                    if (item.alive) {
-                        const itemSpawnedView = common.ItemsSpawnedHeaderStruct.item(bufferItemsState, index);
-                        common.ItemSpawnedStruct.itemKind.write(itemSpawnedView, item.kind);
-                        common.ItemSpawnedStruct.itemIndex.write(itemSpawnedView, itemIndex);
-                        common.ItemSpawnedStruct.x.write(itemSpawnedView, item.position.x);
-                        common.ItemSpawnedStruct.y.write(itemSpawnedView, item.position.y);
-                        index += 1;
-                    }
-                })
-            }
+            const bufferItemsState = (() => {
+                const message = wasmServer.reconstruct_state_of_items(level.itemsPtr);
+                const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
+                return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
+            })();
 
             // Greeting all the joined players and notifying them about other players
             joinedIds.forEach((joinedId) => {
@@ -335,22 +322,16 @@ function tick() {
 
     // Simulating the world for one server tick.
     {
-        let collectedItemIds: number[] = [];
         players.forEach((player) => {
             common.updatePlayer(wasmServer, player, level.scene, deltaTime);
-            level.items.forEach((item, itemIndex) => {
-                if (item.alive) {
-                    if (common.collectItem(player, item)) {
-                        collectedItemIds.push(itemIndex);
-                    }
-                }
-            })
+            wasmServer.collect_items_by_player_at(player.position.x, player.position.y, collectedItemsPtr, level.itemsPtr);
         });
 
-        const bufferItemsCollected = common.ItemsCollectedBatchStruct.allocateAndInit(collectedItemIds.length);
-        for (let i = 0; i < collectedItemIds.length; ++i) {
-            common.ItemsCollectedBatchStruct.item(bufferItemsCollected, i).setUint32(0, collectedItemIds[i], true);
-        }
+        const bufferItemsCollected = (() => {
+            const message = wasmServer.collected_items_as_batch_message(level.itemsPtr, collectedItemsPtr);
+            const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
+            return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
+        })();
 
         players.forEach((player) => {
             player.ws.send(bufferItemsCollected);
@@ -412,6 +393,7 @@ function tick() {
     // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
     wasmServer.stats_print_per_n_ticks(SERVER_FPS);
 
+    wasmServer.reset_temp_mark();
     setTimeout(tick, Math.max(0, 1000/SERVER_FPS - tickTime));
 }
 
@@ -419,6 +401,10 @@ interface WasmServer extends common.WasmCommon {
     stats_inc_counter: (entry: number, delta: number) => void,
     stats_push_sample: (entry: number, sample: number) => void,
     stats_print_per_n_ticks: (n: number) => void,
+    reconstruct_state_of_items: (items: number) => number,
+    allocate_collected_items: () => number,
+    collect_items_by_player_at: (player_position_x: number, player_position_y: number, collected_items: number, items: number) => void,
+    collected_items_as_batch_message: (items: number, collected_items: number) => number,
 }
 
 function js_now_secs(): number {
@@ -436,15 +422,18 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
     const wasm = await WebAssembly.instantiate(readFileSync(path), {
         "env": {js_now_secs, js_write},
     });
+    const wasmCommon = common.makeWasmCommon(wasm);
+    wasmCommon._initialize();
     return {
-        wasm,
-        memory: wasm.instance.exports.memory as WebAssembly.Memory,
-        _initialize: wasm.instance.exports._initialize as () => void,
-        allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
+        ...wasmCommon,
         stats_inc_counter: wasm.instance.exports.stats_inc_counter as (entry: number) => void,
         stats_push_sample: wasm.instance.exports.stats_push_sample as (entry: number, sample: number) => void,
         stats_print_per_n_ticks: wasm.instance.exports.stats_print_per_n_ticks as (n: number) => void,
-    }
+        reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items as (items: number) => number,
+        allocate_collected_items: wasm.instance.exports.allocate_collected_items as () => number,
+        collect_items_by_player_at: wasm.instance.exports.collect_items_by_player_at as (player_position_x: number, player_position_y: number, collected_items: number, items: number) => void,
+        collected_items_as_batch_message: wasm.instance.exports.collected_items_as_batch_message as (items: number, collected_items: number) => number,
+    };
 }
 
 setTimeout(tick, 1000/SERVER_FPS);

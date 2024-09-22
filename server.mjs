@@ -26,7 +26,6 @@ var StatEntry;
     StatEntry[StatEntry["COUNT"] = 16] = "COUNT";
 })(StatEntry || (StatEntry = {}));
 const wasmServer = await instantiateWasmServer('server.wasm');
-wasmServer._initialize();
 const players = new Map();
 const connectionLimits = new Map();
 let idCounter = 0;
@@ -40,6 +39,7 @@ const leftIds = new Set();
 const pingIds = new Map();
 const bombsThrown = new Set();
 const level = common.createLevel(wasmServer);
+const collectedItemsPtr = wasmServer.allocate_collected_items();
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (players.size >= SERVER_TOTAL_LIMIT) {
@@ -160,25 +160,11 @@ function tick() {
                     index += 1;
                 });
             }
-            let itemsCount = 0;
-            level.items.forEach((item) => {
-                if (item.alive)
-                    itemsCount += 1;
-            });
-            const bufferItemsState = common.ItemsSpawnedHeaderStruct.allocateAndInit(itemsCount);
-            {
-                let index = 0;
-                level.items.forEach((item, itemIndex) => {
-                    if (item.alive) {
-                        const itemSpawnedView = common.ItemsSpawnedHeaderStruct.item(bufferItemsState, index);
-                        common.ItemSpawnedStruct.itemKind.write(itemSpawnedView, item.kind);
-                        common.ItemSpawnedStruct.itemIndex.write(itemSpawnedView, itemIndex);
-                        common.ItemSpawnedStruct.x.write(itemSpawnedView, item.position.x);
-                        common.ItemSpawnedStruct.y.write(itemSpawnedView, item.position.y);
-                        index += 1;
-                    }
-                });
-            }
+            const bufferItemsState = (() => {
+                const message = wasmServer.reconstruct_state_of_items(level.itemsPtr);
+                const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
+                return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
+            })();
             joinedIds.forEach((joinedId) => {
                 const joinedPlayer = players.get(joinedId);
                 if (joinedPlayer !== undefined) {
@@ -289,21 +275,15 @@ function tick() {
         });
     });
     {
-        let collectedItemIds = [];
         players.forEach((player) => {
             common.updatePlayer(wasmServer, player, level.scene, deltaTime);
-            level.items.forEach((item, itemIndex) => {
-                if (item.alive) {
-                    if (common.collectItem(player, item)) {
-                        collectedItemIds.push(itemIndex);
-                    }
-                }
-            });
+            wasmServer.collect_items_by_player_at(player.position.x, player.position.y, collectedItemsPtr, level.itemsPtr);
         });
-        const bufferItemsCollected = common.ItemsCollectedBatchStruct.allocateAndInit(collectedItemIds.length);
-        for (let i = 0; i < collectedItemIds.length; ++i) {
-            common.ItemsCollectedBatchStruct.item(bufferItemsCollected, i).setUint32(0, collectedItemIds[i], true);
-        }
+        const bufferItemsCollected = (() => {
+            const message = wasmServer.collected_items_as_batch_message(level.itemsPtr, collectedItemsPtr);
+            const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
+            return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
+        })();
         players.forEach((player) => {
             player.ws.send(bufferItemsCollected);
             bytesSentCounter += bufferItemsCollected.byteLength;
@@ -356,6 +336,7 @@ function tick() {
     bytesReceivedWithinTick = 0;
     messagesRecievedWithinTick = 0;
     wasmServer.stats_print_per_n_ticks(SERVER_FPS);
+    wasmServer.reset_temp_mark();
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
 function js_now_secs() {
@@ -368,14 +349,17 @@ async function instantiateWasmServer(path) {
     const wasm = await WebAssembly.instantiate(readFileSync(path), {
         "env": { js_now_secs, js_write },
     });
+    const wasmCommon = common.makeWasmCommon(wasm);
+    wasmCommon._initialize();
     return {
-        wasm,
-        memory: wasm.instance.exports.memory,
-        _initialize: wasm.instance.exports._initialize,
-        allocate_scene: wasm.instance.exports.allocate_scene,
+        ...wasmCommon,
         stats_inc_counter: wasm.instance.exports.stats_inc_counter,
         stats_push_sample: wasm.instance.exports.stats_push_sample,
         stats_print_per_n_ticks: wasm.instance.exports.stats_print_per_n_ticks,
+        reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items,
+        allocate_collected_items: wasm.instance.exports.allocate_collected_items,
+        collect_items_by_player_at: wasm.instance.exports.collect_items_by_player_at,
+        collected_items_as_batch_message: wasm.instance.exports.collected_items_as_batch_message,
     };
 }
 setTimeout(tick, 1000 / SERVER_FPS);

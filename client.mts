@@ -13,9 +13,6 @@ const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 
-const ITEM_FREQ = 0.7;
-const ITEM_AMP = 0.07;
-
 const BOMB_PARTICLE_COUNT = 50
 
 const MINIMAP = false;
@@ -125,6 +122,13 @@ interface WasmClient extends common.WasmCommon {
     allocate_particle_pool: () => number,
     emit_particle: (source_x: number, source_y: number, source_z: number, particle_pool: number) => void,
     update_particles: (image_pixels: number, image_width: number, image_height: number, sprite_pool: number, deltaTime: number, scene: number, scene_width: number, scene_height: number, particle_pool: number) => void
+    kill_all_items: (items: number) => void,
+    verify_items_collected_batch_message: (message: number) => boolean,
+    apply_items_collected_batch_message_to_level_items: (message: number, items: number) => boolean,
+    verify_items_spawned_batch_message: (message: number) => boolean,
+    apply_items_spawned_batch_message_to_level_items: (message: number, items: number) => boolean,
+    render_items: (sprite_pool: number, items: number, time: number, key_image_pixels: number, key_image_width: number, key_image_height: number, bomb_image_pixels: number, bomb_image_width: number, bomb_image_height: number) => void,
+    update_items_offline: (items: number, player_position_x: number, player_position_y: number) => void,
 }
 
 function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
@@ -192,29 +196,13 @@ function updateCamera(player: Player, camera: Camera) {
     camera.fovRight.setPolar(camera.direction+halfFov, fovLen).add(camera.position);
 }
 
-function spriteOfItemKind(itemKind: common.ItemKind, assets: Assets): WasmImage {
-    switch (itemKind) {
-    case common.ItemKind.Key: return assets.keyImage;
-    case common.ItemKind.Bomb: return assets.bombImage;
-    default: return assets.nullImage;
-    }
-}
-
-function updateItems(wasmClient: WasmClient, ws: WebSocket, spritePool: SpritePool, time: number, me: Player, items: Array<common.Item>, assets: Assets) {
+function updateItems(wasmClient: WasmClient, ws: WebSocket, spritePool: SpritePool, time: number, me: Player, itemsPtr: number, assets: Assets) {
     // Rendering the items as sprites
-    for (let item of items) {
-        if (item.alive) {
-            pushSprite(wasmClient, spritePool, spriteOfItemKind(item.kind, assets), item.position, 0.25 + ITEM_AMP - ITEM_AMP*Math.sin(ITEM_FREQ*Math.PI*time + item.position.x + item.position.y), 0.25);
-        }
-    }
+    wasmClient.render_items(spritePool.ptr, itemsPtr, time, assets.keyImage.ptr, assets.keyImage.width, assets.keyImage.height, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height);
 
     // Offline mode. Updating items state without asking the server.
     if (ws.readyState != WebSocket.OPEN) {
-        for (let item of items) {
-            if (common.collectItem(me, item)) {
-                playSound(assets.itemPickupSound, me.position, item.position);
-            }
-        }
+        wasmClient.update_items_offline(itemsPtr, me.position.x, me.position.y);
     }
 }
 
@@ -324,11 +312,11 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         })
     })
 
+    const wasmCommon = common.makeWasmCommon(wasm);
+    wasmCommon._initialize();
+
     return {
-        wasm,
-        memory: wasm.instance.exports.memory as WebAssembly.Memory,
-        _initialize: wasm.instance.exports._initialize as () => void,
-        allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
+        ...wasmCommon,
         allocate_pixels: wasm.instance.exports.allocate_pixels as (width: number, height: number) => number,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
         allocate_sprite_pool: wasm.instance.exports.allocate_sprite_pool as () => number,
@@ -343,12 +331,26 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         emit_particle: wasm.instance.exports.emit_particle as (source_x: number, source_y: number, source_z: number, particle_pool: number) => void,
         update_particles: wasm.instance.exports.update_particles as (image_pixels: number, image_width: number, image_height: number, sprite_pool: number, deltaTime: number, scene: number, scene_width: number, scene_height: number, particle_pool: number) => void,
+        kill_all_items: wasm.instance.exports.kill_all_items as (items: number) => void,
+        verify_items_collected_batch_message: wasm.instance.exports.verify_items_collected_batch_message as (message: number) => boolean,
+        apply_items_collected_batch_message_to_level_items: wasm.instance.exports.apply_items_collected_batch_message_to_level_items as (message: number, items: number) => boolean,
+        verify_items_spawned_batch_message: wasm.instance.exports.verify_items_spawned_batch_message as (message: number) => boolean,
+        apply_items_spawned_batch_message_to_level_items: wasm.instance.exports.apply_items_spawned_batch_message_to_level_items as (message: number, items: number) => boolean,
+        render_items: wasm.instance.exports.render_items as (sprite_pool: number, items: number, time: number, key_image_pixels: number, key_image_width: number, key_image_height: number, bomb_image_pixels: number, bomb_image_width: number, bomb_image_height: number) => void,
+        update_items_offline: wasm.instance.exports.update_items_offline as (items: number, player_position_x: number, player_position_y: number) => void,
     };
+}
+
+function arrayBufferAsMessageInWasm(wasmClient: WasmClient, buffer: ArrayBuffer): number {
+    const wasmBufferSize = buffer.byteLength + common.UINT32_SIZE;
+    const wasmBufferPtr = wasmClient.allocate_temporary_buffer(wasmBufferSize);
+    new DataView(wasmClient.memory.buffer, wasmBufferPtr, common.UINT32_SIZE).setUint32(0, wasmBufferSize, true);
+    new Uint8ClampedArray(wasmClient.memory.buffer, wasmBufferPtr + common.UINT32_SIZE, wasmBufferSize - common.UINT32_SIZE).set(new Uint8ClampedArray(buffer));
+    return wasmBufferPtr;
 }
 
 async function createGame(): Promise<Game> {
     const wasmClient = await instantiateWasmClient("client.wasm");
-    wasmClient._initialize();
 
     const [
         wallImage,
@@ -412,7 +414,7 @@ async function createGame(): Promise<Game> {
     };
     const level = common.createLevel(wasmClient);
     // TODO: make a better initialization of the items on client
-    for (const item of level.items) item.alive = false;
+    wasmClient.kill_all_items(level.itemsPtr);
     const game: Game = {
         camera, ws, me, ping: 0, players, particlesPtr, assets, spritePool, dts: [],
         level, wasmClient
@@ -433,6 +435,7 @@ async function createGame(): Promise<Game> {
             console.error("Received bogus-amogus message from server. Expected binary data", event);
             ws?.close();
         }
+        const eventDataPtr = arrayBufferAsMessageInWasm(wasmClient, event.data);
         const view = new DataView(event.data);
         if (common.HelloStruct.verify(view)) {
             game.me = {
@@ -492,35 +495,15 @@ async function createGame(): Promise<Game> {
             }
         } else if (common.PongStruct.verify(view)) {
             game.ping = performance.now() - common.PongStruct.timestamp.read(view);
-        } else if (common.ItemsCollectedBatchStruct.verify(view)) {
-            const count = common.ItemsCollectedBatchStruct.count(view);
-
-            for (let i = 0; i < count; ++i) {
-                const itemIndex = common.ItemsCollectedBatchStruct.item(event.data, i).getUint32(0, true);
-                if (!(0 <= itemIndex && itemIndex < game.level.items.length)) {
-                    console.error(`Received bogus-amogus ItemCollected message from server. Invalid index ${itemIndex}`);
-                    ws?.close();
-                    return;
-                }
-                if (game.level.items[itemIndex].alive) {
-                    game.level.items[itemIndex].alive = false;
-                    playSound(assets.itemPickupSound, game.me.position, game.level.items[itemIndex].position);
-                }
+        } else if (wasmClient.verify_items_collected_batch_message(eventDataPtr)) {
+            if (!wasmClient.apply_items_collected_batch_message_to_level_items(eventDataPtr, game.level.itemsPtr)) {
+                ws?.close();
+                return;
             }
-        } else if (common.ItemsSpawnedHeaderStruct.verify(view)) {
-            const count = common.ItemsSpawnedHeaderStruct.count(view);
-            for (let i = 0; i < count; ++i) {
-                const itemSpawnedView = common.ItemsSpawnedHeaderStruct.item(event.data, i);
-                const itemIndex = common.ItemSpawnedStruct.itemIndex.read(itemSpawnedView);
-                if (!(0 <= itemIndex && itemIndex < game.level.items.length)) {
-                    console.error(`Received bogus-amogus ItemSpawned message from server. Invalid item index ${itemIndex}`);
-                    ws?.close();
-                    return;
-                }
-                game.level.items[itemIndex].alive = true;
-                game.level.items[itemIndex].kind = common.ItemSpawnedStruct.itemKind.read(itemSpawnedView);
-                game.level.items[itemIndex].position.x = common.ItemSpawnedStruct.x.read(itemSpawnedView);
-                game.level.items[itemIndex].position.y = common.ItemSpawnedStruct.y.read(itemSpawnedView);
+        } else if (wasmClient.verify_items_spawned_batch_message(eventDataPtr)) {
+            if (!wasmClient.apply_items_spawned_batch_message_to_level_items(eventDataPtr, game.level.itemsPtr)) {
+                ws?.close();
+                return;
             }
         } else if (common.BombSpawnedStruct.verify(view)) {
             const index = common.BombSpawnedStruct.index.read(view);
@@ -572,7 +555,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     });
     updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
-    updateItems(game.wasmClient, game.ws, game.spritePool, time, game.me, game.level.items, game.assets);
+    updateItems(game.wasmClient, game.ws, game.spritePool, time, game.me, game.level.itemsPtr, game.assets);
     updateBombs(game.wasmClient, game.ws, game.spritePool, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
     updateParticles(game.wasmClient, game.assets, game.spritePool, deltaTime, game.level.scene, game.particlesPtr)
 
@@ -673,6 +656,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
                 pingCooldown = PING_COOLDOWN;
             }
         }
+        game.wasmClient.reset_temp_mark();
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {

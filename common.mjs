@@ -285,7 +285,6 @@ export function BatchMessageStruct(messageKind, itemType) {
     return { kind, headerSize, verify, count, item, itemType, allocateAndInit };
 }
 ;
-export const ItemsCollectedBatchStruct = BatchMessageStruct(MessageKind.ItemCollected, { size: UINT32_SIZE });
 export const BombSpawnedStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -312,16 +311,6 @@ export const BombExplodedStruct = (() => {
     const verify = verifier(kind, MessageKind.BombExploded, size);
     return { kind, index, x, y, z, size, verify };
 })();
-export const ItemSpawnedStruct = (() => {
-    const allocator = { size: 0 };
-    const itemKind = allocUint8Field(allocator);
-    const itemIndex = allocUint32Field(allocator);
-    const x = allocFloat32Field(allocator);
-    const y = allocFloat32Field(allocator);
-    const size = allocator.size;
-    return { itemKind, itemIndex, x, y, size };
-})();
-export const ItemsSpawnedHeaderStruct = BatchMessageStruct(MessageKind.ItemSpawned, ItemSpawnedStruct);
 export const PingStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -408,6 +397,17 @@ export function sceneCanRectangleFitHere(wasmCommon, scene, px, py, sx, sy) {
         }
     }
     return true;
+}
+export function makeWasmCommon(wasm) {
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory,
+        _initialize: wasm.instance.exports._initialize,
+        allocate_scene: wasm.instance.exports.allocate_scene,
+        allocate_items: wasm.instance.exports.allocate_items,
+        reset_temp_mark: wasm.instance.exports.reset_temp_mark,
+        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
+    };
 }
 export function createScene(walls, wasmCommon) {
     const scene = {
@@ -511,40 +511,9 @@ export function createLevel(wasmCommon) {
         [false, true, true, true, false, false, false],
         [false, false, false, false, false, false, false],
     ], wasmCommon);
-    const items = [
-        {
-            kind: ItemKind.Bomb,
-            position: new Vector2(1.5, 3.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(2.5, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(3, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(3.5, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(4.0, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(4.5, 1.5),
-            alive: true,
-        },
-    ];
+    const itemsPtr = wasmCommon.allocate_items();
     const bombs = allocateBombs(20);
-    return { scene, items, bombs };
+    return { scene, itemsPtr, bombs };
 }
 export function updatePlayer(wasmCommon, player, scene, deltaTime) {
     const controlVelocity = new Vector2();

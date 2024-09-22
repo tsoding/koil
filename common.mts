@@ -220,6 +220,7 @@ export interface Player {
     hue: number,
 }
 
+// IMPORTANT: This must be synchronized with the MessageKind in common.c3 until common.mts is fully rewritten in C3.
 export enum MessageKind {
     Hello,
     PlayerJoined,
@@ -310,8 +311,6 @@ export function BatchMessageStruct<Item extends { size: number }>(messageKind: M
     return {kind, headerSize, verify, count, item, itemType, allocateAndInit};
 };
 
-export const ItemsCollectedBatchStruct = BatchMessageStruct(MessageKind.ItemCollected, { size: UINT32_SIZE });
-
 export const BombSpawnedStruct = (() => {
     const allocator = { size: 0 };
     const kind     = allocUint8Field(allocator);
@@ -339,18 +338,6 @@ export const BombExplodedStruct = (() => {
     const verify   = verifier(kind, MessageKind.BombExploded, size);
     return {kind, index, x, y, z, size, verify};
 })();
-
-export const ItemSpawnedStruct = (() => {
-    const allocator = { size: 0 };    
-    const itemKind = allocUint8Field(allocator);
-    const itemIndex = allocUint32Field(allocator);
-    const x        = allocFloat32Field(allocator);
-    const y        = allocFloat32Field(allocator);
-    const size     = allocator.size;
-    return { itemKind, itemIndex, x, y, size };
-})();
-
-export const ItemsSpawnedHeaderStruct = BatchMessageStruct(MessageKind.ItemSpawned, ItemSpawnedStruct);
 
 export const PingStruct = (() => {
     const allocator = { size: 0 };
@@ -465,6 +452,21 @@ export interface WasmCommon {
     memory: WebAssembly.Memory,
     _initialize: () => void,
     allocate_scene: (width: number, height: number) => number,
+    allocate_items: () => number,
+    reset_temp_mark: () => void,
+    allocate_temporary_buffer: (size: number) => number,
+}
+
+export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory  as WebAssembly.Memory,
+        _initialize: wasm.instance.exports._initialize as () => void,
+        allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
+        allocate_items: wasm.instance.exports.allocate_items as () => number,
+        reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
+        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
+    }
 }
 
 export function createScene(walls: Array<Array<boolean>>, wasmCommon: WasmCommon): Scene {
@@ -577,7 +579,7 @@ export function updateBomb(wasmCommon: WasmCommon, bomb: Bomb, scene: Scene, del
 // between Client and Server and constantly synced over the network.
 export interface Level {
     scene: Scene,
-    items: Array<Item>,
+    itemsPtr: number,
     bombs: Array<Bomb>,
 }
 
@@ -592,42 +594,9 @@ export function createLevel(wasmCommon: WasmCommon): Level {
         [  false,  false, false, false, false, false, false],
     ], wasmCommon);
 
-    const items: Array<Item> = [
-        {
-            kind: ItemKind.Bomb,
-            position: new Vector2(1.5, 3.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(2.5, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(3, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(3.5, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(4.0, 1.5),
-            alive: true,
-        },
-        {
-            kind: ItemKind.Key,
-            position: new Vector2(4.5, 1.5),
-            alive: true,
-        },
-    ]
-
+    const itemsPtr = wasmCommon.allocate_items();
     const bombs = allocateBombs(20);
-
-    return {scene, items, bombs};
+    return {scene, itemsPtr, bombs};
 }
 
 export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scene, deltaTime: number) {
