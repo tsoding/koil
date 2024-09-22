@@ -155,29 +155,6 @@ function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
-function pushSprite(wasmClient: WasmClient, spritePoolPtr: number, image: WasmImage, position: Vector2, z: number, scale: number, cropPosition?: Vector2, cropSize?: Vector2) {
-    const cropPosition1 = new Vector2();
-    const cropSize1 = new Vector2();
-
-    if (cropPosition === undefined) {
-        cropPosition1.set(0, 0);
-    } else {
-        cropPosition1.copy(cropPosition);
-    }
-    if (cropSize === undefined) {
-        cropSize1.set(image.width, image.height).sub(cropPosition1);
-    } else {
-        cropSize1.copy(cropSize);
-    }
-
-    wasmClient.push_sprite(spritePoolPtr,
-                           image.ptr, image.width, image.height,
-                           position.x, position.y, z,
-                           scale,
-                           cropPosition1.x, cropPosition1.y,
-                           cropSize1.x, cropSize1.y);
-}
-
 function updateCamera(player: Player, camera: Camera) {
     const halfFov = FOV*0.5;
     const fovLen = NEAR_CLIPPING_PLANE/Math.cos(halfFov);
@@ -223,7 +200,7 @@ function explodeBomb(wasmClient: WasmClient, bomb: common.Bomb, player: Player, 
 function updateBombs(wasmClient: WasmClient, ws: WebSocket, spritePoolPtr: number, player: Player, bombs: Array<common.Bomb>, particlesPtr: number, scene: Scene, deltaTime: number, assets: Assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
-            pushSprite(wasmClient, spritePoolPtr, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE)
+            wasmClient.push_sprite(spritePoolPtr, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height, bomb.position.x, bomb.position.y, bomb.position.z, common.BOMB_SCALE, 0, 0, assets.bombImage.width, assets.bombImage.height);
             if (common.updateBomb(wasmClient, bomb, scene, deltaTime)) {
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
@@ -553,16 +530,12 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
-            pushSprite(game.wasmClient, game.spritePoolPtr, game.assets.playerImage, player.position, 1, 1, new Vector2(55*index, 0), new Vector2(55, 55));
+            game.wasmClient.push_sprite(game.spritePoolPtr, game.assets.playerImage.ptr, game.assets.playerImage.width, game.assets.playerImage.height, player.position.x, player.position.y, 1, 1, 55*index, 0, 55, 55);
         }
     })
 
     game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
-    game.wasmClient.render_walls(
-        display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr,
-        game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height,
-        game.camera.position.x, game.camera.position.y, game.camera.direction,
-        game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
+    game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
     game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePoolPtr)
     game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr)
     displaySwapBackImageData(display, game.wasmClient);

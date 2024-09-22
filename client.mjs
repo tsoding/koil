@@ -90,23 +90,6 @@ function displaySwapBackImageData(display, wasmClient) {
     display.backCtx.putImageData(new ImageData(backImageData, display.backImage.width), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
-function pushSprite(wasmClient, spritePoolPtr, image, position, z, scale, cropPosition, cropSize) {
-    const cropPosition1 = new Vector2();
-    const cropSize1 = new Vector2();
-    if (cropPosition === undefined) {
-        cropPosition1.set(0, 0);
-    }
-    else {
-        cropPosition1.copy(cropPosition);
-    }
-    if (cropSize === undefined) {
-        cropSize1.set(image.width, image.height).sub(cropPosition1);
-    }
-    else {
-        cropSize1.copy(cropSize);
-    }
-    wasmClient.push_sprite(spritePoolPtr, image.ptr, image.width, image.height, position.x, position.y, z, scale, cropPosition1.x, cropPosition1.y, cropSize1.x, cropSize1.y);
-}
 function updateCamera(player, camera) {
     const halfFov = FOV * 0.5;
     const fovLen = NEAR_CLIPPING_PLANE / Math.cos(halfFov);
@@ -143,7 +126,7 @@ function explodeBomb(wasmClient, bomb, player, assets, particlesPtr) {
 function updateBombs(wasmClient, ws, spritePoolPtr, player, bombs, particlesPtr, scene, deltaTime, assets) {
     for (let bomb of bombs) {
         if (bomb.lifetime > 0) {
-            pushSprite(wasmClient, spritePoolPtr, assets.bombImage, new Vector2(bomb.position.x, bomb.position.y), bomb.position.z, common.BOMB_SCALE);
+            wasmClient.push_sprite(spritePoolPtr, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height, bomb.position.x, bomb.position.y, bomb.position.z, common.BOMB_SCALE, 0, 0, assets.bombImage.width, assets.bombImage.height);
             if (common.updateBomb(wasmClient, bomb, scene, deltaTime)) {
                 playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
             }
@@ -421,7 +404,7 @@ function renderGame(display, deltaTime, time, game) {
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
-            pushSprite(game.wasmClient, game.spritePoolPtr, game.assets.playerImage, player.position, 1, 1, new Vector2(55 * index, 0), new Vector2(55, 55));
+            game.wasmClient.push_sprite(game.spritePoolPtr, game.assets.playerImage.ptr, game.assets.playerImage.width, game.assets.playerImage.height, player.position.x, player.position.y, 1, 1, 55 * index, 0, 55, 55);
         }
     });
     game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
