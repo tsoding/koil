@@ -8,17 +8,12 @@ import {
 
 const NEAR_CLIPPING_PLANE = 0.1;
 const FOV = Math.PI*0.5;
-
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
-
 const BOMB_PARTICLE_COUNT = 50
-
 const MINIMAP = false;
-
 const SPRITE_ANGLES_COUNT = 8;
-
 const CONTROL_KEYS: {[key: string]: common.Moving} = {
     'ArrowLeft'  : common.Moving.TurningLeft,
     'ArrowRight' : common.Moving.TurningRight,
@@ -256,6 +251,7 @@ async function loadWasmImage(wasmClient: WasmClient, url: string): Promise<WasmI
 
 async function instantiateWasmClient(url: string): Promise<WasmClient> {
     const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
+        // TODO: add js_write
         "env": common.make_environment({
             "fmodf": (x: number, y: number) => x%y,
             "fminf": Math.min,
@@ -551,9 +547,6 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    // TODO: bring hotreloading back
-    // TODO: hot reloading should not break if the game crashes
-
     const game = await createGame();
     const display = createDisplay(ctx, game.wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
 
@@ -625,16 +618,18 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         window.requestAnimationFrame(frame);
     });
 })();
-// TODO: Hot reload assets
+// TODO: bring hotreloading back
+//   - hot reloading should not break if the game crashes
+//   - hot reload assets as well
 // TODO: Load assets asynchronously
 //   While a texture is loading, replace it with a color tile.
 // TODO: Mobile controls
 // TODO: "magnet" items into the player
 // TODO: Blast particles should fade out as they age
-// TODO: Bomb collision should take into account its size
+// TODO: Bomb collision should take into account the bomb's size
 // TODO: Try lighting with normal maps that come with some of the assets
 // TODO: Try cel shading the walls (using normals and stuff)
 // TODO: sound don't mix properly
 //   Right now same sounds are just stopped and replaced instantly. Which generally does not sound good.
-//   We need to fix them properly
-// TODO: consider looking into Web Audio API https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
+//   We need to fix them properly.
+//   Consider looking into Web Audio API https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
