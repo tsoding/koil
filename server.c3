@@ -209,6 +209,7 @@ fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items, C
     for (int i = 0; i < collected_items.size; ++i) {
         message.ids[i] = (*collected_items)[i];
     }
+    collected_items.size = 0;
     return message;
 }
 
