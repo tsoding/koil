@@ -202,6 +202,7 @@ fn void collect_items_by_player_at(float player_position_x, float player_positio
 }
 
 fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items, CollectedItems *collected_items) @extern("collected_items_as_batch_message") @wasm {
+    if (collected_items.size == 0) return null;
     int size = ItemsCollectedBatchMessage.sizeof + int.sizeof*collected_items.size;
     ItemsCollectedBatchMessage *message = mem::tcalloc(size);
     message.size = size;

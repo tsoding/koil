@@ -285,14 +285,18 @@ function tick() {
         });
         const bufferItemsCollected = (() => {
             const message = wasmServer.collected_items_as_batch_message(level.itemsPtr, collectedItemsPtr);
+            if (message === 0)
+                return null;
             const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
             return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
         })();
-        players.forEach((player) => {
-            player.ws.send(bufferItemsCollected);
-            bytesSentCounter += bufferItemsCollected.byteLength;
-            messageSentCounter += 1;
-        });
+        if (bufferItemsCollected !== null) {
+            players.forEach((player) => {
+                player.ws.send(bufferItemsCollected);
+                bytesSentCounter += bufferItemsCollected.byteLength;
+                messageSentCounter += 1;
+            });
+        }
         const bombsExploded = [];
         for (let bombIndex = 0; bombIndex < level.bombs.length; ++bombIndex) {
             const bomb = level.bombs[bombIndex];
