@@ -4,6 +4,8 @@ import std::collections::ringbuffer;
 import std::collections::list;
 import common;
 
+/// Stats //////////////////////////////
+
 extern fn int js_now_secs();
 
 const usz AVERAGE_CAPACITY = 30;
@@ -185,6 +187,8 @@ fn void stats_inc_counter(StatEntry entry, int delta) @extern("stats_inc_counter
     stat.counter.value += delta;
 }
 
+/// Items //////////////////////////////
+
 def CollectedItems = List(<usz>);
 
 fn CollectedItems* allocate_collected_items() @extern("allocate_collected_items") @wasm {
@@ -213,6 +217,79 @@ fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items, C
     collected_items.size = 0;
     return message;
 }
+
+/// Bombs //////////////////////////////
+
+def ThrownBombs = List(<usz>);
+
+fn ThrownBombs *allocate_thrown_bombs() @extern("allocate_thrown_bombs") @wasm {
+    return mem::new(ThrownBombs);
+}
+
+fn void throw_bomb_on_server_side(float player_position_x, float player_position_y, float player_direction, Bombs *bombs, ThrownBombs *thrown_bombs) @extern("throw_bomb_on_server_side") @wasm {
+    int index = common::throw_bomb(player_position_x, player_position_y, player_direction, bombs);
+    if (index >= 0) thrown_bombs.push(index);
+}
+
+fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs, ThrownBombs *thrown_bombs) @extern("thrown_bombs_as_batch_message") @wasm {
+    if (thrown_bombs.size == 0) return null;
+    int size = BombsSpawnedBatchMessage.sizeof + BombSpawned.sizeof*thrown_bombs.size;
+    BombsSpawnedBatchMessage *message = mem::tcalloc(size);
+    message.size = size;
+    message.kind = MessageKind.BOMB_SPAWNED;
+
+    foreach (index, bombIndex: *thrown_bombs) {
+        Bomb *bomb = &(*bombs)[bombIndex];
+        message.bombs[index].bombIndex = bombIndex;
+        message.bombs[index].x = bomb.position.x;
+        message.bombs[index].y = bomb.position.y;
+        message.bombs[index].z = bomb.position_z;
+        message.bombs[index].dx = bomb.velocity.x;
+        message.bombs[index].dy = bomb.velocity.y;
+        message.bombs[index].dz = bomb.velocity_z;
+        message.bombs[index].lifetime = bomb.lifetime;
+    }
+    thrown_bombs.size = 0;
+    return message;
+}
+
+def ExplodedBombs = List(<usz>);
+
+fn ExplodedBombs *allocate_exploded_bombs() @extern("allocate_exploded_bombs") @wasm {
+    return mem::new(ExplodedBombs);
+}
+
+fn void update_bombs_on_server_side(bool* scene, int scene_width, int scene_height, float delta_time, ExplodedBombs *exploded_bombs, Bombs *bombs) @extern("update_bombs_on_server_side") @wasm {
+    foreach (bombIndex, &bomb: *bombs) {
+        if (bomb.lifetime > 0) {
+            common::update_bomb(bomb, scene, scene_width, scene_height, delta_time);
+            if (bomb.lifetime <= 0) {
+                exploded_bombs.push(bombIndex);
+            }
+        }
+    }
+}
+
+fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(ExplodedBombs* exploded_bombs, Bombs* bombs) @extern("exploded_bombs_as_batch_message") @wasm {
+    if (exploded_bombs.size == 0) return null;
+    int size = BombsExplodedBatchMessage.sizeof + BombExploded.sizeof*exploded_bombs.size;
+    BombsExplodedBatchMessage *message = mem::tcalloc(size);
+    message.size = size;
+    message.kind = MessageKind.BOMB_EXPLODED;
+
+    foreach (index, bombIndex: *exploded_bombs) {
+        Bomb bomb = (*bombs)[bombIndex];
+        message.bombs[index].bombIndex = bombIndex;
+        message.bombs[index].x         = bomb.position.x;
+        message.bombs[index].y         = bomb.position.y;
+        message.bombs[index].z         = bomb.position_z;
+    }
+
+    exploded_bombs.size = 0;
+    return message;
+}
+
+// Entry point //////////////////////////////
 
 fn void entry() @init(2048) @private {
     // NOTE: ideally we need to override os::native_fputc_fn as well

@@ -311,32 +311,6 @@ export function BatchMessageStruct<Item extends { size: number }>(messageKind: M
     return {kind, headerSize, verify, count, item, itemType, allocateAndInit};
 };
 
-export const BombSpawnedStruct = (() => {
-    const allocator = { size: 0 };
-    const bombIndex = allocUint32Field(allocator);
-    const x         = allocFloat32Field(allocator);
-    const y         = allocFloat32Field(allocator);
-    const z         = allocFloat32Field(allocator);
-    const dx        = allocFloat32Field(allocator);
-    const dy        = allocFloat32Field(allocator);
-    const dz        = allocFloat32Field(allocator);
-    const lifetime  = allocFloat32Field(allocator);
-    const size      = allocator.size;
-    return {bombIndex, x, y, z, dx, dy, dz, lifetime, size};
-})();
-export const BombsSpawnedHeaderStruct = BatchMessageStruct(MessageKind.BombSpawned, BombSpawnedStruct)
-
-export const BombExplodedStruct = (() => {
-    const allocator = { size: 0 };
-    const bombIndex = allocUint32Field(allocator);
-    const x         = allocFloat32Field(allocator);
-    const y         = allocFloat32Field(allocator);
-    const z         = allocFloat32Field(allocator);
-    const size      = allocator.size;
-    return {bombIndex, x, y, z, size};
-})();
-export const BombsExplodedHeaderStruct = BatchMessageStruct(MessageKind.BombExploded, BombExplodedStruct);
-
 export const PingStruct = (() => {
     const allocator = { size: 0 };
     const kind      = allocUint8Field(allocator);
@@ -453,6 +427,8 @@ export interface WasmCommon {
     allocate_items: () => number,
     reset_temp_mark: () => void,
     allocate_temporary_buffer: (size: number) => number,
+    allocate_bombs: () => number,
+    throw_bomb: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
 }
 
 export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
@@ -464,6 +440,8 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         allocate_items: wasm.instance.exports.allocate_items as () => number,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
+        allocate_bombs: wasm.instance.exports.allocate_bombs as () => number,
+        throw_bomb: wasm.instance.exports.throw_bomb as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
     }
 }
 
@@ -486,99 +464,12 @@ export function createScene(walls: Array<Array<boolean>>, wasmCommon: WasmCommon
     return scene;
 }
 
-export enum ItemKind {
-    Key,
-    Bomb,
-}
-
-export interface Item {
-    alive: boolean,
-    kind: ItemKind,
-    position: Vector2,
-}
-
-export function collectItem(player: Player, item: Item): boolean {
-    if (item.alive) {
-        if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS*PLAYER_RADIUS) {
-            item.alive = false;
-            return true;
-        }
-    }
-    return false;
-}
-
-export interface Bomb {
-    position: Vector3,
-    velocity: Vector3,
-    lifetime: number,
-}
-
-export function allocateBombs(capacity: number): Array<Bomb> {
-    let bomb: Array<Bomb> = []
-    for (let i = 0; i < capacity; ++i) {
-        bomb.push({
-            position: new Vector3(),
-            velocity: new Vector3(),
-            lifetime: 0,
-        })
-    }
-    return bomb
-}
-
-export function throwBomb(player: Player, bombs: Array<Bomb>): number | null {
-    for (let index = 0; index < bombs.length; ++index) {
-        const bomb = bombs[index];
-        if (bomb.lifetime <= 0) {
-            bomb.lifetime = BOMB_LIFETIME;
-            bomb.position.copy2(player.position, 0.6);
-            bomb.velocity.x = Math.cos(player.direction);
-            bomb.velocity.y = Math.sin(player.direction);
-            bomb.velocity.z = 0.5;
-            bomb.velocity.scale(BOMB_THROW_VELOCITY);
-            return index;
-        }
-    }
-    return null;
-}
-
-export function updateBomb(wasmCommon: WasmCommon, bomb: Bomb, scene: Scene, deltaTime: number): boolean {
-    let collided = false;
-    bomb.lifetime -= deltaTime;
-    bomb.velocity.z -= BOMB_GRAVITY*deltaTime;
-
-    const nx = bomb.position.x + bomb.velocity.x*deltaTime;
-    const ny = bomb.position.y + bomb.velocity.y*deltaTime;
-    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
-    if (sceneGetTile(walls, scene, new Vector2(nx, ny))) {
-        const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
-        const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
-        
-        if (dx > 0) bomb.velocity.x *= -1;
-        if (dy > 0) bomb.velocity.y *= -1;
-        bomb.velocity.scale(BOMB_DAMP);
-        if (bomb.velocity.length() > 1) collided = true; // Wall collision
-    } else {
-        bomb.position.x = nx;
-        bomb.position.y = ny;
-    }
-
-    const nz = bomb.position.z + bomb.velocity.z*deltaTime;
-    if (nz < BOMB_SCALE || nz > 1.0) {
-        bomb.velocity.z *= -1
-        bomb.velocity.scale(BOMB_DAMP);
-        if (bomb.velocity.length() > 1) collided = true; // Floor collision
-    } else {
-        bomb.position.z = nz;
-    }
-    return collided;
-}
-
 // NOTE: This is basically the part of the state of the Game that is shared 
 // between Client and Server and constantly synced over the network.
 export interface Level {
     scene: Scene,
     itemsPtr: number,
-    bombs: Array<Bomb>,
+    bombsPtr: number,
 }
 
 export function createLevel(wasmCommon: WasmCommon): Level {
@@ -593,8 +484,8 @@ export function createLevel(wasmCommon: WasmCommon): Level {
     ], wasmCommon);
 
     const itemsPtr = wasmCommon.allocate_items();
-    const bombs = allocateBombs(20);
-    return {scene, itemsPtr, bombs};
+    const bombsPtr = wasmCommon.allocate_bombs();
+    return {scene, itemsPtr, bombsPtr};
 }
 
 export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scene, deltaTime: number) {
@@ -622,19 +513,4 @@ export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scen
     if (sceneCanRectangleFitHere(wasmCommon, scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
-}
-
-export function make_environment(...envs: any): any {
-    return new Proxy(envs, {
-        get(_target, prop, _receiver) {
-            for (let env of envs) {
-                if (env.hasOwnProperty(prop)) {
-                    return env[prop];
-                }
-            }
-            return (...args: any) => {
-                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`)
-            }
-        }
-    });
 }

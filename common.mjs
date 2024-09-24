@@ -285,30 +285,6 @@ export function BatchMessageStruct(messageKind, itemType) {
     return { kind, headerSize, verify, count, item, itemType, allocateAndInit };
 }
 ;
-export const BombSpawnedStruct = (() => {
-    const allocator = { size: 0 };
-    const bombIndex = allocUint32Field(allocator);
-    const x = allocFloat32Field(allocator);
-    const y = allocFloat32Field(allocator);
-    const z = allocFloat32Field(allocator);
-    const dx = allocFloat32Field(allocator);
-    const dy = allocFloat32Field(allocator);
-    const dz = allocFloat32Field(allocator);
-    const lifetime = allocFloat32Field(allocator);
-    const size = allocator.size;
-    return { bombIndex, x, y, z, dx, dy, dz, lifetime, size };
-})();
-export const BombsSpawnedHeaderStruct = BatchMessageStruct(MessageKind.BombSpawned, BombSpawnedStruct);
-export const BombExplodedStruct = (() => {
-    const allocator = { size: 0 };
-    const bombIndex = allocUint32Field(allocator);
-    const x = allocFloat32Field(allocator);
-    const y = allocFloat32Field(allocator);
-    const z = allocFloat32Field(allocator);
-    const size = allocator.size;
-    return { bombIndex, x, y, z, size };
-})();
-export const BombsExplodedHeaderStruct = BatchMessageStruct(MessageKind.BombExploded, BombExplodedStruct);
 export const PingStruct = (() => {
     const allocator = { size: 0 };
     const kind = allocUint8Field(allocator);
@@ -405,6 +381,8 @@ export function makeWasmCommon(wasm) {
         allocate_items: wasm.instance.exports.allocate_items,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
+        allocate_bombs: wasm.instance.exports.allocate_bombs,
+        throw_bomb: wasm.instance.exports.throw_bomb,
     };
 }
 export function createScene(walls, wasmCommon) {
@@ -425,80 +403,6 @@ export function createScene(walls, wasmCommon) {
     }
     return scene;
 }
-export var ItemKind;
-(function (ItemKind) {
-    ItemKind[ItemKind["Key"] = 0] = "Key";
-    ItemKind[ItemKind["Bomb"] = 1] = "Bomb";
-})(ItemKind || (ItemKind = {}));
-export function collectItem(player, item) {
-    if (item.alive) {
-        if (player.position.sqrDistanceTo(item.position) < PLAYER_RADIUS * PLAYER_RADIUS) {
-            item.alive = false;
-            return true;
-        }
-    }
-    return false;
-}
-export function allocateBombs(capacity) {
-    let bomb = [];
-    for (let i = 0; i < capacity; ++i) {
-        bomb.push({
-            position: new Vector3(),
-            velocity: new Vector3(),
-            lifetime: 0,
-        });
-    }
-    return bomb;
-}
-export function throwBomb(player, bombs) {
-    for (let index = 0; index < bombs.length; ++index) {
-        const bomb = bombs[index];
-        if (bomb.lifetime <= 0) {
-            bomb.lifetime = BOMB_LIFETIME;
-            bomb.position.copy2(player.position, 0.6);
-            bomb.velocity.x = Math.cos(player.direction);
-            bomb.velocity.y = Math.sin(player.direction);
-            bomb.velocity.z = 0.5;
-            bomb.velocity.scale(BOMB_THROW_VELOCITY);
-            return index;
-        }
-    }
-    return null;
-}
-export function updateBomb(wasmCommon, bomb, scene, deltaTime) {
-    let collided = false;
-    bomb.lifetime -= deltaTime;
-    bomb.velocity.z -= BOMB_GRAVITY * deltaTime;
-    const nx = bomb.position.x + bomb.velocity.x * deltaTime;
-    const ny = bomb.position.y + bomb.velocity.y * deltaTime;
-    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width * scene.height);
-    if (sceneGetTile(walls, scene, new Vector2(nx, ny))) {
-        const dx = Math.abs(Math.floor(bomb.position.x) - Math.floor(nx));
-        const dy = Math.abs(Math.floor(bomb.position.y) - Math.floor(ny));
-        if (dx > 0)
-            bomb.velocity.x *= -1;
-        if (dy > 0)
-            bomb.velocity.y *= -1;
-        bomb.velocity.scale(BOMB_DAMP);
-        if (bomb.velocity.length() > 1)
-            collided = true;
-    }
-    else {
-        bomb.position.x = nx;
-        bomb.position.y = ny;
-    }
-    const nz = bomb.position.z + bomb.velocity.z * deltaTime;
-    if (nz < BOMB_SCALE || nz > 1.0) {
-        bomb.velocity.z *= -1;
-        bomb.velocity.scale(BOMB_DAMP);
-        if (bomb.velocity.length() > 1)
-            collided = true;
-    }
-    else {
-        bomb.position.z = nz;
-    }
-    return collided;
-}
 export function createLevel(wasmCommon) {
     const scene = createScene([
         [false, false, true, true, true, false, false],
@@ -510,8 +414,8 @@ export function createLevel(wasmCommon) {
         [false, false, false, false, false, false, false],
     ], wasmCommon);
     const itemsPtr = wasmCommon.allocate_items();
-    const bombs = allocateBombs(20);
-    return { scene, itemsPtr, bombs };
+    const bombsPtr = wasmCommon.allocate_bombs();
+    return { scene, itemsPtr, bombsPtr };
 }
 export function updatePlayer(wasmCommon, player, scene, deltaTime) {
     const controlVelocity = new Vector2();
@@ -537,19 +441,5 @@ export function updatePlayer(wasmCommon, player, scene, deltaTime) {
     if (sceneCanRectangleFitHere(wasmCommon, scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
-}
-export function make_environment(...envs) {
-    return new Proxy(envs, {
-        get(_target, prop, _receiver) {
-            for (let env of envs) {
-                if (env.hasOwnProperty(prop)) {
-                    return env[prop];
-                }
-            }
-            return (...args) => {
-                throw new Error(`NOT IMPLEMENTED: ${String(prop)} ${args}`);
-            };
-        }
-    });
 }
 //# sourceMappingURL=common.mjs.map

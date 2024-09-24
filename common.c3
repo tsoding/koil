@@ -3,6 +3,10 @@ import std::math;
 import std::io;
 
 const float BOMB_GRAVITY = 10;
+const float BOMB_LIFETIME = 2;
+const float BOMB_THROW_VELOCITY = 5;
+const float BOMB_DAMP = 0.8;
+const float BOMB_SCALE = 0.25;
 const float PLAYER_RADIUS = 0.5;
 
 extern fn void js_write(void *buffer, usz buffer_sz);
@@ -11,6 +15,31 @@ def Vector2 = float[<2>];
 def IVector2 = int[<2>];
 def Vector3 = float[<3>];
 def Vector4 = float[<4>];
+
+/// Messages //////////////////////////////
+
+// IMPORTANT: This must be synchronized with the MessageKind in common.mts until it is fully rewritten in C3.
+enum MessageKind: char {
+    HELLO,
+    PLAYER_JOINED,
+    PLAYER_LEFT,
+    PLAYER_MOVING,
+    AMMA_MOVING,
+    AMMA_THROWING,
+    PING,
+    PONG,
+    ITEM_SPAWNED,
+    ITEM_COLLECTED,
+    BOMB_SPAWNED,
+    BOMB_EXPLODED,
+}
+
+struct Message @packed {
+    int size;
+    char[*] bytes;
+}
+
+/// Scene //////////////////////////////
 
 fn bool scene_get_tile(bool *scene, int scene_width, int scene_height, Vector2 p) {
     int x = (int)math::floor(p.x);
@@ -24,6 +53,8 @@ fn bool *allocate_scene(usz width, usz height) @extern("allocate_scene") @wasm {
     foreach (&c: scene) *c = false;
     return &scene[0];
 }
+
+/// Items //////////////////////////////
 
 enum ItemKind: char {
     KEY,
@@ -82,27 +113,6 @@ fn bool collect_item(float player_position_x, float player_position_y, Item[] *i
     return true;
 }
 
-// IMPORTANT: This must be synchronized with the MessageKind in common.mts until it is fully rewritten in C3.
-enum MessageKind: char {
-    HELLO,
-    PLAYER_JOINED,
-    PLAYER_LEFT,
-    PLAYER_MOVING,
-    AMMA_MOVING,
-    AMMA_THROWING,
-    PING,
-    PONG,
-    ITEM_SPAWNED,
-    ITEM_COLLECTED,
-    BOMB_SPAWNED,
-    BOMB_EXPLODED,
-}
-
-struct Message @packed {
-    int size;
-    char[*] bytes;
-}
-
 struct ItemSpawned @packed {
     ItemKind itemKind;
     uint itemIndex;
@@ -145,6 +155,104 @@ struct ItemsCollectedBatchMessage @packed {
     MessageKind kind;
     int[*] ids;
 }
+
+/// Bombs //////////////////////////////
+
+struct Bomb {
+    Vector2 position;
+    float position_z;
+    Vector2 velocity;
+    float velocity_z;
+    float lifetime;
+}
+
+def Bombs = Bomb[20];
+
+fn Bombs* allocate_bombs() @extern("allocate_bombs") @wasm {
+    return mem::new(Bombs);
+}
+
+fn int throw_bomb(float player_position_x, float player_position_y, float player_direction, Bombs *bombs) @extern("throw_bomb") @wasm {
+    foreach (index, &bomb: *bombs) {
+        if (bomb.lifetime <= 0) {
+            bomb.lifetime    = BOMB_LIFETIME;
+            bomb.position.x  = player_position_x;
+            bomb.position.y  = player_position_y;
+            bomb.position_z  = 0.6;
+            bomb.velocity.x  = math::cos(player_direction);
+            bomb.velocity.y  = math::sin(player_direction);
+            bomb.velocity_z  = 0.5;
+            bomb.velocity   *= BOMB_THROW_VELOCITY;
+            bomb.velocity_z *= BOMB_THROW_VELOCITY;
+            return index;
+        }
+    }
+    return -1;
+}
+
+fn bool update_bomb(Bomb *bomb, bool* scene, int scene_width, int scene_height, float delta_time) {
+    bool collided = false;
+    bomb.lifetime -= delta_time;
+    bomb.velocity_z -= BOMB_GRAVITY*delta_time;
+
+    float nx = bomb.position.x + bomb.velocity.x*delta_time;
+    float ny = bomb.position.y + bomb.velocity.y*delta_time;
+    if (scene_get_tile(scene, scene_width, scene_height, {nx, ny})) {
+        float dx = math::abs(math::floor(bomb.position.x) - math::floor(nx));
+        float dy = math::abs(math::floor(bomb.position.y) - math::floor(ny));
+
+        if (dx > 0) bomb.velocity.x *= -1;
+        if (dy > 0) bomb.velocity.y *= -1;
+        bomb.velocity *= BOMB_DAMP;
+        bomb.velocity_z *= BOMB_DAMP;
+        if (Vector3{bomb.velocity, bomb.velocity_z}.length() > 1) collided = true; // Wall collision
+    } else {
+        bomb.position.x = nx;
+        bomb.position.y = ny;
+    }
+
+    float nz = bomb.position_z + bomb.velocity_z*delta_time;
+    if (nz < BOMB_SCALE || nz > 1.0) {
+        bomb.velocity_z *= -1*BOMB_DAMP;
+        bomb.velocity *= BOMB_DAMP;
+        if (Vector3{bomb.velocity, bomb.velocity_z}.length() > 1) collided = true; // Floor collision
+    } else {
+        bomb.position_z = nz;
+    }
+    return collided;
+}
+
+struct BombSpawned @packed {
+    uint bombIndex;
+    float x;
+    float y;
+    float z;
+    float dx;
+    float dy;
+    float dz;
+    float lifetime;
+}
+
+struct BombsSpawnedBatchMessage @packed {
+    int size;
+    MessageKind kind;
+    BombSpawned[*] bombs;
+}
+
+struct BombExploded @packed {
+    uint bombIndex;
+    float x;
+    float y;
+    float z;
+}
+
+struct BombsExplodedBatchMessage @packed {
+    int size;
+    MessageKind kind;
+    BombExploded[*] bombs;
+}
+
+/// Temporary Memory //////////////////////////////
 
 usz temp_mark = 0;
 fn void reset_temp_mark() @extern("reset_temp_mark") @wasm {

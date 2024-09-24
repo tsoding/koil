@@ -17,14 +17,25 @@ const float PARTICLE_SCALE = 0.05;
 const float ITEM_FREQ = 0.7;
 const float ITEM_AMP = 0.07;
 
+const int BOMB_PARTICLE_COUNT = 50;
+
 const bool MINIMAP_SPRITES = true;
 const float MINIMAP_SPRITE_SIZE = 0.2;
 const float MINIMAP_SCALE = 0.07;
 
 def Color = char[<4>];
 
+// WARNING! Must be synchronized with AssetSound in client.mts
+enum AssetSound {
+    BOMB_BLAST,
+    BOMB_RICOCHET,
+    ITEM_PICKUP,
+}
+
 // TODO: Use std::math::random instead (when you finally figure out how to use it)
 extern fn float js_random();
+extern fn void play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
+extern fn bool is_offline_mode();
 
 struct Image {
     Color *pixels;
@@ -404,12 +415,7 @@ fn void cull_and_sort_sprites(float camera_position_x, float camera_position_y, 
               fn int(Sprite *a, Sprite *b) => (int)math::copysign(1.0f, b.pdist - a.pdist));
 }
 
-fn void push_sprite(SpritePool *sprite_pool,
-                    Color *image_pixels, int image_width, int image_height,
-                    float x, float y, float z,
-                    float scale,
-                    int crop_position_x, int crop_position_y,
-                    int crop_size_x, int crop_size_y) @extern("push_sprite") @wasm {
+fn void push_sprite(SpritePool *sprite_pool, Color *image_pixels, int image_width, int image_height, float x, float y, float z, float scale, int crop_position_x, int crop_position_y, int crop_size_x, int crop_size_y) @extern("push_sprite") @wasm {
     if (sprite_pool.length >= SPRITE_POOL_CAPACITY) return;
 
     usz last = sprite_pool.length;
@@ -545,7 +551,7 @@ fn bool verify_items_collected_batch_message(Message *message) @extern("verify_i
     return true;
 }
 
-fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items) @extern("apply_items_collected_batch_message_to_level_items") @wasm {
+fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items, float player_position_x, float player_position_y) @extern("apply_items_collected_batch_message_to_level_items") @wasm {
     usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
@@ -560,8 +566,7 @@ fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMe
 
         if (item.alive) {
             item.alive = false;
-            // TODO: play the pickup sound on picking up the item
-            // playSound(assets.itemPickupSound, game.me.position, item.position);
+            play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
         }
     }
 
@@ -623,12 +628,89 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time,
 fn void update_items_offline(Item[]* items, float player_position_x, float player_position_y) @extern("update_items_offline") @wasm {
     foreach (item_index, item: *items) {
         if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
-            // TODO: play the pickup sound on picking up the item
-            // playSound(assets.itemPickupSound, me.position, item.position);
+            play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
         }
     }
 }
 
+fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_position_z, float player_position_x, float player_position_y, ParticlePool *particle_pool) {
+    play_sound(BOMB_BLAST, player_position_x, player_position_y, bomb_position_x, bomb_position_y);
+    for (int i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
+        emit_particle(bomb_position_x, bomb_position_y, bomb_position_z, particle_pool);
+    }
+}
+
+fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Color *bomb_image_pixels, int bomb_image_width, int bomb_image_height, bool *scene, int scene_width, int scene_height, float player_position_x, float player_position_y, float delta_time, Bombs *bombs) @extern("update_bombs_on_client_side") @wasm {
+    foreach (&bomb: *bombs) {
+        if (bomb.lifetime > 0) {
+            push_sprite(sprite_pool, bomb_image_pixels, bomb_image_width, bomb_image_height, bomb.position.x, bomb.position.y, bomb.position_z, common::BOMB_SCALE, 0, 0, bomb_image_width, bomb_image_height);
+
+            if (common::update_bomb(bomb, scene, scene_width, scene_height, delta_time)) {
+                play_sound(BOMB_RICOCHET, player_position_x, player_position_y, bomb.position.x, bomb.position.y);
+            }
+
+            if (is_offline_mode() && bomb.lifetime <= 0) {
+                explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, player_position_x, player_position_y, particle_pool);
+            }
+        }
+    }
+}
+
+fn bool verify_bombs_spawned_batch_message(Message *message) @extern("verify_bombs_spawned_batch_message") @wasm {
+    if (message.size < BombsSpawnedBatchMessage.sizeof) return false;
+    if ((message.size - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return false;
+    BombsSpawnedBatchMessage* bombs_spawned_batch_message = (BombsSpawnedBatchMessage*)message;
+    if (bombs_spawned_batch_message.kind != MessageKind.BOMB_SPAWNED) return false;
+    return true;
+}
+
+fn bool apply_bombs_spawned_batch_message_to_level_items(BombsSpawnedBatchMessage *message, Bombs *bombs) @extern("apply_bombs_spawned_batch_message_to_level_items") @wasm {
+    usz count = (message.size - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;
+    for (usz i = 0; i < count; ++i) {
+        int bombIndex = message.bombs[i].bombIndex;
+        if (!(0 <= bombIndex && bombIndex < bombs.len)) {
+            io::printn(string::tformat("Received bogus-amogus BombSpawned message from server. Invalid bomb index %d", bombIndex));
+            return false;
+        }
+        Bomb *bomb = &(*bombs)[bombIndex];
+        bomb.lifetime   = message.bombs[i].lifetime;
+        bomb.position.x = message.bombs[i].x;
+        bomb.position.y = message.bombs[i].y;
+        bomb.position_z = message.bombs[i].z;
+        bomb.velocity.x = message.bombs[i].dx;
+        bomb.velocity.y = message.bombs[i].dy;
+        bomb.velocity_z = message.bombs[i].dz;
+    }
+
+    return true;
+}
+
+fn bool verify_bombs_exploded_batch_message(Message *message) @extern("verify_bombs_exploded_batch_message") @wasm {
+    if (message.size < BombsExplodedBatchMessage.sizeof) return false;
+    if ((message.size - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return false;
+    BombsExplodedBatchMessage* bombs_exploded_batch_message = (BombsExplodedBatchMessage*)message;
+    if (bombs_exploded_batch_message.kind != MessageKind.BOMB_EXPLODED) return false;
+    return true;
+}
+
+fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMessage *message, Bombs *bombs, float player_position_x, float player_position_y, ParticlePool *particle_pool) @extern("apply_bombs_exploded_batch_message_to_level_items") @wasm {
+    usz count = (message.size - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
+    for (usz i = 0; i < count; ++i) {
+        int bombIndex = message.bombs[i].bombIndex;
+        if (!(0 <= bombIndex && bombIndex < bombs.len)) {
+            io::printn(string::tformat("Received bogus-amogus BombExploded message from server. Invalid bomb index %d", bombIndex));
+            return false;
+        }
+        Bomb *bomb = &(*bombs)[bombIndex];
+        bomb.lifetime = 0.0;
+        bomb.position.x = message.bombs[i].x;
+        bomb.position.y = message.bombs[i].y;
+        bomb.position_z = message.bombs[i].z;
+        explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, player_position_x, player_position_y, particle_pool);
+    }
+
+    return true;
+}
 
 fn void entry() @init(2048) @private {
     // NOTE: ideally we need to override os::native_fputc_fn as well

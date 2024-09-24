@@ -6,7 +6,6 @@ const FOV = Math.PI * 0.5;
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
-const BOMB_PARTICLE_COUNT = 50;
 const MINIMAP = false;
 const SPRITE_ANGLES_COUNT = 8;
 const CONTROL_KEYS = {
@@ -113,32 +112,6 @@ function updateItems(wasmClient, ws, spritePoolPtr, time, me, itemsPtr, assets) 
         wasmClient.update_items_offline(itemsPtr, me.position.x, me.position.y);
     }
 }
-function playSound(sound, playerPosition, objectPosition) {
-    const maxVolume = 1;
-    const distanceToPlayer = objectPosition.distanceTo(playerPosition);
-    sound.volume = clamp(maxVolume / distanceToPlayer, 0.0, 1.0);
-    sound.currentTime = 0;
-    sound.play();
-}
-function explodeBomb(wasmClient, bomb, player, assets, particlesPtr) {
-    playSound(assets.bombBlastSound, player.position, bomb.position.clone2());
-    for (let i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-        wasmClient.emit_particle(bomb.position.x, bomb.position.y, bomb.position.z, particlesPtr);
-    }
-}
-function updateBombs(wasmClient, ws, spritePoolPtr, player, bombs, particlesPtr, scene, deltaTime, assets) {
-    for (let bomb of bombs) {
-        if (bomb.lifetime > 0) {
-            wasmClient.push_sprite(spritePoolPtr, assets.bombImage.ptr, assets.bombImage.width, assets.bombImage.height, bomb.position.x, bomb.position.y, bomb.position.z, common.BOMB_SCALE, 0, 0, assets.bombImage.width, assets.bombImage.height);
-            if (common.updateBomb(wasmClient, bomb, scene, deltaTime)) {
-                playSound(assets.bombRicochetSound, player.position, bomb.position.clone2());
-            }
-            if (ws.readyState != WebSocket.OPEN && bomb.lifetime <= 0) {
-                explodeBomb(wasmClient, bomb, player, assets, particlesPtr);
-            }
-        }
-    }
-}
 async function loadImage(url) {
     const image = new Image();
     image.src = url;
@@ -169,14 +142,47 @@ async function loadWasmImage(wasmClient, url) {
     new Uint8ClampedArray(wasmClient.memory.buffer, ptr, image.width * image.height * 4).set(imageData.data);
     return new WasmImage(ptr, image.width, image.height);
 }
+var AssetSound;
+(function (AssetSound) {
+    AssetSound[AssetSound["BOMB_BLAST"] = 0] = "BOMB_BLAST";
+    AssetSound[AssetSound["BOMB_RICOCHET"] = 1] = "BOMB_RICOCHET";
+    AssetSound[AssetSound["ITEM_PICKUP"] = 2] = "ITEM_PICKUP";
+})(AssetSound || (AssetSound = {}));
 async function instantiateWasmClient(url) {
     const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
-        "env": common.make_environment({
+        "env": {
             "fmodf": (x, y) => x % y,
             "fminf": Math.min,
             "fmaxf": Math.max,
             "js_random": Math.random,
-        })
+            "js_write": (buffer, buffer_len) => {
+                console.log(new TextDecoder().decode(new Uint8ClampedArray(game.wasmClient.memory.buffer, buffer, buffer_len)));
+            },
+            "is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
+            "play_sound": (sound, player_position_x, player_position_y, object_position_x, object_position_y) => {
+                const maxVolume = 1;
+                const objectPosition = new Vector2(object_position_x, object_position_y);
+                const playerPosition = new Vector2(player_position_x, player_position_y);
+                const distanceToPlayer = objectPosition.distanceTo(playerPosition);
+                switch (sound) {
+                    case AssetSound.BOMB_BLAST:
+                        game.assets.bombBlastSound.volume = clamp(maxVolume / distanceToPlayer, 0.0, 1.0);
+                        game.assets.bombBlastSound.currentTime = 0;
+                        game.assets.bombBlastSound.play();
+                        break;
+                    case AssetSound.BOMB_RICOCHET:
+                        game.assets.bombRicochetSound.volume = clamp(maxVolume / distanceToPlayer, 0.0, 1.0);
+                        game.assets.bombRicochetSound.currentTime = 0;
+                        game.assets.bombRicochetSound.play();
+                        break;
+                    case AssetSound.ITEM_PICKUP:
+                        game.assets.itemPickupSound.volume = clamp(maxVolume / distanceToPlayer, 0.0, 1.0);
+                        game.assets.itemPickupSound.currentTime = 0;
+                        game.assets.itemPickupSound.play();
+                        break;
+                }
+            }
+        }
     });
     const wasmCommon = common.makeWasmCommon(wasm);
     wasmCommon._initialize();
@@ -203,6 +209,11 @@ async function instantiateWasmClient(url) {
         apply_items_spawned_batch_message_to_level_items: wasm.instance.exports.apply_items_spawned_batch_message_to_level_items,
         render_items: wasm.instance.exports.render_items,
         update_items_offline: wasm.instance.exports.update_items_offline,
+        verify_bombs_spawned_batch_message: wasm.instance.exports.verify_bombs_spawned_batch_message,
+        apply_bombs_spawned_batch_message_to_level_items: wasm.instance.exports.apply_bombs_spawned_batch_message_to_level_items,
+        verify_bombs_exploded_batch_message: wasm.instance.exports.verify_bombs_exploded_batch_message,
+        apply_bombs_exploded_batch_message_to_level_items: wasm.instance.exports.apply_bombs_exploded_batch_message_to_level_items,
+        update_bombs_on_client_side: wasm.instance.exports.update_bombs_on_client_side,
     };
 }
 function arrayBufferAsMessageInWasm(wasmClient, buffer) {
@@ -342,7 +353,7 @@ async function createGame() {
             game.ping = performance.now() - common.PongStruct.timestamp.read(view);
         }
         else if (wasmClient.verify_items_collected_batch_message(eventDataPtr)) {
-            if (!wasmClient.apply_items_collected_batch_message_to_level_items(eventDataPtr, game.level.itemsPtr)) {
+            if (!wasmClient.apply_items_collected_batch_message_to_level_items(eventDataPtr, game.level.itemsPtr, game.me.position.x, game.me.position.y)) {
                 ws?.close();
                 return;
             }
@@ -353,40 +364,16 @@ async function createGame() {
                 return;
             }
         }
-        else if (common.BombsSpawnedHeaderStruct.verify(view)) {
-            const count = common.BombsSpawnedHeaderStruct.count(view);
-            for (let index = 0; index < count; ++index) {
-                const bombSpawnedView = common.BombsSpawnedHeaderStruct.item(event.data, index);
-                const bombIndex = common.BombSpawnedStruct.bombIndex.read(bombSpawnedView);
-                if (!(0 <= bombIndex && bombIndex < game.level.bombs.length)) {
-                    console.error(`Received bogus-amogus BombSpawned message from server. Invalid index ${bombIndex}`);
-                    ws?.close();
-                    return;
-                }
-                game.level.bombs[bombIndex].lifetime = common.BombSpawnedStruct.lifetime.read(bombSpawnedView);
-                game.level.bombs[bombIndex].position.x = common.BombSpawnedStruct.x.read(bombSpawnedView);
-                game.level.bombs[bombIndex].position.y = common.BombSpawnedStruct.y.read(bombSpawnedView);
-                game.level.bombs[bombIndex].position.z = common.BombSpawnedStruct.z.read(bombSpawnedView);
-                game.level.bombs[bombIndex].velocity.x = common.BombSpawnedStruct.dx.read(bombSpawnedView);
-                game.level.bombs[bombIndex].velocity.y = common.BombSpawnedStruct.dy.read(bombSpawnedView);
-                game.level.bombs[bombIndex].velocity.z = common.BombSpawnedStruct.dz.read(bombSpawnedView);
+        else if (wasmClient.verify_bombs_spawned_batch_message(eventDataPtr)) {
+            if (!wasmClient.apply_bombs_spawned_batch_message_to_level_items(eventDataPtr, game.level.bombsPtr)) {
+                ws?.close();
+                return;
             }
         }
-        else if (common.BombsExplodedHeaderStruct.verify(view)) {
-            const count = common.BombsExplodedHeaderStruct.count(view);
-            for (let index = 0; index < count; ++index) {
-                const bombExplodedView = common.BombsExplodedHeaderStruct.item(event.data, index);
-                const bombIndex = common.BombExplodedStruct.bombIndex.read(bombExplodedView);
-                if (!(0 <= bombIndex && bombIndex < game.level.bombs.length)) {
-                    console.error(`Received bogus-amogus BombExploded message from server. Invalid index ${bombIndex}`);
-                    ws?.close();
-                    return;
-                }
-                game.level.bombs[bombIndex].lifetime = 0.0;
-                game.level.bombs[bombIndex].position.x = common.BombExplodedStruct.x.read(bombExplodedView);
-                game.level.bombs[bombIndex].position.y = common.BombExplodedStruct.y.read(bombExplodedView);
-                game.level.bombs[bombIndex].position.z = common.BombExplodedStruct.z.read(bombExplodedView);
-                explodeBomb(wasmClient, level.bombs[bombIndex], me, assets, particlesPtr);
+        else if (wasmClient.verify_bombs_exploded_batch_message(eventDataPtr)) {
+            if (!wasmClient.apply_bombs_exploded_batch_message_to_level_items(eventDataPtr, game.level.bombsPtr, game.me.position.x, game.me.position.y, game.particlesPtr)) {
+                ws?.close();
+                return;
             }
         }
         else {
@@ -411,7 +398,7 @@ function renderGame(display, deltaTime, time, game) {
     updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
-    updateBombs(game.wasmClient, game.ws, game.spritePoolPtr, game.me, game.level.bombs, game.particlesPtr, game.level.scene, deltaTime, game.assets);
+    game.wasmClient.update_bombs_on_client_side(game.spritePoolPtr, game.particlesPtr, game.assets.bombImage.ptr, game.assets.bombImage.width, game.assets.bombImage.height, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.me.position.x, game.me.position.y, deltaTime, game.level.bombsPtr);
     game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.particlesPtr);
     game.players.forEach((player) => {
         if (player !== game.me) {
@@ -452,7 +439,7 @@ function renderGame(display, deltaTime, time, game) {
                     game.ws.send(view);
                 }
                 else {
-                    common.throwBomb(game.me, game.level.bombs);
+                    game.wasmClient.throw_bomb(game.me.position.x, game.me.position.y, game.me.direction, game.level.bombsPtr);
                 }
             }
         }
