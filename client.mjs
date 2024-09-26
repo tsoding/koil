@@ -1,5 +1,6 @@
 import * as common from './common.mjs';
 import { Vector2, updatePlayer, SERVER_PORT, clamp, properMod } from './common.mjs';
+const PING_COOLDOWN = 60;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FOV = Math.PI * 0.5;
 const SCREEN_FACTOR = 30;
@@ -18,6 +19,7 @@ const CONTROL_KEYS = {
     'KeyW': common.Moving.MovingForward,
     'KeyS': common.Moving.MovingBackward,
 };
+let game;
 function renderDebugInfo(ctx, deltaTime, game) {
     const fontSize = 28;
     ctx.font = `${fontSize}px bold`;
@@ -55,7 +57,17 @@ function renderDebugInfo(ctx, deltaTime, game) {
         ctx.fillText(labels[i], padding + shadowOffset, padding - shadowOffset + fontSize * i);
     }
 }
-function createDisplay(ctx, wasmClient, backImageWidth, backImageHeight) {
+function createDisplay(wasmClient, backImageWidth, backImageHeight) {
+    const gameCanvas = document.getElementById("game");
+    if (gameCanvas === null)
+        throw new Error("No canvas with id `game` is found");
+    const factor = 80;
+    gameCanvas.width = 16 * factor;
+    gameCanvas.height = 9 * factor;
+    const ctx = gameCanvas.getContext("2d");
+    if (ctx === null)
+        throw new Error("2D context is not supported");
+    ctx.imageSmoothingEnabled = false;
     const minimapWidth = backImageWidth * 0.03;
     const minimapHeight = backImageHeight * 0.03;
     const minimapPtr = wasmClient.allocate_pixels(minimapWidth, minimapHeight);
@@ -246,9 +258,10 @@ async function createGame() {
     };
     const level = common.createLevel(wasmClient);
     wasmClient.kill_all_items(level.itemsPtr);
+    const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
     const game = {
         camera, ws, me, ping: 0, players, particlesPtr, assets, spritePoolPtr, dts: [],
-        level, wasmClient
+        level, wasmClient, display
     };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -416,18 +429,7 @@ function renderGame(display, deltaTime, time, game) {
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 (async () => {
-    const gameCanvas = document.getElementById("game");
-    if (gameCanvas === null)
-        throw new Error("No canvas with id `game` is found");
-    const factor = 80;
-    gameCanvas.width = 16 * factor;
-    gameCanvas.height = 9 * factor;
-    const ctx = gameCanvas.getContext("2d");
-    if (ctx === null)
-        throw new Error("2D context is not supported");
-    ctx.imageSmoothingEnabled = false;
-    const game = await createGame();
-    const display = createDisplay(ctx, game.wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
+    game = await createGame();
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
             const direction = CONTROL_KEYS[e.code];
@@ -472,14 +474,13 @@ function renderGame(display, deltaTime, time, game) {
             }
         }
     });
-    const PING_COOLDOWN = 60;
     let prevTimestamp = 0;
     let pingCooldown = PING_COOLDOWN;
     const frame = (timestamp) => {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
-        renderGame(display, deltaTime, time, game);
+        renderGame(game.display, deltaTime, time, game);
         if (game.ws.readyState == WebSocket.OPEN) {
             pingCooldown -= 1;
             if (pingCooldown <= 0) {

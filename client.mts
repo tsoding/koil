@@ -6,6 +6,7 @@ import {
     clamp, properMod
 } from './common.mjs';
 
+const PING_COOLDOWN = 60;
 const NEAR_CLIPPING_PLANE = 0.1;
 const FOV = Math.PI*0.5;
 const SCREEN_FACTOR = 30;
@@ -24,6 +25,8 @@ const CONTROL_KEYS: {[key: string]: common.Moving} = {
     'KeyW'       : common.Moving.MovingForward,
     'KeyS'       : common.Moving.MovingBackward,
 };
+
+let game: Game;
 
 interface Camera {
     position: Vector2;
@@ -109,7 +112,16 @@ interface WasmClient extends common.WasmCommon {
     update_items_offline: (items: number, player_position_x: number, player_position_y: number) => void,
 }
 
-function createDisplay(ctx: CanvasRenderingContext2D, wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
+function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
+    const gameCanvas = document.getElementById("game") as (HTMLCanvasElement | null);
+    if (gameCanvas === null) throw new Error("No canvas with id `game` is found");
+    const factor = 80;
+    gameCanvas.width = 16*factor;
+    gameCanvas.height = 9*factor;
+    const ctx = gameCanvas.getContext("2d");
+    if (ctx === null) throw new Error("2D context is not supported");
+    ctx.imageSmoothingEnabled = false;
+
     const minimapWidth = backImageWidth*0.03;
     const minimapHeight = backImageHeight*0.03;
     const minimapPtr = wasmClient.allocate_pixels(minimapWidth, minimapHeight);
@@ -215,6 +227,7 @@ interface Game {
     dts: number[],
     level: common.Level,
     wasmClient: WasmClient,
+    display: Display,
 }
 
 async function loadImage(url: string): Promise<HTMLImageElement> {
@@ -366,9 +379,10 @@ async function createGame(): Promise<Game> {
     // but on the client we first need them to be dead so we can recieve
     // the actual state of the items from the server.
     wasmClient.kill_all_items(level.itemsPtr);
+    const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
     const game: Game = {
         camera, ws, me, ping: 0, players, particlesPtr, assets, spritePoolPtr, dts: [],
-        level, wasmClient
+        level, wasmClient, display
     };
 
     ws.binaryType = 'arraybuffer';
@@ -538,17 +552,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
 }
 
 (async () => {
-    const gameCanvas = document.getElementById("game") as (HTMLCanvasElement | null);
-    if (gameCanvas === null) throw new Error("No canvas with id `game` is found");
-    const factor = 80;
-    gameCanvas.width = 16*factor;
-    gameCanvas.height = 9*factor;
-    const ctx = gameCanvas.getContext("2d");
-    if (ctx === null) throw new Error("2D context is not supported");
-    ctx.imageSmoothingEnabled = false;
-
-    const game = await createGame();
-    const display = createDisplay(ctx, game.wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
+    game = await createGame();
 
     window.addEventListener("keydown", (e) => {
         if (!e.repeat) {
@@ -592,14 +596,13 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         }
     });
 
-    const PING_COOLDOWN = 60;
     let prevTimestamp = 0;
     let pingCooldown = PING_COOLDOWN;
     const frame = (timestamp: number) => {
         const deltaTime = (timestamp - prevTimestamp)/1000;
         const time = timestamp/1000;
         prevTimestamp = timestamp;
-        renderGame(display, deltaTime, time, game);
+        renderGame(game.display, deltaTime, time, game);
         if (game.ws.readyState == WebSocket.OPEN) {
             pingCooldown -= 1;
             if (pingCooldown <= 0) {
