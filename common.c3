@@ -48,6 +48,21 @@ fn bool scene_get_tile(bool *scene, int scene_width, int scene_height, Vector2 p
     return scene[y*scene_width + x];
 }
 
+fn bool scene_can_rectangle_fit_here(bool *scene, int scene_width, int scene_height, float px, float py, float sx, float sy) @extern("scene_can_rectangle_fit_here") @wasm {
+    int x1 = (int)math::floor(px - sx*0.5f);
+    int x2 = (int)math::floor(px + sx*0.5f);
+    int y1 = (int)math::floor(py - sy*0.5f);
+    int y2 = (int)math::floor(py + sy*0.5f);
+    for (int x = x1; x <= x2; ++x) {
+        for (int y = y1; y <= y2; ++y) {
+            if (scene_get_tile(scene, scene_width, scene_height, {x, y})) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 fn bool *allocate_scene(usz width, usz height) @extern("allocate_scene") @wasm {
     bool[] scene = mem::new_array(bool, width*height);
     foreach (&c: scene) *c = false;

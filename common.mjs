@@ -246,29 +246,6 @@ export function properMod(a, b) {
 export function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
 }
-export function sceneContains(scene, p) {
-    return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
-}
-export function sceneGetTile(walls, scene, p) {
-    if (!sceneContains(scene, p))
-        return false;
-    return walls[Math.floor(p.y) * scene.width + Math.floor(p.x)] !== 0;
-}
-export function sceneCanRectangleFitHere(wasmCommon, scene, px, py, sx, sy) {
-    const x1 = Math.floor(px - sx * 0.5);
-    const x2 = Math.floor(px + sx * 0.5);
-    const y1 = Math.floor(py - sy * 0.5);
-    const y2 = Math.floor(py + sy * 0.5);
-    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width * scene.height);
-    for (let x = x1; x <= x2; ++x) {
-        for (let y = y1; y <= y2; ++y) {
-            if (sceneGetTile(walls, scene, new Vector2(x, y))) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
 export function makeWasmCommon(wasm) {
     return {
         wasm,
@@ -280,6 +257,7 @@ export function makeWasmCommon(wasm) {
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
         allocate_bombs: wasm.instance.exports.allocate_bombs,
         throw_bomb: wasm.instance.exports.throw_bomb,
+        scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here,
     };
 }
 export function createScene(walls, wasmCommon) {
@@ -331,11 +309,11 @@ export function updatePlayer(wasmCommon, player, scene, deltaTime) {
     }
     player.direction = player.direction + angularVelocity * deltaTime;
     const nx = player.position.x + controlVelocity.x * deltaTime;
-    if (sceneCanRectangleFitHere(wasmCommon, scene, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.x = nx;
     }
     const ny = player.position.y + controlVelocity.y * deltaTime;
-    if (sceneCanRectangleFitHere(wasmCommon, scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
 }

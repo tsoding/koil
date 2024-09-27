@@ -290,31 +290,6 @@ export interface Scene {
     height: number;
 }
 
-export function sceneContains(scene: Scene, p: Vector2): boolean {
-    return 0 <= p.x && p.x < scene.width && 0 <= p.y && p.y < scene.height;
-}
-
-export function sceneGetTile(walls: Uint8ClampedArray, scene: Scene, p: Vector2): boolean {
-    if (!sceneContains(scene, p)) return false;
-    return walls[Math.floor(p.y)*scene.width + Math.floor(p.x)] !== 0;
-}
-
-export function sceneCanRectangleFitHere(wasmCommon: WasmCommon, scene: Scene, px: number, py: number, sx: number, sy: number): boolean {
-    const x1 = Math.floor(px - sx*0.5);
-    const x2 = Math.floor(px + sx*0.5);
-    const y1 = Math.floor(py - sy*0.5);
-    const y2 = Math.floor(py + sy*0.5);
-    const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
-    for (let x = x1; x <= x2; ++x) {
-        for (let y = y1; y <= y2; ++y) {
-            if (sceneGetTile(walls, scene, new Vector2(x, y))) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 export interface WasmCommon {
     wasm: WebAssembly.WebAssemblyInstantiatedSource,
     memory: WebAssembly.Memory,
@@ -325,6 +300,7 @@ export interface WasmCommon {
     allocate_temporary_buffer: (size: number) => number,
     allocate_bombs: () => number,
     throw_bomb: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
+    scene_can_rectangle_fit_here: (scene: number, scene_width: number, scene_height: number, px: number, py: number, sx: number, sy: number) => boolean,
 }
 
 export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
@@ -338,6 +314,7 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
         allocate_bombs: wasm.instance.exports.allocate_bombs as () => number,
         throw_bomb: wasm.instance.exports.throw_bomb as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
+        scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here as (scene: number, scene_width: number, scene_height: number, px: number, py: number, sx: number, sy: number) => boolean,
     }
 }
 
@@ -402,11 +379,11 @@ export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scen
     player.direction = player.direction + angularVelocity*deltaTime;
 
     const nx = player.position.x + controlVelocity.x*deltaTime;
-    if (sceneCanRectangleFitHere(wasmCommon, scene, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.x = nx;
     }
     const ny = player.position.y + controlVelocity.y*deltaTime;
-    if (sceneCanRectangleFitHere(wasmCommon, scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
 }
