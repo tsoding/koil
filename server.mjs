@@ -270,7 +270,7 @@ function tick() {
     }
     {
         players.forEach((player) => {
-            common.updatePlayer(wasmServer, player, level.scene, deltaTime);
+            common.updatePlayer(wasmServer, player, level.scenePtr, deltaTime);
             wasmServer.collect_items_by_player_at(player.position.x, player.position.y, collectedItemsPtr, level.itemsPtr);
         });
         const bufferItemsCollected = (() => {
@@ -287,7 +287,7 @@ function tick() {
                 messageSentCounter += 1;
             });
         }
-        wasmServer.update_bombs_on_server_side(level.scene.wallsPtr, level.scene.width, level.scene.height, deltaTime, explodedBombsPtr, level.bombsPtr);
+        wasmServer.update_bombs_on_server_side(level.scenePtr, deltaTime, explodedBombsPtr, level.bombsPtr);
         const bufferBombsExploded = (() => {
             const message = wasmServer.exploded_bombs_as_batch_message(explodedBombsPtr, level.bombsPtr);
             if (message === 0)

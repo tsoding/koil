@@ -284,23 +284,17 @@ export function clamp(value: number, min: number, max: number) {
     return Math.min(Math.max(value, min), max);
 }
 
-export interface Scene {
-    wallsPtr: number;
-    width: number;
-    height: number;
-}
-
 export interface WasmCommon {
     wasm: WebAssembly.WebAssemblyInstantiatedSource,
     memory: WebAssembly.Memory,
     _initialize: () => void,
-    allocate_scene: (width: number, height: number) => number,
     allocate_items: () => number,
     reset_temp_mark: () => void,
     allocate_temporary_buffer: (size: number) => number,
     allocate_bombs: () => number,
     throw_bomb: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
-    scene_can_rectangle_fit_here: (scene: number, scene_width: number, scene_height: number, px: number, py: number, sx: number, sy: number) => boolean,
+    scene_can_rectangle_fit_here: (scene: number, px: number, py: number, sx: number, sy: number) => boolean,
+    allocate_default_scene: () => number,
 }
 
 export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
@@ -308,60 +302,32 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         wasm,
         memory: wasm.instance.exports.memory  as WebAssembly.Memory,
         _initialize: wasm.instance.exports._initialize as () => void,
-        allocate_scene: wasm.instance.exports.allocate_scene as (width: number, height: number) => number,
         allocate_items: wasm.instance.exports.allocate_items as () => number,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
         allocate_bombs: wasm.instance.exports.allocate_bombs as () => number,
         throw_bomb: wasm.instance.exports.throw_bomb as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
-        scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here as (scene: number, scene_width: number, scene_height: number, px: number, py: number, sx: number, sy: number) => boolean,
+        scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here as (scenePtr: number, px: number, py: number, sx: number, sy: number) => boolean,
+        allocate_default_scene: wasm.instance.exports.allocate_default_scene as () => number,
     }
-}
-
-export function createScene(walls: Array<Array<boolean>>, wasmCommon: WasmCommon): Scene {
-    const scene: Scene = {
-        height: walls.length,
-        width: Number.MIN_VALUE,
-        wallsPtr: 0,
-    };
-    for (let row of walls) {
-        scene.width = Math.max(scene.width, row.length);
-    }
-    scene.wallsPtr = wasmCommon.allocate_scene(scene.width, scene.height);
-    const wallsData = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
-    for (let y = 0; y < walls.length; ++y) {
-        for (let x = 0; x < walls[y].length; ++x) {
-            wallsData[y*scene.width + x] = Number(walls[y][x]);
-        }
-    }
-    return scene;
 }
 
 // NOTE: This is basically the part of the state of the Game that is shared 
 // between Client and Server and constantly synced over the network.
 export interface Level {
-    scene: Scene,
+    scenePtr: number,
     itemsPtr: number,
     bombsPtr: number,
 }
 
 export function createLevel(wasmCommon: WasmCommon): Level {
-    const scene = createScene([
-        [ false, false, true, true, true, false, false],
-        [ false, false, false, false, false, true, false],
-        [ true, false, false, false, false, true, false],
-        [ true,  false, false, false, false, true, false],
-        [ true],
-        [  false,  true, true, true, false, false, false],
-        [  false,  false, false, false, false, false, false],
-    ], wasmCommon);
-
+    const scenePtr = wasmCommon.allocate_default_scene();
     const itemsPtr = wasmCommon.allocate_items();
     const bombsPtr = wasmCommon.allocate_bombs();
-    return {scene, itemsPtr, bombsPtr};
+    return {scenePtr, itemsPtr, bombsPtr};
 }
 
-export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scene, deltaTime: number) {
+export function updatePlayer(wasmCommon: WasmCommon, player: Player, scenePtr: number, deltaTime: number) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if ((player.moving>>Moving.MovingForward)&1) {
@@ -379,11 +345,11 @@ export function updatePlayer(wasmCommon: WasmCommon, player: Player, scene: Scen
     player.direction = player.direction + angularVelocity*deltaTime;
 
     const nx = player.position.x + controlVelocity.x*deltaTime;
-    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scenePtr, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.x = nx;
     }
     const ny = player.position.y + controlVelocity.y*deltaTime;
-    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scenePtr, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
 }

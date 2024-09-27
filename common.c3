@@ -41,32 +41,61 @@ struct Message @packed {
 
 /// Scene //////////////////////////////
 
-fn bool scene_get_tile(bool *scene, int scene_width, int scene_height, Vector2 p) {
-    int x = (int)math::floor(p.x);
-    int y = (int)math::floor(p.y);
-    if (!(0 <= x && x < scene_width && 0 <= y && y < scene_height)) return false;
-    return scene[y*scene_width + x];
+struct Scene {
+    usz width;
+    usz height;
+    bool[*] walls;
 }
 
-fn bool scene_can_rectangle_fit_here(bool *scene, int scene_width, int scene_height, float px, float py, float sx, float sy) @extern("scene_can_rectangle_fit_here") @wasm {
+fn Scene *allocate_scene(usz width, usz height) {
+    Scene *scene = mem::calloc(Scene.sizeof + bool.sizeof*width*height);
+    scene.width = width;
+    scene.height = height;
+    for (usz i = 0; i < width*height; ++i) scene.walls[i] = false;
+    return scene;
+}
+
+fn Scene *allocate_default_scene() @extern("allocate_default_scene") @wasm {
+    bool[*][*] default_walls = {
+        { false, false, true, true, true, false, false},
+        { false, false, false, false, false, true, false},
+        { true, false, false, false, false, true, false},
+        { true,  false, false, false, false, true, false},
+        { true, false, false, false, false, false, false},
+        {  false,  true, true, true, false, false, false},
+        {  false,  false, false, false, false, false, false},
+    };
+    usz width = default_walls[0].len;
+    usz height = default_walls.len;
+    Scene *scene = allocate_scene(width, height);
+    for (usz y = 0; y < height; ++y) {
+        for (usz x = 0; x < width; ++x) {
+            scene.walls[y*width + x] = default_walls[y][x];
+        }
+    }
+    return scene;
+}
+
+fn bool scene_get_tile(Scene *scene, Vector2 p) {
+    int x = (int)math::floor(p.x);
+    int y = (int)math::floor(p.y);
+    if (!(0 <= x && x < scene.width && 0 <= y && y < scene.height)) return false;
+    return scene.walls[y*scene.width + x];
+}
+
+fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy) @extern("scene_can_rectangle_fit_here") @wasm {
     int x1 = (int)math::floor(px - sx*0.5f);
     int x2 = (int)math::floor(px + sx*0.5f);
     int y1 = (int)math::floor(py - sy*0.5f);
     int y2 = (int)math::floor(py + sy*0.5f);
     for (int x = x1; x <= x2; ++x) {
         for (int y = y1; y <= y2; ++y) {
-            if (scene_get_tile(scene, scene_width, scene_height, {x, y})) {
+            if (scene_get_tile(scene, {x, y})) {
                 return false;
             }
         }
     }
     return true;
-}
-
-fn bool *allocate_scene(usz width, usz height) @extern("allocate_scene") @wasm {
-    bool[] scene = mem::new_array(bool, width*height);
-    foreach (&c: scene) *c = false;
-    return &scene[0];
 }
 
 /// Items //////////////////////////////
@@ -205,14 +234,14 @@ fn int throw_bomb(float player_position_x, float player_position_y, float player
     return -1;
 }
 
-fn bool update_bomb(Bomb *bomb, bool* scene, int scene_width, int scene_height, float delta_time) {
+fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) {
     bool collided = false;
     bomb.lifetime -= delta_time;
     bomb.velocity_z -= BOMB_GRAVITY*delta_time;
 
     float nx = bomb.position.x + bomb.velocity.x*delta_time;
     float ny = bomb.position.y + bomb.velocity.y*delta_time;
-    if (scene_get_tile(scene, scene_width, scene_height, {nx, ny})) {
+    if (scene_get_tile(scene, {nx, ny})) {
         float dx = math::abs(math::floor(bomb.position.x) - math::floor(nx));
         float dy = math::abs(math::floor(bomb.position.y) - math::floor(ny));
 

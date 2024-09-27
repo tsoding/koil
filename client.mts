@@ -85,14 +85,14 @@ interface WasmClient extends common.WasmCommon {
     reset_sprite_pool: (sprite_pool: number) => void,
     render_floor_and_ceiling: (pixels: number, pixels_width: number, pixels_height: number, position_x: number, position_y: number, direction: number) => void,
     render_column_of_wall: (display: number, display_width: number, display_height: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
-    render_walls: (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void;
-    render_minimap: (display: number, display_width: number, display_height: number, camera_position_x: number, camera_position_y: number, camera_direction: number, player_position_x: number, player_position_y: number, scene: number, scene_width: number, scene_height: number, sprite_pool: number) => void;
+    render_walls: (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number) => void;
+    render_minimap: (display: number, display_width: number, display_height: number, camera_position_x: number, camera_position_y: number, camera_direction: number, player_position_x: number, player_position_y: number, scene: number, sprite_pool: number) => void;
     cull_and_sort_sprites: (camera_position_x: number, camera_position_y: number, camera_direction: number, sprite_pool: number) => void;
     push_sprite: (sprite_pool: number, image_pixels: number, image_width: number, image_height: number, x: number, y: number, z: number, scale: number, crop_position_x: number, crop_position_y: number, crop_size_x: number, crop_size_y: number) => void;
     render_sprites: (display: number, display_width: number, display_height: number, zbuffer: number, sprite_pool: number) => void,
     allocate_particle_pool: () => number,
     emit_particle: (source_x: number, source_y: number, source_z: number, particle_pool: number) => void,
-    update_particles: (image_pixels: number, image_width: number, image_height: number, sprite_pool: number, deltaTime: number, scene: number, scene_width: number, scene_height: number, particle_pool: number) => void
+    update_particles: (image_pixels: number, image_width: number, image_height: number, sprite_pool: number, deltaTime: number, scene: number, particle_pool: number) => void
     kill_all_items: (items: number) => void,
     verify_items_collected_batch_message: (message: number) => boolean,
     apply_items_collected_batch_message_to_level_items: (message: number, items: number, player_position_x: number, player_position_y: number) => boolean,
@@ -104,7 +104,7 @@ interface WasmClient extends common.WasmCommon {
     apply_bombs_spawned_batch_message_to_level_items: (message: number, bombs: number) => boolean,
     verify_bombs_exploded_batch_message: (message: number) => boolean,
     apply_bombs_exploded_batch_message_to_level_items: (message: number, bombs: number, player_position_x: number, player_position_y: number, particle_pool: number) => boolean,
-    update_bombs_on_client_side: (sprite_pool: number, particle_pool: number, bomb_image_pixels: number, bomb_image_width: number, bomb_image_height: number, scene: number, scene_width: number, scene_height: number, player_position_x: number, player_position_y: number, delta_time: number, bombs: number) => void
+    update_bombs_on_client_side: (sprite_pool: number, particle_pool: number, bomb_image_pixels: number, bomb_image_width: number, bomb_image_height: number, scene: number, player_position_x: number, player_position_y: number, delta_time: number, bombs: number) => void
 }
 
 function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
@@ -286,14 +286,14 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         reset_sprite_pool: wasm.instance.exports.reset_sprite_pool as (sprite_pool: number) => void,
         render_floor_and_ceiling: wasm.instance.exports.render_floor_and_ceiling as (position_x: number, position_y: number, direction: number) => void,
         render_column_of_wall: wasm.instance.exports.render_column_of_wall as (display: number, display_width: number, display_height: number, zbuffer: number, cell: number, cell_width: number, cell_height: number, x: number, px: number, py: number, cx: number, cy: number) => void,
-        render_walls: wasm.instance.exports.render_walls as (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number, scene_width: number, scene_height: number) => void,
-        render_minimap: wasm.instance.exports.render_minimap as (display: number, display_width: number, display_height: number, camera_position_x: number, camera_position_y: number, camera_direction: number, player_position_x: number, player_position_y: number, scene: number, scene_width: number, scene_height: number, sprite_pool: number) => void,
+        render_walls: wasm.instance.exports.render_walls as (display: number, display_width: number, display_height: number, zbuffer: number, wall: number, wall_width: number, wall_height: number, position_x: number, position_y: number, direction: number, scene: number) => void,
+        render_minimap: wasm.instance.exports.render_minimap as (display: number, display_width: number, display_height: number, camera_position_x: number, camera_position_y: number, camera_direction: number, player_position_x: number, player_position_y: number, scene: number, sprite_pool: number) => void,
         cull_and_sort_sprites: wasm.instance.exports.cull_and_sort_sprites as (camera_position_x: number, camera_position_y: number, camera_direction: number, sprite_pool: number) => void,
         push_sprite: wasm.instance.exports.push_sprite as (sprite_pool: number, image_pixels: number, image_width: number, image_height: number, x: number, y: number, z: number, scale: number, crop_position_x: number, crop_position_y: number, crop_size_x: number, crop_size_y: number) => void,
         render_sprites: wasm.instance.exports.render_sprites as (display: number, display_width: number, display_height: number, zbuffer: number, sprite_pool: number) => void,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         emit_particle: wasm.instance.exports.emit_particle as (source_x: number, source_y: number, source_z: number, particle_pool: number) => void,
-        update_particles: wasm.instance.exports.update_particles as (image_pixels: number, image_width: number, image_height: number, sprite_pool: number, deltaTime: number, scene: number, scene_width: number, scene_height: number, particle_pool: number) => void,
+        update_particles: wasm.instance.exports.update_particles as (image_pixels: number, image_width: number, image_height: number, sprite_pool: number, deltaTime: number, scene: number, particle_pool: number) => void,
         kill_all_items: wasm.instance.exports.kill_all_items as (items: number) => void,
         verify_items_collected_batch_message: wasm.instance.exports.verify_items_collected_batch_message as (message: number) => boolean,
         apply_items_collected_batch_message_to_level_items: wasm.instance.exports.apply_items_collected_batch_message_to_level_items as (message: number, items: number, player_position_x: number, player_position_y: number) => boolean,
@@ -305,7 +305,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         apply_bombs_spawned_batch_message_to_level_items: wasm.instance.exports.apply_bombs_spawned_batch_message_to_level_items as (message: number, bombs: number) => boolean,
         verify_bombs_exploded_batch_message: wasm.instance.exports.verify_bombs_exploded_batch_message as (message: number) => boolean,
         apply_bombs_exploded_batch_message_to_level_items: wasm.instance.exports.apply_bombs_exploded_batch_message_to_level_items as (message: number, bombs: number, player_position_x: number, player_position_y: number, particle_pool: number) => boolean,
-        update_bombs_on_client_side: wasm.instance.exports.update_bombs_on_client_side as (sprite_pool: number, particle_pool: number, bomb_image_pixels: number, bomb_image_width: number, bomb_image_height: number, scene: number, scene_width: number, scene_height: number, player_position_x: number, player_position_y: number, delta_time: number, bombs: number) => void,
+        update_bombs_on_client_side: wasm.instance.exports.update_bombs_on_client_side as (sprite_pool: number, particle_pool: number, bomb_image_pixels: number, bomb_image_width: number, bomb_image_height: number, scene: number, player_position_x: number, player_position_y: number, delta_time: number, bombs: number) => void,
     };
 }
 
@@ -507,13 +507,13 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
 
     game.players.forEach((player) => {
-        if (player !== game.me) updatePlayer(game.wasmClient, player, game.level.scene, deltaTime)
+        if (player !== game.me) updatePlayer(game.wasmClient, player, game.level.scenePtr, deltaTime)
     });
-    updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
+    updatePlayer(game.wasmClient, game.me, game.level.scenePtr, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
-    game.wasmClient.update_bombs_on_client_side(game.spritePoolPtr, game.particlesPtr, game.assets.bombImage.ptr, game.assets.bombImage.width, game.assets.bombImage.height, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.me.position.x, game.me.position.y, deltaTime, game.level.bombsPtr);
-    game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.particlesPtr);
+    game.wasmClient.update_bombs_on_client_side(game.spritePoolPtr, game.particlesPtr, game.assets.bombImage.ptr, game.assets.bombImage.width, game.assets.bombImage.height, game.level.scenePtr, game.me.position.x, game.me.position.y, deltaTime, game.level.bombsPtr);
+    game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scenePtr, game.particlesPtr);
 
     game.players.forEach((player) => {
         if (player !== game.me) {
@@ -523,12 +523,12 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     })
 
     game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
-    game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
+    game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scenePtr);
     game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePoolPtr)
     game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr)
     displaySwapBackImageData(display, game.wasmClient);
 
-    if (MINIMAP) game.wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.me.position.x, game.me.position.y, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.spritePoolPtr);
+    if (MINIMAP) game.wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.me.position.x, game.me.position.y, game.level.scenePtr, game.spritePoolPtr);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 

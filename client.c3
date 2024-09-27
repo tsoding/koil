@@ -272,11 +272,11 @@ fn Vector2 ray_step(Vector2 p1, Vector2 p2) {
     return p3;
 }
 
-fn Vector2 cast_ray(bool *scene, int scene_width, int scene_height, Vector2 p1, Vector2 p2) {
+fn Vector2 cast_ray(Scene *scene, Vector2 p1, Vector2 p2) {
     Vector2 start = p1;
     while (start.distance(p1) < FAR_CLIPPING_PLANE) {
         Vector2 c = hitting_cell(p1, p2);
-        if (common::scene_get_tile(scene, scene_width, scene_height, c)) break;
+        if (common::scene_get_tile(scene, c)) break;
         Vector2 p3 = ray_step(p1, p2);
         p1 = p2;
         p2 = p3;
@@ -287,17 +287,17 @@ fn Vector2 cast_ray(bool *scene, int scene_width, int scene_height, Vector2 p1, 
 fn void render_walls(Color *display, int display_width, int display_height, float *zbuffer,
                      Color *wall, int wall_width, int wall_height,
                      float position_x, float position_y, float direction,
-                     bool *scene, int scene_width, int scene_height) @extern("render_walls") @wasm {
+                     Scene *scene) @extern("render_walls") @wasm {
     Camera camera = { .position = {position_x, position_y}, .direction = direction };
     camera.update();
 
     Vector2 d = from_polar(direction, 1.0f);
     for (int x = 0; x < display_width; ++x) {
-        Vector2 p = cast_ray(scene, scene_width, scene_height, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display_width));
+        Vector2 p = cast_ray(scene, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display_width));
         Vector2 c = hitting_cell(camera.position, p);
         Vector2 v = p - camera.position;
         zbuffer[x] = v.dot(d);
-        if (common::scene_get_tile(scene, scene_width, scene_height, c)) {
+        if (common::scene_get_tile(scene, c)) {
             render_column_of_wall(display, display_width, display_height, zbuffer, wall, wall_width, wall_height, x, p.x, p.y, c.x, c.y);
         }
     }
@@ -308,7 +308,7 @@ fn void render_walls(Color *display, int display_width, int display_height, floa
 fn void render_minimap(Color *display, int display_width, int display_height,
                        float camera_position_x, float camera_position_y, float camera_direction,
                        float player_position_x, float player_position_y,
-                       bool *scene, int scene_width, int scene_height,
+                       Scene *scene,
                        SpritePool *sprite_pool) @extern("render_minimap") @wasm {
     // ctx.save();
 
@@ -499,7 +499,7 @@ fn void emit_particle(float source_x, float source_y, float source_z, ParticlePo
 fn void update_particles(Color *image_pixels, int image_width, int image_height,
                          SpritePool *sprite_pool,
                          float deltaTime,
-                         bool *scene, int scene_width, int scene_height,
+                         Scene *scene,
                          ParticlePool *particle_pool) @extern("update_particles") @wasm {
     foreach (&particle: particle_pool.items) {
         if (particle.lifetime > 0) {
@@ -507,7 +507,7 @@ fn void update_particles(Color *image_pixels, int image_width, int image_height,
             particle.velocity_z -= common::BOMB_GRAVITY*deltaTime;
 
             Vector2 new_position = particle.position + particle.velocity*deltaTime;
-            if (common::scene_get_tile(scene, scene_width, scene_height, new_position)) {
+            if (common::scene_get_tile(scene, new_position)) {
                 float dx = math::abs(math::floor(particle.position.x) - math::floor(new_position.x));
                 float dy = math::abs(math::floor(particle.position.y) - math::floor(new_position.y));
 
@@ -640,12 +640,12 @@ fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_po
     }
 }
 
-fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Color *bomb_image_pixels, int bomb_image_width, int bomb_image_height, bool *scene, int scene_width, int scene_height, float player_position_x, float player_position_y, float delta_time, Bombs *bombs) @extern("update_bombs_on_client_side") @wasm {
+fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Color *bomb_image_pixels, int bomb_image_width, int bomb_image_height, Scene *scene, float player_position_x, float player_position_y, float delta_time, Bombs *bombs) @extern("update_bombs_on_client_side") @wasm {
     foreach (&bomb: *bombs) {
         if (bomb.lifetime > 0) {
             push_sprite(sprite_pool, bomb_image_pixels, bomb_image_width, bomb_image_height, bomb.position.x, bomb.position.y, bomb.position_z, common::BOMB_SCALE, 0, 0, bomb_image_width, bomb_image_height);
 
-            if (common::update_bomb(bomb, scene, scene_width, scene_height, delta_time)) {
+            if (common::update_bomb(bomb, scene, delta_time)) {
                 play_sound(BOMB_RICOCHET, player_position_x, player_position_y, bomb.position.x, bomb.position.y);
             }
 

@@ -251,48 +251,22 @@ export function makeWasmCommon(wasm) {
         wasm,
         memory: wasm.instance.exports.memory,
         _initialize: wasm.instance.exports._initialize,
-        allocate_scene: wasm.instance.exports.allocate_scene,
         allocate_items: wasm.instance.exports.allocate_items,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
         allocate_bombs: wasm.instance.exports.allocate_bombs,
         throw_bomb: wasm.instance.exports.throw_bomb,
         scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here,
+        allocate_default_scene: wasm.instance.exports.allocate_default_scene,
     };
-}
-export function createScene(walls, wasmCommon) {
-    const scene = {
-        height: walls.length,
-        width: Number.MIN_VALUE,
-        wallsPtr: 0,
-    };
-    for (let row of walls) {
-        scene.width = Math.max(scene.width, row.length);
-    }
-    scene.wallsPtr = wasmCommon.allocate_scene(scene.width, scene.height);
-    const wallsData = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width * scene.height);
-    for (let y = 0; y < walls.length; ++y) {
-        for (let x = 0; x < walls[y].length; ++x) {
-            wallsData[y * scene.width + x] = Number(walls[y][x]);
-        }
-    }
-    return scene;
 }
 export function createLevel(wasmCommon) {
-    const scene = createScene([
-        [false, false, true, true, true, false, false],
-        [false, false, false, false, false, true, false],
-        [true, false, false, false, false, true, false],
-        [true, false, false, false, false, true, false],
-        [true],
-        [false, true, true, true, false, false, false],
-        [false, false, false, false, false, false, false],
-    ], wasmCommon);
+    const scenePtr = wasmCommon.allocate_default_scene();
     const itemsPtr = wasmCommon.allocate_items();
     const bombsPtr = wasmCommon.allocate_bombs();
-    return { scene, itemsPtr, bombsPtr };
+    return { scenePtr, itemsPtr, bombsPtr };
 }
-export function updatePlayer(wasmCommon, player, scene, deltaTime) {
+export function updatePlayer(wasmCommon, player, scenePtr, deltaTime) {
     const controlVelocity = new Vector2();
     let angularVelocity = 0.0;
     if ((player.moving >> Moving.MovingForward) & 1) {
@@ -309,11 +283,11 @@ export function updatePlayer(wasmCommon, player, scene, deltaTime) {
     }
     player.direction = player.direction + angularVelocity * deltaTime;
     const nx = player.position.x + controlVelocity.x * deltaTime;
-    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scenePtr, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.x = nx;
     }
     const ny = player.position.y + controlVelocity.y * deltaTime;
-    if (wasmCommon.scene_can_rectangle_fit_here(scene.wallsPtr, scene.width, scene.height, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (wasmCommon.scene_can_rectangle_fit_here(scenePtr, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
 }

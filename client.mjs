@@ -393,13 +393,13 @@ function renderGame(display, deltaTime, time, game) {
     game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
     game.players.forEach((player) => {
         if (player !== game.me)
-            updatePlayer(game.wasmClient, player, game.level.scene, deltaTime);
+            updatePlayer(game.wasmClient, player, game.level.scenePtr, deltaTime);
     });
-    updatePlayer(game.wasmClient, game.me, game.level.scene, deltaTime);
+    updatePlayer(game.wasmClient, game.me, game.level.scenePtr, deltaTime);
     updateCamera(game.me, game.camera);
     updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
-    game.wasmClient.update_bombs_on_client_side(game.spritePoolPtr, game.particlesPtr, game.assets.bombImage.ptr, game.assets.bombImage.width, game.assets.bombImage.height, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.me.position.x, game.me.position.y, deltaTime, game.level.bombsPtr);
-    game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.particlesPtr);
+    game.wasmClient.update_bombs_on_client_side(game.spritePoolPtr, game.particlesPtr, game.assets.bombImage.ptr, game.assets.bombImage.width, game.assets.bombImage.height, game.level.scenePtr, game.me.position.x, game.me.position.y, deltaTime, game.level.bombsPtr);
+    game.wasmClient.update_particles(game.assets.particleImage.ptr, game.assets.particleImage.width, game.assets.particleImage.height, game.spritePoolPtr, deltaTime, game.level.scenePtr, game.particlesPtr);
     game.players.forEach((player) => {
         if (player !== game.me) {
             const index = spriteAngleIndex(game.camera.position, player);
@@ -407,12 +407,12 @@ function renderGame(display, deltaTime, time, game) {
         }
     });
     game.wasmClient.render_floor_and_ceiling(display.backImage.ptr, display.backImage.width, display.backImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction);
-    game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height);
+    game.wasmClient.render_walls(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.assets.wallImage.ptr, game.assets.wallImage.width, game.assets.wallImage.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.level.scenePtr);
     game.wasmClient.cull_and_sort_sprites(game.camera.position.x, game.camera.position.y, game.camera.direction, game.spritePoolPtr);
     game.wasmClient.render_sprites(display.backImage.ptr, display.backImage.width, display.backImage.height, display.zBufferPtr, game.spritePoolPtr);
     displaySwapBackImageData(display, game.wasmClient);
     if (MINIMAP)
-        game.wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.me.position.x, game.me.position.y, game.level.scene.wallsPtr, game.level.scene.width, game.level.scene.height, game.spritePoolPtr);
+        game.wasmClient.render_minimap(display.minimap.ptr, display.minimap.width, display.minimap.height, game.camera.position.x, game.camera.position.y, game.camera.direction, game.me.position.x, game.me.position.y, game.level.scenePtr, game.spritePoolPtr);
     renderDebugInfo(display.ctx, deltaTime, game);
 }
 (async () => {

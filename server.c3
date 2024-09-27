@@ -259,10 +259,10 @@ fn ExplodedBombs *allocate_exploded_bombs() @extern("allocate_exploded_bombs") @
     return mem::new(ExplodedBombs);
 }
 
-fn void update_bombs_on_server_side(bool* scene, int scene_width, int scene_height, float delta_time, ExplodedBombs *exploded_bombs, Bombs *bombs) @extern("update_bombs_on_server_side") @wasm {
+fn void update_bombs_on_server_side(Scene *scene, float delta_time, ExplodedBombs *exploded_bombs, Bombs *bombs) @extern("update_bombs_on_server_side") @wasm {
     foreach (bombIndex, &bomb: *bombs) {
         if (bomb.lifetime > 0) {
-            common::update_bomb(bomb, scene, scene_width, scene_height, delta_time);
+            common::update_bomb(bomb, scene, delta_time);
             if (bomb.lifetime <= 0) {
                 exploded_bombs.push(bombIndex);
             }
