@@ -33,9 +33,9 @@ enum AssetSound {
 }
 
 // TODO: Use std::math::random instead (when you finally figure out how to use it)
-extern fn float js_random();
-extern fn void play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
-extern fn bool is_offline_mode();
+extern fn float platform_random();
+extern fn void platform_play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
+extern fn bool platform_is_offline_mode();
 
 struct Image {
     Color *pixels;
@@ -483,12 +483,12 @@ fn void emit_particle(float source_x, float source_y, float source_z, ParticlePo
             particle.position.y = source_y;
             particle.position_z = source_z;
 
-            float angle = js_random()*2.0f*(float)math::PI;
+            float angle = platform_random()*2.0f*(float)math::PI;
             particle.velocity.x = math::cos(angle);
             particle.velocity.y = math::sin(angle);
-            particle.velocity_z = js_random()*0.5f + 0.5f;
+            particle.velocity_z = platform_random()*0.5f + 0.5f;
 
-            float velocity_mag = PARTICLE_MAX_SPEED*js_random();
+            float velocity_mag = PARTICLE_MAX_SPEED*platform_random();
             particle.velocity *= velocity_mag;
             particle.velocity_z *= velocity_mag;
             break;
@@ -566,7 +566,7 @@ fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMe
 
         if (item.alive) {
             item.alive = false;
-            play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
+            platform_play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
         }
     }
 
@@ -628,13 +628,13 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time,
 fn void update_items_offline(Item[]* items, float player_position_x, float player_position_y) @extern("update_items_offline") @wasm {
     foreach (item_index, item: *items) {
         if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
-            play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
+            platform_play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
         }
     }
 }
 
 fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_position_z, float player_position_x, float player_position_y, ParticlePool *particle_pool) {
-    play_sound(BOMB_BLAST, player_position_x, player_position_y, bomb_position_x, bomb_position_y);
+    platform_play_sound(BOMB_BLAST, player_position_x, player_position_y, bomb_position_x, bomb_position_y);
     for (int i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
         emit_particle(bomb_position_x, bomb_position_y, bomb_position_z, particle_pool);
     }
@@ -646,10 +646,10 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
             push_sprite(sprite_pool, bomb_image_pixels, bomb_image_width, bomb_image_height, bomb.position.x, bomb.position.y, bomb.position_z, common::BOMB_SCALE, 0, 0, bomb_image_width, bomb_image_height);
 
             if (common::update_bomb(bomb, scene, delta_time)) {
-                play_sound(BOMB_RICOCHET, player_position_x, player_position_y, bomb.position.x, bomb.position.y);
+                platform_play_sound(BOMB_RICOCHET, player_position_x, player_position_y, bomb.position.x, bomb.position.y);
             }
 
-            if (is_offline_mode() && bomb.lifetime <= 0) {
+            if (platform_is_offline_mode() && bomb.lifetime <= 0) {
                 explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, player_position_x, player_position_y, particle_pool);
             }
         }
@@ -718,7 +718,7 @@ fn void entry() @init(2048) @private {
     // message. But since js_write() in server.mts is implemented as a
     // single console.log(), that newline is added implicitly anyway.
     os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
-        common::js_write(&buffer[0], buffer.len);
+        common::platform_write(&buffer[0], buffer.len);
         return buffer.len;
     };
     common::temp_mark = allocator::temp().used;

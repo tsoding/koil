@@ -6,7 +6,7 @@ import common;
 
 /// Stats //////////////////////////////
 
-extern fn int js_now_secs();
+extern fn int platform_now_secs();
 
 const usz AVERAGE_CAPACITY = 30;
 def Samples = RingBuffer(<float, AVERAGE_CAPACITY>);
@@ -141,7 +141,7 @@ fn String get_stat(Stat *stat) {
     switch (stat.kind) {
         case COUNTER: return string::tformat("%d", stat.counter.value);
         case AVERAGE: return string::tformat("%f", stat.average.samples.average());
-        case TIMER:   return display_time_interval(js_now_secs() - stat.timer.started_at);
+        case TIMER:   return display_time_interval(platform_now_secs() - stat.timer.started_at);
     }
 }
 
@@ -297,9 +297,9 @@ fn void entry() @init(2048) @private {
     // message. But since js_write() in server.mts is implemented as a
     // single console.log(), that newline is added implicitly anyway.
     os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
-        common::js_write(&buffer[0], buffer.len);
+        common::platform_write(&buffer[0], buffer.len);
         return buffer.len;
     };
-    stats[StatEntry.UPTIME].timer.started_at = js_now_secs();
+    stats[StatEntry.UPTIME].timer.started_at = platform_now_secs();
     common::temp_mark = allocator::temp().used;
 }

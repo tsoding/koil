@@ -332,15 +332,15 @@ function tick() {
     wasmServer.reset_temp_mark();
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
-function js_now_secs() {
+function platform_now_secs() {
     return Math.floor(Date.now() / 1000);
 }
-function js_write(buffer, buffer_len) {
+function platform_write(buffer, buffer_len) {
     console.log(new TextDecoder().decode(new Uint8ClampedArray(wasmServer.memory.buffer, buffer, buffer_len)));
 }
 async function instantiateWasmServer(path) {
     const wasm = await WebAssembly.instantiate(readFileSync(path), {
-        "env": { js_now_secs, js_write },
+        "env": { platform_now_secs, platform_write },
     });
     const wasmCommon = common.makeWasmCommon(wasm);
     wasmCommon._initialize();

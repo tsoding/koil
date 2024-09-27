@@ -406,20 +406,20 @@ interface WasmServer extends common.WasmCommon {
     exploded_bombs_as_batch_message: (exploded_bombs: number, bombs: number) => number,
 }
 
-function js_now_secs(): number {
+function platform_now_secs(): number {
     return Math.floor(Date.now()/1000);
 }
 
 // NOTE: This implicitly adds newline, but given how we using this
 // function in server.c3 it's actually fine. This function is called
 // once per io::printn() anyway.
-function js_write(buffer: number, buffer_len: number) {
+function platform_write(buffer: number, buffer_len: number) {
     console.log(new TextDecoder().decode(new Uint8ClampedArray(wasmServer.memory.buffer, buffer, buffer_len)));
 }
 
 async function instantiateWasmServer(path: string): Promise<WasmServer> {
     const wasm = await WebAssembly.instantiate(readFileSync(path), {
-        "env": {js_now_secs, js_write},
+        "env": {platform_now_secs, platform_write},
     });
     const wasmCommon = common.makeWasmCommon(wasm);
     wasmCommon._initialize();

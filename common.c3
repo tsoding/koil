@@ -9,7 +9,7 @@ const float BOMB_DAMP = 0.8;
 const float BOMB_SCALE = 0.25;
 const float PLAYER_RADIUS = 0.5;
 
-extern fn void js_write(void *buffer, usz buffer_sz);
+extern fn void platform_write(void *buffer, usz buffer_sz);
 
 def Vector2 = float[<2>];
 def IVector2 = int[<2>];

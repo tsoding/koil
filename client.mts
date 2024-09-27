@@ -236,20 +236,19 @@ enum AssetSound {
 
 async function instantiateWasmClient(url: string): Promise<WasmClient> {
     const wasm = await WebAssembly.instantiateStreaming(fetch(url), {
-        // TODO: add js_write
         "env": {
             "fmodf": (x: number, y: number) => x%y,
             "fminf": Math.min,
             "fmaxf": Math.max,
-            "js_random": Math.random,
+            "platform_random": Math.random,
             // NOTE: This implicitly adds newline, but given how we using this
             // function in client.c3 it's actually fine. This function is called
             // once per io::printn() anyway.
-            "js_write": (buffer: number, buffer_len: number) => {
+            "platform_write": (buffer: number, buffer_len: number) => {
                 console.log(new TextDecoder().decode(new Uint8ClampedArray(game.wasmClient.memory.buffer, buffer, buffer_len)));
             },
-            "is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
-            "play_sound": (sound: number, player_position_x: number, player_position_y: number, object_position_x: number, object_position_y: number) => {
+            "platform_is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
+            "platform_play_sound": (sound: number, player_position_x: number, player_position_y: number, object_position_x: number, object_position_y: number) => {
                 const maxVolume = 1;
                 const objectPosition = new Vector2(object_position_x, object_position_y);
                 const playerPosition = new Vector2(player_position_x, player_position_y);

@@ -154,12 +154,12 @@ async function instantiateWasmClient(url) {
             "fmodf": (x, y) => x % y,
             "fminf": Math.min,
             "fmaxf": Math.max,
-            "js_random": Math.random,
-            "js_write": (buffer, buffer_len) => {
+            "platform_random": Math.random,
+            "platform_write": (buffer, buffer_len) => {
                 console.log(new TextDecoder().decode(new Uint8ClampedArray(game.wasmClient.memory.buffer, buffer, buffer_len)));
             },
-            "is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
-            "play_sound": (sound, player_position_x, player_position_y, object_position_x, object_position_y) => {
+            "platform_is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
+            "platform_play_sound": (sound, player_position_x, player_position_y, object_position_x, object_position_y) => {
                 const maxVolume = 1;
                 const objectPosition = new Vector2(object_position_x, object_position_y);
                 const playerPosition = new Vector2(player_position_x, player_position_y);
