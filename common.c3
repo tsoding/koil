@@ -76,7 +76,7 @@ fn Scene *allocate_default_scene() @extern("allocate_default_scene") @wasm {
     return scene;
 }
 
-fn bool scene_get_tile(Scene *scene, Vector2 p) {
+fn bool Scene.get_tile(Scene *scene, Vector2 p) {
     int x = (int)math::floor(p.x);
     int y = (int)math::floor(p.y);
     if (!(0 <= x && x < scene.width && 0 <= y && y < scene.height)) return false;
@@ -90,7 +90,7 @@ fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx,
     int y2 = (int)math::floor(py + sy*0.5f);
     for (int x = x1; x <= x2; ++x) {
         for (int y = y1; y <= y2; ++y) {
-            if (scene_get_tile(scene, {x, y})) {
+            if (scene.get_tile({x, y})) {
                 return false;
             }
         }
@@ -241,7 +241,7 @@ fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) {
 
     float nx = bomb.position.x + bomb.velocity.x*delta_time;
     float ny = bomb.position.y + bomb.velocity.y*delta_time;
-    if (scene_get_tile(scene, {nx, ny})) {
+    if (scene.get_tile({nx, ny})) {
         float dx = math::abs(math::floor(bomb.position.x) - math::floor(nx));
         float dy = math::abs(math::floor(bomb.position.y) - math::floor(ny));
 

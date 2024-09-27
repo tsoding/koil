@@ -276,7 +276,7 @@ fn Vector2 cast_ray(Scene *scene, Vector2 p1, Vector2 p2) {
     Vector2 start = p1;
     while (start.distance(p1) < FAR_CLIPPING_PLANE) {
         Vector2 c = hitting_cell(p1, p2);
-        if (common::scene_get_tile(scene, c)) break;
+        if (scene.get_tile(c)) break;
         Vector2 p3 = ray_step(p1, p2);
         p1 = p2;
         p2 = p3;
@@ -297,7 +297,7 @@ fn void render_walls(Color *display, int display_width, int display_height, floa
         Vector2 c = hitting_cell(camera.position, p);
         Vector2 v = p - camera.position;
         zbuffer[x] = v.dot(d);
-        if (common::scene_get_tile(scene, c)) {
+        if (scene.get_tile(c)) {
             render_column_of_wall(display, display_width, display_height, zbuffer, wall, wall_width, wall_height, x, p.x, p.y, c.x, c.y);
         }
     }
@@ -507,7 +507,7 @@ fn void update_particles(Color *image_pixels, int image_width, int image_height,
             particle.velocity_z -= common::BOMB_GRAVITY*deltaTime;
 
             Vector2 new_position = particle.position + particle.velocity*deltaTime;
-            if (common::scene_get_tile(scene, new_position)) {
+            if (scene.get_tile(new_position)) {
                 float dx = math::abs(math::floor(particle.position.x) - math::floor(new_position.x));
                 float dy = math::abs(math::floor(particle.position.y) - math::floor(new_position.y));
 
