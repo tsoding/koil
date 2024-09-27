@@ -2,11 +2,6 @@ export const SERVER_PORT = 6970;
 export const PLAYER_SIZE = 0.5;
 export const PLAYER_SPEED = 2;
 export const PLAYER_RADIUS = 0.5;
-export const BOMB_LIFETIME = 2;
-export const BOMB_THROW_VELOCITY = 5;
-export const BOMB_GRAVITY = 10;
-export const BOMB_DAMP = 0.8;
-export const BOMB_SCALE = 0.25;
 
 export class Vector2 {
     x: number;
@@ -101,105 +96,6 @@ export class Vector2 {
     map(f: (x: number) => number): this {
         this.x = f(this.x);
         this.y = f(this.y);
-        return this;
-    }
-}
-
-export class Vector3 {
-    x: number;
-    y: number;
-    z: number;
-    constructor(x: number = 0, y: number = 0, z: number = 0) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-    }
-    clone(): Vector3 {
-        return new Vector3(this.x, this.y, this.z)
-    }
-    clone2(): Vector2 {
-        return new Vector2(this.x, this.y)
-    }
-    copy(that: Vector3): this {
-        this.x = that.x;
-        this.y = that.y;
-        this.z = that.z;
-        return this;
-    }
-    copy2(that: Vector2, z: number): this {
-        this.x = that.x;
-        this.y = that.y;
-        this.z = z;
-        return this;
-    }
-    setScalar(scalar: number): this {
-        this.x = scalar;
-        this.y = scalar;
-        this.z = scalar;
-        return this;
-    }
-    add(that: Vector3): this {
-        this.x += that.x;
-        this.y += that.y;
-        this.z += that.z;
-        return this;
-    }
-    sub(that: Vector3): this {
-        this.x -= that.x;
-        this.y -= that.y;
-        this.z -= that.z;
-        return this;
-    }
-    div(that: Vector3): this {
-        this.x /= that.x;
-        this.y /= that.y;
-        this.z /= that.z;
-        return this;
-    }
-    mul(that: Vector3): this {
-        this.x *= that.x;
-        this.y *= that.y;
-        this.z *= that.z;
-        return this;
-    }
-    sqrLength(): number {
-        return this.x*this.x + this.y*this.y + this.z*this.z;
-    }
-    length(): number {
-        return Math.sqrt(this.sqrLength());
-    }
-    scale(value: number): this {
-        this.x *= value;
-        this.y *= value;
-        this.z *= value;
-        return this;
-    }
-    norm(): this {
-        const l = this.length();
-        return l === 0 ? this : this.scale(1/l);
-    }
-    sqrDistanceTo(that: Vector3): number {
-        const dx = that.x - this.x;
-        const dy = that.y - this.y;
-        const dz = that.z - this.z;
-        return dx*dx + dy*dy + dz*dz;
-    }
-    distanceTo(that: Vector3): number {
-        return Math.sqrt(this.sqrDistanceTo(that));
-    }
-    lerp(that: Vector3, t: number): this {
-        this.x += (that.x - this.x)*t;
-        this.y += (that.y - this.y)*t;
-        this.z += (that.z - this.z)*t;
-        return this;
-    }
-    dot(that: Vector3): number {
-        return this.x*that.x + this.y*that.y + this.z*that.z;
-    }
-    map(f: (x: number) => number): this {
-        this.x = f(this.x);
-        this.y = f(this.y);
-        this.z = f(this.z);
         return this;
     }
 }
