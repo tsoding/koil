@@ -101,12 +101,6 @@ function updateCamera(player, camera) {
     camera.fovLeft.setPolar(camera.direction - halfFov, fovLen).add(camera.position);
     camera.fovRight.setPolar(camera.direction + halfFov, fovLen).add(camera.position);
 }
-function updateItems(wasmClient, ws, spritePoolPtr, time, me, itemsPtr, assets) {
-    wasmClient.render_items(spritePoolPtr, itemsPtr, time, assets.keyImagePtr, assets.bombImagePtr);
-    if (ws.readyState != WebSocket.OPEN) {
-        wasmClient.update_items_offline(itemsPtr, me.position.x, me.position.y);
-    }
-}
 async function loadImage(url) {
     const image = new Image();
     image.src = url;
@@ -191,7 +185,6 @@ async function instantiateWasmClient(url) {
         verify_items_spawned_batch_message: wasm.instance.exports.verify_items_spawned_batch_message,
         apply_items_spawned_batch_message_to_level_items: wasm.instance.exports.apply_items_spawned_batch_message_to_level_items,
         render_items: wasm.instance.exports.render_items,
-        update_items_offline: wasm.instance.exports.update_items_offline,
         verify_bombs_spawned_batch_message: wasm.instance.exports.verify_bombs_spawned_batch_message,
         apply_bombs_spawned_batch_message_to_level_items: wasm.instance.exports.apply_bombs_spawned_batch_message_to_level_items,
         verify_bombs_exploded_batch_message: wasm.instance.exports.verify_bombs_exploded_batch_message,
@@ -201,6 +194,7 @@ async function instantiateWasmClient(url) {
         image_width: wasm.instance.exports.image_width,
         image_height: wasm.instance.exports.image_height,
         image_pixels: wasm.instance.exports.image_pixels,
+        update_items: wasm.instance.exports.update_items,
     };
 }
 function arrayBufferAsMessageInWasm(wasmClient, buffer) {
@@ -384,7 +378,7 @@ function renderGame(display, deltaTime, time, game) {
     });
     updatePlayer(game.wasmClient, game.me, game.level.scenePtr, deltaTime);
     updateCamera(game.me, game.camera);
-    updateItems(game.wasmClient, game.ws, game.spritePoolPtr, time, game.me, game.level.itemsPtr, game.assets);
+    game.wasmClient.update_items(game.spritePoolPtr, time, game.me.position.x, game.me.position.y, game.level.itemsPtr, game.assets.keyImagePtr, game.assets.bombImagePtr);
     game.wasmClient.update_bombs_on_client_side(game.spritePoolPtr, game.particlesPtr, game.assets.bombImagePtr, game.level.scenePtr, game.me.position.x, game.me.position.y, deltaTime, game.level.bombsPtr);
     game.wasmClient.update_particles(game.assets.particleImagePtr, game.spritePoolPtr, deltaTime, game.level.scenePtr, game.particlesPtr);
     game.players.forEach((player) => {

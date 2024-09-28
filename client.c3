@@ -623,13 +623,24 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
     }
 }
 
-fn void update_items_offline(Item[]* items, float player_position_x, float player_position_y) @extern("update_items_offline") @wasm {
+fn void update_items_offline(Item[]* items, float player_position_x, float player_position_y) {
     foreach (item_index, item: *items) {
         if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
             platform_play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
         }
     }
 }
+
+fn void update_items(SpritePool *sprite_pool, float time, float player_position_x, float player_position_y, Item[] *items, Image *key_image, Image *bomb_image) @extern("update_items") @wasm {
+    // Rendering the items as sprites
+    render_items(sprite_pool, items, time, key_image, bomb_image);
+
+    // Offline mode. Updating items state without asking the server.
+    if (platform_is_offline_mode()) {
+        update_items_offline(items, player_position_x, player_position_y);
+    }
+}
+
 
 fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_position_z, float player_position_x, float player_position_y, ParticlePool *particle_pool) {
     platform_play_sound(BOMB_BLAST, player_position_x, player_position_y, bomb_position_x, bomb_position_y);
