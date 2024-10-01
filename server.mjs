@@ -38,7 +38,6 @@ const joinedIds = new Set();
 const leftIds = new Set();
 const pingIds = new Map();
 const level = common.createLevel(wasmServer);
-const explodedBombsPtr = wasmServer.allocate_exploded_bombs();
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (players.size >= SERVER_TOTAL_LIMIT) {
@@ -285,9 +284,9 @@ function tick() {
                 messageSentCounter += 1;
             });
         }
-        wasmServer.update_bombs_on_server_side(level.scenePtr, deltaTime, explodedBombsPtr, level.bombsPtr);
+        wasmServer.update_bombs_on_server_side(level.scenePtr, deltaTime, level.bombsPtr);
         const bufferBombsExploded = (() => {
-            const message = wasmServer.exploded_bombs_as_batch_message(explodedBombsPtr, level.bombsPtr);
+            const message = wasmServer.exploded_bombs_as_batch_message(level.bombsPtr);
             if (message === 0)
                 return null;
             const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
@@ -353,7 +352,6 @@ async function instantiateWasmServer(path) {
         throw_bomb: wasm.instance.exports.throw_bomb,
         throw_bomb_on_server_side: wasm.instance.exports.throw_bomb_on_server_side,
         thrown_bombs_as_batch_message: wasm.instance.exports.thrown_bombs_as_batch_message,
-        allocate_exploded_bombs: wasm.instance.exports.allocate_exploded_bombs,
         update_bombs_on_server_side: wasm.instance.exports.update_bombs_on_server_side,
         exploded_bombs_as_batch_message: wasm.instance.exports.exploded_bombs_as_batch_message
     };

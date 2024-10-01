@@ -47,7 +47,6 @@ const joinedIds = new Set<number>()
 const leftIds = new Set<number>()
 const pingIds = new Map<number, number>()
 const level = common.createLevel(wasmServer);
-const explodedBombsPtr = wasmServer.allocate_exploded_bombs();
 
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -334,9 +333,9 @@ function tick() {
             });
         }
 
-        wasmServer.update_bombs_on_server_side(level.scenePtr, deltaTime, explodedBombsPtr, level.bombsPtr);
+        wasmServer.update_bombs_on_server_side(level.scenePtr, deltaTime, level.bombsPtr);
         const bufferBombsExploded = (() => {
-            const message = wasmServer.exploded_bombs_as_batch_message(explodedBombsPtr, level.bombsPtr);
+            const message = wasmServer.exploded_bombs_as_batch_message(level.bombsPtr);
             if (message === 0) return null;
             const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
             return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
@@ -397,9 +396,8 @@ interface WasmServer extends common.WasmCommon {
     throw_bomb: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
     throw_bomb_on_server_side: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
     thrown_bombs_as_batch_message: (bombs: number) => number,
-    allocate_exploded_bombs: () => number,
-    update_bombs_on_server_side: (scene: number, delta_time: number, exploded_bombs: number, bombs: number) => void,
-    exploded_bombs_as_batch_message: (exploded_bombs: number, bombs: number) => number,
+    update_bombs_on_server_side: (scene: number, delta_time: number, bombs: number) => void,
+    exploded_bombs_as_batch_message: (bombs: number) => number,
 }
 
 function platform_now_secs(): number {
@@ -430,9 +428,8 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
         throw_bomb: wasm.instance.exports.throw_bomb as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
         throw_bomb_on_server_side: wasm.instance.exports.throw_bomb_on_server_side as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
         thrown_bombs_as_batch_message: wasm.instance.exports.thrown_bombs_as_batch_message as (bombs: number) => number,
-        allocate_exploded_bombs: wasm.instance.exports.allocate_exploded_bombs as () => number,
-        update_bombs_on_server_side: wasm.instance.exports.update_bombs_on_server_side as (scene: number, delta_time: number, exploded_bombs: number, bombs: number) => void,
-        exploded_bombs_as_batch_message: wasm.instance.exports.exploded_bombs_as_batch_message as (exploded_bombs: number, bombs: number) => number
+        update_bombs_on_server_side: wasm.instance.exports.update_bombs_on_server_side as (scene: number, delta_time: number, bombs: number) => void,
+        exploded_bombs_as_batch_message: wasm.instance.exports.exploded_bombs_as_batch_message as (bombs: number) => number
     };
 }
 

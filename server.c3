@@ -245,13 +245,9 @@ fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern
     return message;
 }
 
-def ExplodedBombs = List(<usz>);
+List(<usz>) exploded_bombs;
 
-fn ExplodedBombs *allocate_exploded_bombs() @extern("allocate_exploded_bombs") @wasm {
-    return mem::new(ExplodedBombs);
-}
-
-fn void update_bombs_on_server_side(Scene *scene, float delta_time, ExplodedBombs *exploded_bombs, Bombs *bombs) @extern("update_bombs_on_server_side") @wasm {
+fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) @extern("update_bombs_on_server_side") @wasm {
     foreach (bombIndex, &bomb: *bombs) {
         if (bomb.lifetime > 0) {
             common::update_bomb(bomb, scene, delta_time);
@@ -262,14 +258,14 @@ fn void update_bombs_on_server_side(Scene *scene, float delta_time, ExplodedBomb
     }
 }
 
-fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(ExplodedBombs* exploded_bombs, Bombs* bombs) @extern("exploded_bombs_as_batch_message") @wasm {
+fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) @extern("exploded_bombs_as_batch_message") @wasm {
     if (exploded_bombs.size == 0) return null;
     int size = BombsExplodedBatchMessage.sizeof + BombExploded.sizeof*exploded_bombs.size;
     BombsExplodedBatchMessage *message = mem::tcalloc(size);
     message.size = size;
     message.kind = MessageKind.BOMB_EXPLODED;
 
-    foreach (index, bombIndex: *exploded_bombs) {
+    foreach (index, bombIndex: exploded_bombs) {
         Bomb bomb = (*bombs)[bombIndex];
         message.bombs[index].bombIndex = bombIndex;
         message.bombs[index].x         = bomb.position.x;
