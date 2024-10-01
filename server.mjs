@@ -38,7 +38,6 @@ const joinedIds = new Set();
 const leftIds = new Set();
 const pingIds = new Map();
 const level = common.createLevel(wasmServer);
-const thrownBombsPtr = wasmServer.allocate_thrown_bombs();
 const explodedBombsPtr = wasmServer.allocate_exploded_bombs();
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -104,7 +103,7 @@ wss.on("connection", (ws, req) => {
             }
         }
         else if (common.AmmaThrowingStruct.verify(view)) {
-            wasmServer.throw_bomb_on_server_side(player.position.x, player.position.y, player.direction, level.bombsPtr, thrownBombsPtr);
+            wasmServer.throw_bomb_on_server_side(player.position.x, player.position.y, player.direction, level.bombsPtr);
         }
         else if (common.PingStruct.verify(view)) {
             pingIds.set(id, common.PingStruct.timestamp.read(view));
@@ -254,7 +253,7 @@ function tick() {
         }
     }
     const bufferBombsThrown = (() => {
-        const message = wasmServer.thrown_bombs_as_batch_message(level.bombsPtr, thrownBombsPtr);
+        const message = wasmServer.thrown_bombs_as_batch_message(level.bombsPtr);
         if (message === 0)
             return null;
         const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
@@ -351,7 +350,6 @@ async function instantiateWasmServer(path) {
         reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items,
         collect_items_by_player_at: wasm.instance.exports.collect_items_by_player_at,
         collected_items_as_batch_message: wasm.instance.exports.collected_items_as_batch_message,
-        allocate_thrown_bombs: wasm.instance.exports.allocate_thrown_bombs,
         throw_bomb: wasm.instance.exports.throw_bomb,
         throw_bomb_on_server_side: wasm.instance.exports.throw_bomb_on_server_side,
         thrown_bombs_as_batch_message: wasm.instance.exports.thrown_bombs_as_batch_message,

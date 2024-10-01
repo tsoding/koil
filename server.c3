@@ -216,25 +216,21 @@ fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) @
 
 /// Bombs //////////////////////////////
 
-def ThrownBombs = List(<usz>);
+List(<usz>) thrown_bombs;
 
-fn ThrownBombs *allocate_thrown_bombs() @extern("allocate_thrown_bombs") @wasm {
-    return mem::new(ThrownBombs);
-}
-
-fn void throw_bomb_on_server_side(float player_position_x, float player_position_y, float player_direction, Bombs *bombs, ThrownBombs *thrown_bombs) @extern("throw_bomb_on_server_side") @wasm {
+fn void throw_bomb_on_server_side(float player_position_x, float player_position_y, float player_direction, Bombs *bombs) @extern("throw_bomb_on_server_side") @wasm {
     int index = common::throw_bomb(player_position_x, player_position_y, player_direction, bombs);
     if (index >= 0) thrown_bombs.push(index);
 }
 
-fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs, ThrownBombs *thrown_bombs) @extern("thrown_bombs_as_batch_message") @wasm {
+fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern("thrown_bombs_as_batch_message") @wasm {
     if (thrown_bombs.size == 0) return null;
     int size = BombsSpawnedBatchMessage.sizeof + BombSpawned.sizeof*thrown_bombs.size;
     BombsSpawnedBatchMessage *message = mem::tcalloc(size);
     message.size = size;
     message.kind = MessageKind.BOMB_SPAWNED;
 
-    foreach (index, bombIndex: *thrown_bombs) {
+    foreach (index, bombIndex: thrown_bombs) {
         Bomb *bomb = &(*bombs)[bombIndex];
         message.bombs[index].bombIndex = bombIndex;
         message.bombs[index].x = bomb.position.x;

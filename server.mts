@@ -47,7 +47,6 @@ const joinedIds = new Set<number>()
 const leftIds = new Set<number>()
 const pingIds = new Map<number, number>()
 const level = common.createLevel(wasmServer);
-const thrownBombsPtr = wasmServer.allocate_thrown_bombs();
 const explodedBombsPtr = wasmServer.allocate_exploded_bombs();
 
 wss.on("connection", (ws, req) => {
@@ -123,7 +122,7 @@ wss.on("connection", (ws, req) => {
                 player.newMoving &= ~(1<<direction);
             }
         } else if (common.AmmaThrowingStruct.verify(view)) {
-            wasmServer.throw_bomb_on_server_side(player.position.x, player.position.y, player.direction, level.bombsPtr, thrownBombsPtr);
+            wasmServer.throw_bomb_on_server_side(player.position.x, player.position.y, player.direction, level.bombsPtr);
         } else if (common.PingStruct.verify(view)) {
             pingIds.set(id, common.PingStruct.timestamp.read(view));
         } else {
@@ -299,7 +298,7 @@ function tick() {
 
     // Notifying about thrown bombs
     const bufferBombsThrown = (() => {
-        const message = wasmServer.thrown_bombs_as_batch_message(level.bombsPtr, thrownBombsPtr);
+        const message = wasmServer.thrown_bombs_as_batch_message(level.bombsPtr);
         if (message === 0) return null;
         const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
         return new Uint8ClampedArray(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE);
@@ -395,10 +394,9 @@ interface WasmServer extends common.WasmCommon {
     reconstruct_state_of_items: (items: number) => number,
     collect_items_by_player_at: (player_position_x: number, player_position_y: number, items: number) => void,
     collected_items_as_batch_message: (items: number) => number,
-    allocate_thrown_bombs: () => number,
     throw_bomb: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
-    throw_bomb_on_server_side: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number, thrown_bombs: number) => number,
-    thrown_bombs_as_batch_message: (bombs: number, thrown_bombs: number) => number,
+    throw_bomb_on_server_side: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
+    thrown_bombs_as_batch_message: (bombs: number) => number,
     allocate_exploded_bombs: () => number,
     update_bombs_on_server_side: (scene: number, delta_time: number, exploded_bombs: number, bombs: number) => void,
     exploded_bombs_as_batch_message: (exploded_bombs: number, bombs: number) => number,
@@ -429,10 +427,9 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
         reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items as (items: number) => number,
         collect_items_by_player_at: wasm.instance.exports.collect_items_by_player_at as (player_position_x: number, player_position_y: number, items: number) => void,
         collected_items_as_batch_message: wasm.instance.exports.collected_items_as_batch_message as (items: number) => number,
-        allocate_thrown_bombs: wasm.instance.exports.allocate_thrown_bombs as () => number,
         throw_bomb: wasm.instance.exports.throw_bomb as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
-        throw_bomb_on_server_side: wasm.instance.exports.throw_bomb_on_server_side as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number, thrown_bombs: number) => number,
-        thrown_bombs_as_batch_message: wasm.instance.exports.thrown_bombs_as_batch_message as (bombs: number, thrown_bombs: number) => number,
+        throw_bomb_on_server_side: wasm.instance.exports.throw_bomb_on_server_side as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
+        thrown_bombs_as_batch_message: wasm.instance.exports.thrown_bombs_as_batch_message as (bombs: number) => number,
         allocate_exploded_bombs: wasm.instance.exports.allocate_exploded_bombs as () => number,
         update_bombs_on_server_side: wasm.instance.exports.update_bombs_on_server_side as (scene: number, delta_time: number, exploded_bombs: number, bombs: number) => void,
         exploded_bombs_as_batch_message: wasm.instance.exports.exploded_bombs_as_batch_message as (exploded_bombs: number, bombs: number) => number
