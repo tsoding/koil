@@ -2,6 +2,7 @@ import common;
 import std::math;
 import std::sort;
 import std::io;
+import std::collections::map;
 
 const float NEAR_CLIPPING_PLANE = 0.1;
 const float FAR_CLIPPING_PLANE = 10.0;
@@ -13,6 +14,7 @@ const float PARTICLE_LIFETIME = 1.0f;
 const float PARTICLE_MAX_SPEED = 8;
 const float PARTICLE_DAMP = 0.8;
 const float PARTICLE_SCALE = 0.05;
+const uint PING_COOLDOWN = 60;
 
 const float ITEM_FREQ = 0.7;
 const float ITEM_AMP = 0.07;
@@ -22,6 +24,8 @@ const int BOMB_PARTICLE_COUNT = 50;
 const bool MINIMAP_SPRITES = true;
 const float MINIMAP_SPRITE_SIZE = 0.2;
 const float MINIMAP_SCALE = 0.07;
+
+const uint SPRITE_ANGLES_COUNT = 8;
 
 def Color = char[<4>];
 
@@ -36,6 +40,8 @@ enum AssetSound {
 extern fn float platform_random();
 extern fn void platform_play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
 extern fn bool platform_is_offline_mode();
+extern fn bool platform_send_message(void *message);
+extern fn uint platform_now_msecs();
 
 struct Image {
     usz width;
@@ -93,10 +99,6 @@ fn void reset_sprite_pool(SpritePool *sprite_pool) @extern("reset_sprite_pool") 
     sprite_pool.visible_length = 0;
 }
 
-fn Vector2 from_polar(float angle, float len) {
-    return {math::cos(angle)*len, math::sin(angle)*len};
-}
-
 struct Particle {
     float lifetime;
     // TODO: Use Vector3 instead
@@ -126,8 +128,8 @@ struct Camera {
 fn void Camera.update(Camera *camera) {
     float halfFov = FOV*0.5;
     float fovLen = NEAR_CLIPPING_PLANE/math::cos(halfFov);
-    camera.fovLeft = from_polar(camera.direction-halfFov, fovLen) + camera.position;
-    camera.fovRight = from_polar(camera.direction+halfFov, fovLen) + camera.position;
+    camera.fovLeft = common::from_polar(camera.direction-halfFov, fovLen) + camera.position;
+    camera.fovRight = common::from_polar(camera.direction+halfFov, fovLen) + camera.position;
 }
 
 fn float *allocate_zbuffer(int width) @extern("allocate_zbuffer") @wasm
@@ -157,8 +159,8 @@ fn Color scene_get_ceiling(Vector2 p) {
     }
 }
 
-fn void render_floor_and_ceiling(Image *display, float position_x, float position_y, float direction) @extern("render_floor_and_ceiling") @wasm {
-    Camera camera = { .position = {position_x, position_y}, .direction = direction };
+fn void render_floor_and_ceiling(Image *display) {
+    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
     camera.update();
 
     int pz = display.height/2;
@@ -293,14 +295,11 @@ fn Vector2 cast_ray(Scene *scene, Vector2 p1, Vector2 p2) {
     return p2;
 }
 
-fn void render_walls(Image *display, float *zbuffer,
-                     Image *wall,
-                     float position_x, float position_y, float direction,
-                     Scene *scene) @extern("render_walls") @wasm {
-    Camera camera = { .position = {position_x, position_y}, .direction = direction };
+fn void render_walls(Image *display, float *zbuffer, Image *wall, Scene *scene) {
+    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
     camera.update();
 
-    Vector2 d = from_polar(direction, 1.0f);
+    Vector2 d = common::from_polar(camera.direction, 1.0f);
     for (int x = 0; x < display.width; ++x) {
         Vector2 p = cast_ray(scene, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display.width));
         Vector2 c = hitting_cell(camera.position, p);
@@ -312,11 +311,7 @@ fn void render_walls(Image *display, float *zbuffer,
 
 // TODO: @translate
 // It's not really needed right now so it can be translated later
-fn void render_minimap(Image *display,
-                       float camera_position_x, float camera_position_y, float camera_direction,
-                       float player_position_x, float player_position_y,
-                       Scene *scene,
-                       SpritePool *sprite_pool) @extern("render_minimap") @wasm {
+fn void render_minimap(Image *display, Scene *scene, SpritePool *sprite_pool) @extern("render_minimap") @wasm {
     // ctx.save();
 
     // // A couple of temporary vectors
@@ -385,12 +380,11 @@ fn void render_minimap(Image *display,
     // ctx.restore();
 }
 
-fn void cull_and_sort_sprites(float camera_position_x, float camera_position_y, float camera_direction,
-                              SpritePool *sprite_pool) @extern("cull_and_sort_sprites") @wasm {
-    Camera camera = { .position = {camera_position_x, camera_position_y}, .direction = camera_direction };
+fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
+    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
     camera.update();
 
-    Vector2 dir = from_polar(camera_direction, 1.0f);
+    Vector2 dir = common::from_polar(camera.direction, 1.0f);
     Vector2 fov = camera.fovRight - camera.fovLeft;
 
     sprite_pool.visible_length = 0;
@@ -443,7 +437,7 @@ fn void push_sprite(SpritePool *sprite_pool, Image *image, float x, float y, flo
     sprite_pool.length += 1;
 }
 
-fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) @extern("render_sprites") @wasm {
+fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) {
     for (int i = 0; i < sprite_pool.visible_length; ++i) {
         Sprite *sprite = sprite_pool.visible_items[i];
         float cx = display.width*sprite.t;
@@ -500,7 +494,7 @@ fn void emit_particle(float source_x, float source_y, float source_z, ParticlePo
     }
 }
 
-fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, Scene *scene, ParticlePool *particle_pool) @extern("update_particles") @wasm {
+fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, Scene *scene, ParticlePool *particle_pool) {
     foreach (&particle: particle_pool.items) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
@@ -551,7 +545,7 @@ fn bool verify_items_collected_batch_message(Message *message) @extern("verify_i
     return true;
 }
 
-fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items, float player_position_x, float player_position_y) @extern("apply_items_collected_batch_message_to_level_items") @wasm {
+fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items) @extern("apply_items_collected_batch_message_to_level_items") @wasm {
     usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
@@ -566,7 +560,7 @@ fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMe
 
         if (item.alive) {
             item.alive = false;
-            platform_play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
+            platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
         }
     }
 
@@ -623,21 +617,21 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
     }
 }
 
-fn void update_items_offline(Item[]* items, float player_position_x, float player_position_y) {
+fn void update_items_offline(Item[]* items) {
     foreach (item_index, item: *items) {
-        if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
-            platform_play_sound(ITEM_PICKUP, player_position_x, player_position_y, item.position.x, item.position.y);
+        if (common::collect_item(me.position.x, me.position.y, items, item_index)) {
+            platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
         }
     }
 }
 
-fn void update_items(SpritePool *sprite_pool, float time, float player_position_x, float player_position_y, Item[] *items, Image *key_image, Image *bomb_image) @extern("update_items") @wasm {
+fn void update_items(SpritePool *sprite_pool, float time, Item[] *items, Image *key_image, Image *bomb_image) {
     // Rendering the items as sprites
     render_items(sprite_pool, items, time, key_image, bomb_image);
 
     // Offline mode. Updating items state without asking the server.
     if (platform_is_offline_mode()) {
-        update_items_offline(items, player_position_x, player_position_y);
+        update_items_offline(items);
     }
 }
 
@@ -649,17 +643,17 @@ fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_po
     }
 }
 
-fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, Scene *scene, float player_position_x, float player_position_y, float delta_time, Bombs *bombs) @extern("update_bombs_on_client_side") @wasm {
+fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, Scene *scene, float delta_time, Bombs *bombs) {
     foreach (&bomb: *bombs) {
         if (bomb.lifetime > 0) {
             push_sprite(sprite_pool, bomb_image, bomb.position.x, bomb.position.y, bomb.position_z, common::BOMB_SCALE, 0, 0, bomb_image.width, bomb_image.height);
 
             if (common::update_bomb(bomb, scene, delta_time)) {
-                platform_play_sound(BOMB_RICOCHET, player_position_x, player_position_y, bomb.position.x, bomb.position.y);
+                platform_play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
             }
 
             if (platform_is_offline_mode() && bomb.lifetime <= 0) {
-                explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, player_position_x, player_position_y, particle_pool);
+                explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, me.position.x, me.position.y, particle_pool);
             }
         }
     }
@@ -702,7 +696,7 @@ fn bool verify_bombs_exploded_batch_message(Message *message) @extern("verify_bo
     return true;
 }
 
-fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMessage *message, Bombs *bombs, float player_position_x, float player_position_y, ParticlePool *particle_pool) @extern("apply_bombs_exploded_batch_message_to_level_items") @wasm {
+fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) @extern("apply_bombs_exploded_batch_message_to_level_items") @wasm {
     usz count = (message.size - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
@@ -715,10 +709,304 @@ fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMess
         bomb.position.x = message.bombs[i].x;
         bomb.position.y = message.bombs[i].y;
         bomb.position_z = message.bombs[i].z;
-        explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, player_position_x, player_position_y, particle_pool);
+        explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, me.position.x, me.position.y, particle_pool);
     }
 
     return true;
+}
+
+struct Control {
+    int key_code;
+    Moving moving;
+}
+
+// window.addEventListener('keydown', (e) => console.log(e))
+// > keydown { target: body , key: "ArrowDown", charCode: 0, keyCode: 40 }
+// > keydown { target: body , key: "ArrowUp", charCode: 0, keyCode: 38 }
+// > keydown { target: body , key: "ArrowRight", charCode: 0, keyCode: 39 }
+// > keydown { target: body , key: "ArrowLeft", charCode: 0, keyCode: 37 }
+// > keydown { target: body , key: "a", charCode: 0, keyCode: 65 }
+// > keydown { target: body , key: "s", charCode: 0, keyCode: 83 }
+// > keydown { target: body , key: "d", charCode: 0, keyCode: 68 }
+// > keydown { target: body , key: "w", charCode: 0, keyCode: 87 }
+const Control[*] CONTROL_KEYS = {
+    {37, TURNING_LEFT},
+    {39, TURNING_RIGHT},
+    {38, MOVING_FORWARD},
+    {40, MOVING_BACKWARD},
+    {65, TURNING_LEFT},
+    {68, TURNING_RIGHT},
+    {87, MOVING_FORWARD},
+    {83, MOVING_BACKWARD},
+};
+
+fn bool verify_hello_message(Message *message) @extern("verify_hello_message") @wasm {
+    if (message.size != HelloMessage.sizeof) return false;
+    HelloMessage* hello_message = (HelloMessage*)message;
+    if (hello_message.kind != HELLO) return false;
+    return true;
+}
+
+fn void apply_hello_message_to_me(HelloMessage *hello_message) @extern("apply_hello_message_to_me") @wasm {
+    me.id         = hello_message.id;
+    me.position.x = hello_message.x;
+    me.position.y = hello_message.y;
+    me.direction  = hello_message.direction;
+    me.moving     = 0;
+    me.hue        = hello_message.hue;
+}
+
+fn bool verify_players_joined_batch_message(Message *message) @extern("verify_players_joined_batch_message") @wasm {
+    if (message.size < PlayersJoinedBatchMessage.sizeof) return false;
+    if ((message.size - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return false;
+    PlayersJoinedBatchMessage* players_joined_batch_message = (PlayersJoinedBatchMessage*)message;
+    if (players_joined_batch_message.kind != PLAYER_JOINED) return false;
+    return true;
+}
+
+fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) @extern("apply_players_joined_batch_message") @wasm {
+    usz count = (message.size - PlayersJoinedBatchMessage.sizeof)/PlayerStruct.sizeof;
+    for (usz i = 0; i < count; ++i) {
+        PlayerStruct *player_struct = &message.players[i];
+        uint id = player_struct.id;
+        if (try player = other_players.get_ref(id)) {
+            player.position.x = player_struct.x;
+            player.position.y = player_struct.y;
+            player.direction = player_struct.direction;
+            player.moving = player_struct.moving;
+            player.hue = player_struct.hue;
+        } else if (me.id == id) {
+            // Recieved info about ourselves joining. It can actually happen.
+            me.position.x = player_struct.x;
+            me.position.y = player_struct.y;
+            me.direction  = player_struct.direction;
+            me.moving     = player_struct.moving;
+            me.hue        = player_struct.hue;
+        } else {
+            other_players.set(id, {
+                .id = id,
+                .position = {player_struct.x, player_struct.y},
+                .direction = player_struct.direction,
+                .moving = player_struct.moving,
+                .hue = player_struct.hue,
+            });
+        }
+    }
+}
+
+fn bool verify_players_left_batch_message(Message *message) @extern("verify_players_left_batch_message") @wasm {
+    if (message.size < PlayersLeftBatchMessage.sizeof) return false;
+    if ((message.size - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return false;
+    PlayersLeftBatchMessage* players_left_batch_message = (PlayersLeftBatchMessage*)message;
+    if (players_left_batch_message.kind != PLAYER_LEFT) return false;
+    return true;
+}
+
+fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) @extern("apply_players_left_batch_message") @wasm {
+    usz count = (message.size - PlayersLeftBatchMessage.sizeof)/uint.sizeof;
+    for (usz i = 0; i < count; ++i) {
+        other_players.remove(message.ids[i]);
+    }
+}
+
+fn bool verify_players_moving_batch_message(Message *message) @extern("verify_players_moving_batch_message") @wasm {
+    if (message.size < PlayersMovingBatchMessage.sizeof) return false;
+    if ((message.size - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return false;
+    PlayersMovingBatchMessage* players_moving_batch_message = (PlayersMovingBatchMessage*)message;
+    if (players_moving_batch_message.kind != PLAYER_MOVING) return false;
+    return true;
+}
+
+fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) @extern("apply_players_moving_batch_message") @wasm {
+    usz count = (message.size - PlayersMovingBatchMessage.sizeof)/PlayerStruct.sizeof;
+    for (usz i = 0; i < count; ++i) {
+        PlayerStruct *player_struct = &message.players[i];
+        uint id = player_struct.id;
+        if (try player = other_players.get_ref(id)) {
+            player.moving = player_struct.moving;
+            player.position.x = player_struct.x;
+            player.position.y = player_struct.y;
+            player.direction = player_struct.direction;
+        } else if (me.id == id) {
+            me.moving = player_struct.moving;
+            me.position.x = player_struct.x;
+            me.position.y = player_struct.y;
+            me.direction = player_struct.direction;
+        } else {
+            io::printn(string::tformat("Received bogus-amogus message from server. We don't know anything about player with id %d", id));
+            return false;
+        }
+    }
+    return true;
+}
+
+fn uint sprite_angle_index(Vector2 camera_position, Player entity) {
+    const float PI =  math::PI;
+    const float TAU = 2*math::PI;
+    return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod((entity.position - camera_position).angle(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
+}
+
+fn void update_all_players(Scene *scene, float delta_time) {
+    other_players.@each_entry(; OtherPlayersEntry *entry) {
+        common::update_player(&entry.value, scene, delta_time);
+    };
+    common::update_player(&me, scene, delta_time);
+}
+
+fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
+    other_players.@each_entry(; OtherPlayersEntry *entry) {
+        uint index = sprite_angle_index(me.position, entry.value);
+        push_sprite(sprite_pool, player_image, entry.value.position.x, entry.value.position.y, 1, 1, 55*index, 0, 55, 55);
+    };
+}
+
+fn void key_down(uint key_code, Bombs *bombs) @extern("key_down") @wasm {
+    foreach (control: CONTROL_KEYS) {
+        if (control.key_code == key_code) {
+            io::printn(string::tformat("key_down %f %f", me.position.x, me.position.y));
+            Moving direction = control.moving;
+
+            if (!platform_is_offline_mode()) {
+                AmmaMovingMessage *message = mem::tcalloc(AmmaMovingMessage.sizeof);
+                message.size = AmmaMovingMessage.sizeof;
+                message.kind = AMMA_MOVING;
+                message.start = 1;
+                message.direction = direction;
+                platform_send_message(message);
+            } else {
+                me.moving |= 1<<(uint)direction;
+            }
+            return;
+        }
+    }
+
+    const uint KEY_SPACE = 32;
+    if (key_code == KEY_SPACE) {
+        if (!platform_is_offline_mode()) {
+            AmmaThrowingMessage *message = mem::tcalloc(AmmaThrowingMessage.sizeof);
+            message.size = AmmaThrowingMessage.sizeof;
+            message.kind = AMMA_THROWING;
+            platform_send_message(message);
+        } else {
+            common::throw_bomb(me.position.x, me.position.y, me.direction, bombs);
+        }
+    }
+}
+
+fn void key_up(uint key_code) @extern("key_up") @wasm {
+    foreach (control: CONTROL_KEYS) {
+        if (control.key_code == key_code) {
+            Moving direction = control.moving;
+
+            if (!platform_is_offline_mode()) {
+                AmmaMovingMessage *message = mem::tcalloc(AmmaMovingMessage.sizeof);
+                message.size = AmmaMovingMessage.sizeof;
+                message.kind = AMMA_MOVING;
+                message.start = 0;
+                message.direction = direction;
+                platform_send_message(message);
+            } else {
+                me.moving |= 1<<(uint)direction;
+            }
+            return;
+        }
+    }
+}
+
+fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Scene *scene, Item[] *items, Bombs *bombs, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+    update_all_players(scene, delta_time);
+    update_items(sprite_pool, time, items, key_image, bomb_image);
+    update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, scene, delta_time, bombs);
+    update_particles(particle_image, sprite_pool, delta_time, scene, particle_pool);
+
+    render_other_players(sprite_pool, player_image);
+
+    render_floor_and_ceiling(display);
+    render_walls(display, zbuffer, wall_image, scene);
+    cull_and_sort_sprites(sprite_pool);
+    render_sprites(display, zbuffer, sprite_pool);
+}
+
+uint ping_cooldown = PING_COOLDOWN;
+fn void ping_server_if_needed() @extern("ping_server_if_needed") @wasm {
+    if (!platform_is_offline_mode()) {
+        ping_cooldown -= 1;
+        if (ping_cooldown == 0) {
+            PingMessage ping = {
+                .size = PingMessage.sizeof,
+                .kind = PING,
+                .timestamp = platform_now_msecs(),
+            };
+            platform_send_message(&ping);
+            ping_cooldown = PING_COOLDOWN;
+        }
+    }
+}
+
+fn bool verify_pong_message(Message *message) @extern("verify_pong_message") @wasm {
+    if (message.size != PongMessage.sizeof) return false;
+    PongMessage* pong_message = (PongMessage*)message;
+    if (pong_message.kind != PONG) return false;
+    return true;
+}
+
+uint ping = 0;
+fn void process_pong_message(PongMessage *message) @extern("process_pong_message") @wasm {
+    ping = platform_now_msecs() - message.timestamp;
+}
+
+fn uint ping_msecs() @extern("ping_msecs") @wasm {
+    return ping;
+}
+
+fn bool process_message(Message *message, Item[] *items, Bombs *bombs, ParticlePool *particle_pool) @extern("process_message") @wasm {
+    // TODO: verify_* functions should return the typed message with exception, so we can turn this into sequence of if-try-s
+    if (verify_hello_message(message)) {
+        apply_hello_message_to_me((HelloMessage*)message);
+    } else if (verify_players_joined_batch_message(message)) {
+        apply_players_joined_batch_message((PlayersJoinedBatchMessage*)message);
+    } else if (verify_players_left_batch_message(message)) {
+        apply_players_left_batch_message((PlayersLeftBatchMessage*)message);
+    } else if (verify_players_moving_batch_message(message)) {
+        if (!apply_players_moving_batch_message((PlayersMovingBatchMessage*)message)) {
+            return false;
+        }
+    } else if (verify_pong_message(message)) {
+        process_pong_message((PongMessage*)message);
+    } else if (verify_items_collected_batch_message(message)) {
+        if (!apply_items_collected_batch_message_to_level_items((ItemsCollectedBatchMessage*)message, items)) {
+            return false;
+        }
+    } else if (verify_items_spawned_batch_message(message)) {
+        if (!apply_items_spawned_batch_message_to_level_items((ItemsSpawnedBatchMessage*)message, items)) {
+            return false;
+        }
+    } else if (verify_bombs_spawned_batch_message(message)) {
+        if (!apply_bombs_spawned_batch_message_to_level_items((BombsSpawnedBatchMessage*)message, bombs)) {
+            return false;
+        }
+    } else if (verify_bombs_exploded_batch_message(message)) {
+        if (!apply_bombs_exploded_batch_message_to_level_items((BombsExplodedBatchMessage*)message, bombs, particle_pool)) {
+            return false;
+        }
+    } else {
+        // TODO: print the bytes of the bogus amogus message
+        io::printn(string::tformat("Received bogus-amogus message from server. %s", message));
+        return false;
+    }
+    return true;
+}
+
+Player me;
+def OtherPlayersEntry = Entry(<uint, Player>);
+HashMap(<uint, Player>) other_players;
+
+fn uint players_count() @extern("players_count") @wasm {
+    return other_players.len() + 1; // +1 including `me`
+}
+
+fn void unregister_all_other_players() @extern("unregister_all_other_players") @wasm {
+    other_players.clear();
 }
 
 fn void entry() @init(2048) @private {
