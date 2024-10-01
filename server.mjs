@@ -38,7 +38,6 @@ const joinedIds = new Set();
 const leftIds = new Set();
 const pingIds = new Map();
 const level = common.createLevel(wasmServer);
-const collectedItemsPtr = wasmServer.allocate_collected_items();
 const thrownBombsPtr = wasmServer.allocate_thrown_bombs();
 const explodedBombsPtr = wasmServer.allocate_exploded_bombs();
 wss.on("connection", (ws, req) => {
@@ -271,10 +270,10 @@ function tick() {
     {
         players.forEach((player) => {
             common.updatePlayer(wasmServer, player, level.scenePtr, deltaTime);
-            wasmServer.collect_items_by_player_at(player.position.x, player.position.y, collectedItemsPtr, level.itemsPtr);
+            wasmServer.collect_items_by_player_at(player.position.x, player.position.y, level.itemsPtr);
         });
         const bufferItemsCollected = (() => {
-            const message = wasmServer.collected_items_as_batch_message(level.itemsPtr, collectedItemsPtr);
+            const message = wasmServer.collected_items_as_batch_message(level.itemsPtr);
             if (message === 0)
                 return null;
             const size = new DataView(wasmServer.memory.buffer, message, common.UINT32_SIZE).getUint32(0, true);
@@ -350,7 +349,6 @@ async function instantiateWasmServer(path) {
         stats_push_sample: wasm.instance.exports.stats_push_sample,
         stats_print_per_n_ticks: wasm.instance.exports.stats_print_per_n_ticks,
         reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items,
-        allocate_collected_items: wasm.instance.exports.allocate_collected_items,
         collect_items_by_player_at: wasm.instance.exports.collect_items_by_player_at,
         collected_items_as_batch_message: wasm.instance.exports.collected_items_as_batch_message,
         allocate_thrown_bombs: wasm.instance.exports.allocate_thrown_bombs,

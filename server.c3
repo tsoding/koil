@@ -189,13 +189,9 @@ fn void stats_inc_counter(StatEntry entry, int delta) @extern("stats_inc_counter
 
 /// Items //////////////////////////////
 
-def CollectedItems = List(<usz>);
+List(<usz>) collected_items;
 
-fn CollectedItems* allocate_collected_items() @extern("allocate_collected_items") @wasm {
-    return mem::new(CollectedItems);
-}
-
-fn void collect_items_by_player_at(float player_position_x, float player_position_y, CollectedItems *collected_items, Item[] *items) @extern("collect_items_by_player_at") @wasm {
+fn void collect_items_by_player_at(float player_position_x, float player_position_y, Item[] *items) @extern("collect_items_by_player_at") @wasm {
     foreach (item_index, item: *items) {
         if (item.alive) {
             if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
@@ -205,14 +201,14 @@ fn void collect_items_by_player_at(float player_position_x, float player_positio
     }
 }
 
-fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items, CollectedItems *collected_items) @extern("collected_items_as_batch_message") @wasm {
+fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) @extern("collected_items_as_batch_message") @wasm {
     if (collected_items.size == 0) return null;
     int size = ItemsCollectedBatchMessage.sizeof + int.sizeof*collected_items.size;
     ItemsCollectedBatchMessage *message = mem::tcalloc(size);
     message.size = size;
     message.kind = MessageKind.ITEM_COLLECTED;
     for (int i = 0; i < collected_items.size; ++i) {
-        message.ids[i] = (*collected_items)[i];
+        message.ids[i] = collected_items[i];
     }
     collected_items.size = 0;
     return message;
