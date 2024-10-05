@@ -578,7 +578,7 @@ fn bool verify_amma_moving_message(Message *message) {
     return true;
 }
 
-fn bool process_message_on_server(uint id, Message *message, Bombs *bombs) @extern("process_message_on_server") @wasm {
+fn bool process_message_on_server(uint id, Message *message) @extern("process_message_on_server") @wasm {
     stats_inc_counter(MESSAGES_RECEIVED, 1);
     messages_recieved_within_tick += 1;
     stats_inc_counter(BYTES_RECEIVED, message.size);
@@ -586,7 +586,7 @@ fn bool process_message_on_server(uint id, Message *message, Bombs *bombs) @exte
     if (verify_amma_moving_message(message)) {
         player_update_moving(id, (AmmaMovingMessage*)message);
     } else if (verify_amma_throwing_message(message)) {
-        throw_bomb_on_server_side(id, bombs);
+        throw_bomb_on_server_side(id, &common::bombs);
     } else if (verify_ping_message(message)) {
         schedule_ping_for_player(id, (PingMessage*)message);
     } else {
@@ -598,7 +598,7 @@ fn bool process_message_on_server(uint id, Message *message, Bombs *bombs) @exte
 }
 
 uint previous_timestamp = 0;
-fn uint tick(Bombs *bombs, Scene *scene) @extern("tick") @wasm {
+fn uint tick(Scene *scene) @extern("tick") @wasm {
     uint timestamp = platform_now_msecs();
     float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
     previous_timestamp = timestamp;
@@ -606,8 +606,8 @@ fn uint tick(Bombs *bombs, Scene *scene) @extern("tick") @wasm {
     process_joined_players(&common::items);
     process_left_players();
     process_moving_players();
-    process_thrown_bombs(bombs);
-    process_world_simulation(&common::items, scene, bombs, delta_time);
+    process_thrown_bombs(&common::bombs);
+    process_world_simulation(&common::items, scene, &common::bombs, delta_time);
     process_pings();
 
     uint tickTime = platform_now_msecs() - timestamp;

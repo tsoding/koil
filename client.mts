@@ -68,12 +68,12 @@ interface WasmClient extends common.WasmCommon {
     image_pixels: (image: number) => number,
     players_count: () => number,
     unregister_all_other_players: () => void,
-    key_down: (key_code: number, bombs: number) => void,
+    key_down: (key_code: number) => void,
     key_up: (key_code: number) => void,
-    render_game: (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, scene: number, bombs: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+    render_game: (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, scene: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
     ping_server_if_needed: () => void,
     ping_msecs: () => number,
-    process_message: (message: number, bombs: number, particle_pool: number) => boolean,
+    process_message: (message: number, particle_pool: number) => boolean,
 }
 
 function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
@@ -236,7 +236,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
         key_up: wasm.instance.exports.key_up as (key_code: number) => void,
-        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, scene: number, bombs: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, scene: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
         ping_server_if_needed: wasm.instance.exports.ping_server_if_needed as () => void,
         ping_msecs: wasm.instance.exports.ping_msecs as () => number,
         process_message: wasm.instance.exports.process_message as (message: number) => boolean,
@@ -315,7 +315,7 @@ async function createGame(): Promise<Game> {
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmClient, event.data);
         // console.log(`Received message from server`, new Uint8ClampedArray(event.data));
-        if (!game.wasmClient.process_message(eventDataPtr, game.level.bombsPtr, game.particlesPtr)) {
+        if (!game.wasmClient.process_message(eventDataPtr, game.particlesPtr)) {
             ws?.close();
             return;
         }
@@ -328,7 +328,7 @@ async function createGame(): Promise<Game> {
 }
 
 function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    game.wasmClient.render_game(display.backImagePtr, display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.level.scenePtr, game.level.bombsPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+    game.wasmClient.render_game(display.backImagePtr, display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.level.scenePtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
     displaySwapBackImageData(display, game.wasmClient);
 
     if (MINIMAP) game.wasmClient.render_minimap(display.minimapPtr, game.level.scenePtr, game.spritePoolPtr);
@@ -339,7 +339,7 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
     game = await createGame();
 
     window.addEventListener("keydown", (e) => {
-        if (!e.repeat) game.wasmClient.key_down(e.keyCode, game.level.bombsPtr);
+        if (!e.repeat) game.wasmClient.key_down(e.keyCode);
     });
     // TODO: When the window loses the focus, reset all the controls
     window.addEventListener("keyup", (e) => {

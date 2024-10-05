@@ -83,7 +83,7 @@ wss.on("connection", (ws, req) => {
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmServer, event.data);
         // console.log(`Received message from player ${id}`, new Uint8ClampedArray(event.data));
-        if (!wasmServer.process_message_on_server(id, eventDataPtr, level.bombsPtr)) {
+        if (!wasmServer.process_message_on_server(id, eventDataPtr)) {
             ws.close();
             return;
         }
@@ -104,7 +104,7 @@ wss.on("connection", (ws, req) => {
 })
 
 function tick() {
-    const tickTime = wasmServer.tick(level.bombsPtr, level.scenePtr);
+    const tickTime = wasmServer.tick(level.scenePtr);
     setTimeout(tick, Math.max(0, 1000/SERVER_FPS - tickTime));
 }
 
@@ -112,8 +112,8 @@ interface WasmServer extends common.WasmCommon {
     stats_inc_counter: (entry: number, delta: number) => void,
     register_new_player: (id: number, x: number, y: number, hue: number) => void,
     unregister_player: (id: number) => void,
-    process_message_on_server: (id: number, message: number, bombs: number) => boolean,
-    tick: (bombs: number, scene: number) => number,
+    process_message_on_server: (id: number, message: number) => boolean,
+    tick: (scene: number) => number,
 }
 
 function platform_now_secs(): number {
@@ -154,8 +154,8 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
         stats_inc_counter: wasm.instance.exports.stats_inc_counter as (entry: number) => void,
         register_new_player: wasm.instance.exports.register_new_player as (id: number, x: number, y: number, hue: number) => void,
         unregister_player: wasm.instance.exports.unregister_player as (id: number) => void,
-        process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number, bombs: number) => boolean,
-        tick: wasm.instance.exports.tick as (bombs: number, scene: number) => number,
+        process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number) => boolean,
+        tick: wasm.instance.exports.tick as (scene: number) => number,
     };
 }
 

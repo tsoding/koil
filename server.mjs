@@ -65,7 +65,7 @@ wss.on("connection", (ws, req) => {
             return;
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmServer, event.data);
-        if (!wasmServer.process_message_on_server(id, eventDataPtr, level.bombsPtr)) {
+        if (!wasmServer.process_message_on_server(id, eventDataPtr)) {
             ws.close();
             return;
         }
@@ -85,7 +85,7 @@ wss.on("connection", (ws, req) => {
     });
 });
 function tick() {
-    const tickTime = wasmServer.tick(level.bombsPtr, level.scenePtr);
+    const tickTime = wasmServer.tick(level.scenePtr);
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
 function platform_now_secs() {

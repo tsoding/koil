@@ -863,7 +863,7 @@ fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
     };
 }
 
-fn void key_down(uint key_code, Bombs *bombs) @extern("key_down") @wasm {
+fn void key_down(uint key_code) @extern("key_down") @wasm {
     foreach (control: CONTROL_KEYS) {
         if (control.key_code == key_code) {
             io::printn(string::tformat("key_down %f %f", me.position.x, me.position.y));
@@ -891,7 +891,7 @@ fn void key_down(uint key_code, Bombs *bombs) @extern("key_down") @wasm {
             message.kind = AMMA_THROWING;
             platform_send_message(message);
         } else {
-            common::throw_bomb(me.position.x, me.position.y, me.direction, bombs);
+            common::throw_bomb(me.position.x, me.position.y, me.direction, &common::bombs);
         }
     }
 }
@@ -916,10 +916,10 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Scene *scene, Bombs *bombs, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Scene *scene, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
     update_all_players(scene, delta_time);
     update_items(sprite_pool, time, &common::items, key_image, bomb_image);
-    update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, scene, delta_time, bombs);
+    update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, scene, delta_time, &common::bombs);
     update_particles(particle_image, sprite_pool, delta_time, scene, particle_pool);
 
     render_other_players(sprite_pool, player_image);
@@ -962,7 +962,7 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
     return ping;
 }
 
-fn bool process_message(Message *message, Bombs *bombs, ParticlePool *particle_pool) @extern("process_message") @wasm {
+fn bool process_message(Message *message, ParticlePool *particle_pool) @extern("process_message") @wasm {
     // TODO: verify_* functions should return the typed message with exception, so we can turn this into sequence of if-try-s
     if (verify_hello_message(message)) {
         apply_hello_message_to_me((HelloMessage*)message, &common::items);
@@ -985,11 +985,11 @@ fn bool process_message(Message *message, Bombs *bombs, ParticlePool *particle_p
             return false;
         }
     } else if (verify_bombs_spawned_batch_message(message)) {
-        if (!apply_bombs_spawned_batch_message_to_level_items((BombsSpawnedBatchMessage*)message, bombs)) {
+        if (!apply_bombs_spawned_batch_message_to_level_items((BombsSpawnedBatchMessage*)message, &common::bombs)) {
             return false;
         }
     } else if (verify_bombs_exploded_batch_message(message)) {
-        if (!apply_bombs_exploded_batch_message_to_level_items((BombsExplodedBatchMessage*)message, bombs, particle_pool)) {
+        if (!apply_bombs_exploded_batch_message_to_level_items((BombsExplodedBatchMessage*)message, &common::bombs, particle_pool)) {
             return false;
         }
     } else {

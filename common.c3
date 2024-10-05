@@ -222,6 +222,7 @@ struct Bomb {
 }
 
 def Bombs = Bomb[20];
+Bombs bombs;
 
 fn Bombs* allocate_bombs() @extern("allocate_bombs") @wasm {
     return mem::new(Bombs);
