@@ -157,7 +157,6 @@ async function instantiateWasmClient(url) {
     return {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
-        allocate_sprite_pool: wasm.instance.exports.allocate_sprite_pool,
         render_minimap: wasm.instance.exports.render_minimap,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool,
         allocate_image: wasm.instance.exports.allocate_image,
@@ -198,13 +197,12 @@ async function createGame() {
         bombBlastSound,
     };
     const particlesPtr = wasmClient.allocate_particle_pool();
-    const spritePoolPtr = wasmClient.allocate_sprite_pool();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
     if (window.location.hostname === 'tsoding.github.io')
         ws.close();
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
-    const game = { ws, particlesPtr, assets, spritePoolPtr, dts: [], wasmClient, display };
+    const game = { ws, particlesPtr, assets, dts: [], wasmClient, display };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event);
@@ -245,7 +243,7 @@ async function createGame() {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
-        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
         window.requestAnimationFrame(frame);

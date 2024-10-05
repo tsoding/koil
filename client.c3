@@ -89,12 +89,9 @@ struct SpritePool {
     Sprite*[SPRITE_POOL_CAPACITY] visible_items;
     int visible_length;
 }
+SpritePool sprite_pool;
 
-fn SpritePool *allocate_sprite_pool() @extern("allocate_sprite_pool") @wasm {
-    return mem::new(SpritePool);
-}
-
-fn void reset_sprite_pool(SpritePool *sprite_pool) {
+fn void reset_sprite_pool() {
     sprite_pool.length = 0;
     sprite_pool.visible_length = 0;
 }
@@ -845,21 +842,21 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+fn void render_game(Image *display, float *zbuffer, ParticlePool *particle_pool, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
     update_all_players(common::scene, delta_time);
-    update_items(sprite_pool, time, &common::items, key_image, bomb_image);
-    update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
-    update_particles(particle_image, sprite_pool, delta_time, common::scene, particle_pool);
+    update_items(&sprite_pool, time, &common::items, key_image, bomb_image);
+    update_bombs_on_client_side(&sprite_pool, particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
+    update_particles(particle_image, &sprite_pool, delta_time, common::scene, particle_pool);
 
-    render_other_players(sprite_pool, player_image);
+    render_other_players(&sprite_pool, player_image);
 
     render_floor_and_ceiling(display);
     render_walls(display, zbuffer, wall_image, common::scene);
-    cull_and_sort_sprites(sprite_pool);
-    render_sprites(display, zbuffer, sprite_pool);
+    cull_and_sort_sprites(&sprite_pool);
+    render_sprites(display, zbuffer, &sprite_pool);
 
     ping_server_if_needed();
-    reset_sprite_pool(sprite_pool);
+    reset_sprite_pool();
     common::reset_temp_mark();
 }
 
