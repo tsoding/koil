@@ -231,7 +231,7 @@ fn Bombs* allocate_bombs() @extern("allocate_bombs") @wasm {
     return mem::new(Bombs);
 }
 
-fn int throw_bomb(float player_position_x, float player_position_y, float player_direction, Bombs *bombs) @extern("throw_bomb") @wasm {
+fn int throw_bomb(float player_position_x, float player_position_y, float player_direction, Bombs *bombs) {
     foreach (index, &bomb: *bombs) {
         if (bomb.lifetime <= 0) {
             bomb.lifetime    = BOMB_LIFETIME;

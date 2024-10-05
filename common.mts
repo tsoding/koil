@@ -9,7 +9,6 @@ export interface WasmCommon {
     reset_temp_mark: () => void,
     allocate_temporary_buffer: (size: number) => number,
     allocate_bombs: () => number,
-    throw_bomb: (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
     scene_can_rectangle_fit_here: (scene: number, px: number, py: number, sx: number, sy: number) => boolean,
     allocate_default_scene: () => number,
 }
@@ -23,7 +22,6 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
         allocate_bombs: wasm.instance.exports.allocate_bombs as () => number,
-        throw_bomb: wasm.instance.exports.throw_bomb as (player_position_x: number, player_position_y: number, player_direction: number, bombs: number) => number,
         scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here as (scenePtr: number, px: number, py: number, sx: number, sy: number) => boolean,
         allocate_default_scene: wasm.instance.exports.allocate_default_scene as () => number,
     }

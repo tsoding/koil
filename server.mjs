@@ -122,7 +122,6 @@ async function instantiateWasmServer(path) {
         ...wasmCommon,
         stats_inc_counter: wasm.instance.exports.stats_inc_counter,
         reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items,
-        throw_bomb: wasm.instance.exports.throw_bomb,
         register_new_player: wasm.instance.exports.register_new_player,
         unregister_player: wasm.instance.exports.unregister_player,
         process_message_on_server: wasm.instance.exports.process_message_on_server,
