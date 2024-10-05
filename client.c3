@@ -906,7 +906,7 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
                 message.direction = direction;
                 platform_send_message(message);
             } else {
-                me.moving |= 1<<(uint)direction;
+                me.moving &= ~(1<<(uint)direction);
             }
             return;
         }
