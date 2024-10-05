@@ -56,7 +56,6 @@ interface Display {
 
 interface WasmClient extends common.WasmCommon {
     allocate_zbuffer: (width: number) => number,
-    render_minimap: (display: number, sprite_pool: number) => void;
     allocate_particle_pool: () => number,
     allocate_image: (width: number, height: number) => number,
     image_width: (image: number) => number,
@@ -214,7 +213,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
     return {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
-        render_minimap: wasm.instance.exports.render_minimap as (display: number, sprite_pool: number) => void,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
         image_width: wasm.instance.exports.image_width as (image: number) => number,
