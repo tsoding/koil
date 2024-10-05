@@ -7,12 +7,7 @@ export function makeWasmCommon(wasm) {
         _initialize: wasm.instance.exports._initialize,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
-        allocate_default_scene: wasm.instance.exports.allocate_default_scene,
     };
-}
-export function createLevel(wasmCommon) {
-    const scenePtr = wasmCommon.allocate_default_scene();
-    return { scenePtr };
 }
 export function arrayBufferAsMessageInWasm(wasmCommon, buffer) {
     const wasmBufferSize = buffer.byteLength + UINT32_SIZE;

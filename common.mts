@@ -7,7 +7,6 @@ export interface WasmCommon {
     _initialize: () => void,
     reset_temp_mark: () => void,
     allocate_temporary_buffer: (size: number) => number,
-    allocate_default_scene: () => number,
 }
 
 export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
@@ -17,19 +16,7 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         _initialize: wasm.instance.exports._initialize as () => void,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
-        allocate_default_scene: wasm.instance.exports.allocate_default_scene as () => number,
     }
-}
-
-// NOTE: This is basically the part of the state of the Game that is shared 
-// between Client and Server and constantly synced over the network.
-export interface Level {
-    scenePtr: number,
-}
-
-export function createLevel(wasmCommon: WasmCommon): Level {
-    const scenePtr = wasmCommon.allocate_default_scene();
-    return {scenePtr};
 }
 
 export function arrayBufferAsMessageInWasm(wasmCommon: WasmCommon, buffer: ArrayBuffer): number {

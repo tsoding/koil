@@ -29,7 +29,6 @@ const connections = new Map();
 const connectionLimits = new Map();
 let idCounter = 0;
 const wss = new WebSocketServer({ port: common.SERVER_PORT });
-const level = common.createLevel(wasmServer);
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (connections.size >= SERVER_TOTAL_LIMIT) {
@@ -85,7 +84,7 @@ wss.on("connection", (ws, req) => {
     });
 });
 function tick() {
-    const tickTime = wasmServer.tick(level.scenePtr);
+    const tickTime = wasmServer.tick();
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
 function platform_now_secs() {

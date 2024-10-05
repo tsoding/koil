@@ -311,7 +311,7 @@ fn void render_walls(Image *display, float *zbuffer, Image *wall, Scene *scene) 
 
 // TODO: @translate
 // It's not really needed right now so it can be translated later
-fn void render_minimap(Image *display, Scene *scene, SpritePool *sprite_pool) @extern("render_minimap") @wasm {
+fn void render_minimap(Image *display, SpritePool *sprite_pool) @extern("render_minimap") @wasm {
     // ctx.save();
 
     // // A couple of temporary vectors
@@ -916,16 +916,16 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Scene *scene, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
-    update_all_players(scene, delta_time);
+fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+    update_all_players(common::scene, delta_time);
     update_items(sprite_pool, time, &common::items, key_image, bomb_image);
-    update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, scene, delta_time, &common::bombs);
-    update_particles(particle_image, sprite_pool, delta_time, scene, particle_pool);
+    update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
+    update_particles(particle_image, sprite_pool, delta_time, common::scene, particle_pool);
 
     render_other_players(sprite_pool, player_image);
 
     render_floor_and_ceiling(display);
-    render_walls(display, zbuffer, wall_image, scene);
+    render_walls(display, zbuffer, wall_image, common::scene);
     cull_and_sort_sprites(sprite_pool);
     render_sprites(display, zbuffer, sprite_pool);
 }
@@ -1022,4 +1022,5 @@ fn void entry() @init(2048) @private {
         return buffer.len;
     };
     common::temp_mark = allocator::temp().used;
+    common::scene = common::allocate_default_scene();
 }

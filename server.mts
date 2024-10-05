@@ -37,7 +37,6 @@ const connections = new Map<number, PlayerConnection>();
 const connectionLimits = new Map<string, number>();
 let idCounter = 0;
 const wss = new WebSocketServer({port: common.SERVER_PORT})
-const level = common.createLevel(wasmServer);
 
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
@@ -104,7 +103,7 @@ wss.on("connection", (ws, req) => {
 })
 
 function tick() {
-    const tickTime = wasmServer.tick(level.scenePtr);
+    const tickTime = wasmServer.tick();
     setTimeout(tick, Math.max(0, 1000/SERVER_FPS - tickTime));
 }
 
@@ -113,7 +112,7 @@ interface WasmServer extends common.WasmCommon {
     register_new_player: (id: number, x: number, y: number, hue: number) => void,
     unregister_player: (id: number) => void,
     process_message_on_server: (id: number, message: number) => boolean,
-    tick: (scene: number) => number,
+    tick: () => number,
 }
 
 function platform_now_secs(): number {
@@ -155,7 +154,7 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
         register_new_player: wasm.instance.exports.register_new_player as (id: number, x: number, y: number, hue: number) => void,
         unregister_player: wasm.instance.exports.unregister_player as (id: number) => void,
         process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number) => boolean,
-        tick: wasm.instance.exports.tick as (scene: number) => number,
+        tick: wasm.instance.exports.tick as () => number,
     };
 }
 

@@ -598,7 +598,7 @@ fn bool process_message_on_server(uint id, Message *message) @extern("process_me
 }
 
 uint previous_timestamp = 0;
-fn uint tick(Scene *scene) @extern("tick") @wasm {
+fn uint tick() @extern("tick") @wasm {
     uint timestamp = platform_now_msecs();
     float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
     previous_timestamp = timestamp;
@@ -607,7 +607,7 @@ fn uint tick(Scene *scene) @extern("tick") @wasm {
     process_left_players();
     process_moving_players();
     process_thrown_bombs(&common::bombs);
-    process_world_simulation(&common::items, scene, &common::bombs, delta_time);
+    process_world_simulation(&common::items, common::scene, &common::bombs, delta_time);
     process_pings();
 
     uint tickTime = platform_now_msecs() - timestamp;
@@ -647,5 +647,6 @@ fn void entry() @init(2048) @private {
     };
     stats[StatEntry.UPTIME].timer.started_at = platform_now_secs();
     common::temp_mark = allocator::temp().used;
+    common::scene = common::allocate_default_scene();
     previous_timestamp = platform_now_msecs();
 }

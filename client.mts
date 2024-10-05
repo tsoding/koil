@@ -60,7 +60,7 @@ interface WasmClient extends common.WasmCommon {
     allocate_zbuffer: (width: number) => number,
     allocate_sprite_pool: () => number,
     reset_sprite_pool: (sprite_pool: number) => void,
-    render_minimap: (display: number, scene: number, sprite_pool: number) => void;
+    render_minimap: (display: number, sprite_pool: number) => void;
     allocate_particle_pool: () => number,
     allocate_image: (width: number, height: number) => number,
     image_width: (image: number) => number,
@@ -70,7 +70,7 @@ interface WasmClient extends common.WasmCommon {
     unregister_all_other_players: () => void,
     key_down: (key_code: number) => void,
     key_up: (key_code: number) => void,
-    render_game: (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, scene: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+    render_game: (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
     ping_server_if_needed: () => void,
     ping_msecs: () => number,
     process_message: (message: number, particle_pool: number) => boolean,
@@ -131,7 +131,6 @@ interface Game {
     particlesPtr: number,
     assets: Assets,
     dts: number[],
-    level: common.Level,
     wasmClient: WasmClient,
     display: Display,
 }
@@ -226,7 +225,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
         allocate_sprite_pool: wasm.instance.exports.allocate_sprite_pool as () => number,
         reset_sprite_pool: wasm.instance.exports.reset_sprite_pool as (sprite_pool: number) => void,
-        render_minimap: wasm.instance.exports.render_minimap as (display: number, scene: number, sprite_pool: number) => void,
+        render_minimap: wasm.instance.exports.render_minimap as (display: number, sprite_pool: number) => void,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
         image_width: wasm.instance.exports.image_width as (image: number) => number,
@@ -236,7 +235,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
         key_up: wasm.instance.exports.key_up as (key_code: number) => void,
-        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, scene: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
         ping_server_if_needed: wasm.instance.exports.ping_server_if_needed as () => void,
         ping_msecs: wasm.instance.exports.ping_msecs as () => number,
         process_message: wasm.instance.exports.process_message as (message: number) => boolean,
@@ -291,12 +290,8 @@ async function createGame(): Promise<Game> {
     // which does not look good in the demo. So if we are on
     // tsoding.github.io we just instantly close the connection.
     if (window.location.hostname === 'tsoding.github.io') ws.close();
-    const level = common.createLevel(wasmClient);
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
-    const game: Game = {
-        ws, particlesPtr, assets, spritePoolPtr, dts: [],
-        level, wasmClient, display
-    };
+    const game: Game = {ws, particlesPtr, assets, spritePoolPtr, dts: [], wasmClient, display};
 
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -327,14 +322,6 @@ async function createGame(): Promise<Game> {
     return game;
 }
 
-function renderGame(display: Display, deltaTime: number, time: number, game: Game) {
-    game.wasmClient.render_game(display.backImagePtr, display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.level.scenePtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
-    displaySwapBackImageData(display, game.wasmClient);
-
-    if (MINIMAP) game.wasmClient.render_minimap(display.minimapPtr, game.level.scenePtr, game.spritePoolPtr);
-    renderDebugInfo(display.ctx, deltaTime, game);
-}
-
 (async () => {
     game = await createGame();
 
@@ -351,10 +338,15 @@ function renderGame(display: Display, deltaTime: number, time: number, game: Gam
         const deltaTime = (timestamp - prevTimestamp)/1000;
         const time = timestamp/1000;
         prevTimestamp = timestamp;
-        renderGame(game.display, deltaTime, time, game);
+
+        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
         game.wasmClient.ping_server_if_needed();
         game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
         game.wasmClient.reset_temp_mark();
+        if (MINIMAP) game.wasmClient.render_minimap(game.display.minimapPtr, game.spritePoolPtr);
+
+        displaySwapBackImageData(game.display, game.wasmClient);
+        renderDebugInfo(game.display.ctx, deltaTime, game);
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {

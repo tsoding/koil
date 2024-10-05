@@ -69,7 +69,9 @@ fn Scene *allocate_scene(usz width, usz height) {
     return scene;
 }
 
-fn Scene *allocate_default_scene() @extern("allocate_default_scene") @wasm {
+Scene *scene = null;
+
+fn Scene *allocate_default_scene() {
     bool[*][*] default_walls = {
         { false, false, true, true, true, false, false},
         { false, false, false, false, false, true, false},

@@ -210,12 +210,8 @@ async function createGame() {
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
     if (window.location.hostname === 'tsoding.github.io')
         ws.close();
-    const level = common.createLevel(wasmClient);
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
-    const game = {
-        ws, particlesPtr, assets, spritePoolPtr, dts: [],
-        level, wasmClient, display
-    };
+    const game = { ws, particlesPtr, assets, spritePoolPtr, dts: [], wasmClient, display };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event);
@@ -241,13 +237,6 @@ async function createGame() {
     });
     return game;
 }
-function renderGame(display, deltaTime, time, game) {
-    game.wasmClient.render_game(display.backImagePtr, display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.level.scenePtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
-    displaySwapBackImageData(display, game.wasmClient);
-    if (MINIMAP)
-        game.wasmClient.render_minimap(display.minimapPtr, game.level.scenePtr, game.spritePoolPtr);
-    renderDebugInfo(display.ctx, deltaTime, game);
-}
 (async () => {
     game = await createGame();
     window.addEventListener("keydown", (e) => {
@@ -263,10 +252,14 @@ function renderGame(display, deltaTime, time, game) {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
-        renderGame(game.display, deltaTime, time, game);
+        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
         game.wasmClient.ping_server_if_needed();
         game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
         game.wasmClient.reset_temp_mark();
+        if (MINIMAP)
+            game.wasmClient.render_minimap(game.display.minimapPtr, game.spritePoolPtr);
+        displaySwapBackImageData(game.display, game.wasmClient);
+        renderDebugInfo(game.display.ctx, deltaTime, game);
         window.requestAnimationFrame(frame);
     };
     window.requestAnimationFrame((timestamp) => {
