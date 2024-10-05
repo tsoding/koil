@@ -110,7 +110,6 @@ function tick() {
 
 interface WasmServer extends common.WasmCommon {
     stats_inc_counter: (entry: number, delta: number) => void,
-    reconstruct_state_of_items: (items: number) => number,
     register_new_player: (id: number, x: number, y: number, hue: number) => void,
     unregister_player: (id: number) => void,
     process_message_on_server: (id: number, message: number, bombs: number) => boolean,
@@ -153,7 +152,6 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
     return {
         ...wasmCommon,
         stats_inc_counter: wasm.instance.exports.stats_inc_counter as (entry: number) => void,
-        reconstruct_state_of_items: wasm.instance.exports.reconstruct_state_of_items as (items: number) => number,
         register_new_player: wasm.instance.exports.register_new_player as (id: number, x: number, y: number, hue: number) => void,
         unregister_player: wasm.instance.exports.unregister_player as (id: number) => void,
         process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number, bombs: number) => boolean,

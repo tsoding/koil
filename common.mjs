@@ -9,7 +9,6 @@ export function makeWasmCommon(wasm) {
         reset_temp_mark: wasm.instance.exports.reset_temp_mark,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
         allocate_bombs: wasm.instance.exports.allocate_bombs,
-        scene_can_rectangle_fit_here: wasm.instance.exports.scene_can_rectangle_fit_here,
         allocate_default_scene: wasm.instance.exports.allocate_default_scene,
     };
 }

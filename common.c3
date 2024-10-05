@@ -97,7 +97,7 @@ fn bool Scene.get_tile(Scene *scene, Vector2 p) {
     return scene.walls[y*scene.width + x];
 }
 
-fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy) @extern("scene_can_rectangle_fit_here") @wasm {
+fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy) {
     int x1 = (int)math::floor(px - sx*0.5f);
     int x2 = (int)math::floor(px + sx*0.5f);
     int y1 = (int)math::floor(py - sy*0.5f);
@@ -184,7 +184,7 @@ struct ItemsSpawnedBatchMessage @packed {
     ItemSpawned[*] items;
 }
 
-fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) @extern("reconstruct_state_of_items") @wasm {
+fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
     foreach (&item: *items) {
         if (item.alive) itemsCount += 1;
