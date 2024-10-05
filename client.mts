@@ -64,7 +64,6 @@ interface WasmClient extends common.WasmCommon {
     push_sprite: (sprite_pool: number, image: number, x: number, y: number, z: number, scale: number, crop_position_x: number, crop_position_y: number, crop_size_x: number, crop_size_y: number) => void;
     allocate_particle_pool: () => number,
     emit_particle: (source_x: number, source_y: number, source_z: number, particle_pool: number) => void,
-    kill_all_items: (items: number) => void,
     verify_items_collected_batch_message: (message: number) => boolean,
     apply_items_collected_batch_message_to_level_items: (message: number, items: number) => boolean,
     verify_items_spawned_batch_message: (message: number) => boolean,
@@ -81,7 +80,6 @@ interface WasmClient extends common.WasmCommon {
     players_count: () => number,
     unregister_all_other_players: () => void,
     verify_hello_message: (message: number) => number,
-    apply_hello_message_to_me: (message: number) => void,
     verify_players_joined_batch_message: (message: number) => boolean,
     apply_players_joined_batch_message: (message: number) => void,
     verify_players_left_batch_message: (message: number) => boolean,
@@ -252,7 +250,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         push_sprite: wasm.instance.exports.push_sprite as (sprite_pool: number, image: number, x: number, y: number, z: number, scale: number, crop_position_x: number, crop_position_y: number, crop_size_x: number, crop_size_y: number) => void,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         emit_particle: wasm.instance.exports.emit_particle as (source_x: number, source_y: number, source_z: number, particle_pool: number) => void,
-        kill_all_items: wasm.instance.exports.kill_all_items as (items: number) => void,
         verify_items_collected_batch_message: wasm.instance.exports.verify_items_collected_batch_message as (message: number) => boolean,
         apply_items_collected_batch_message_to_level_items: wasm.instance.exports.apply_items_collected_batch_message_to_level_items as (message: number, items: number) => boolean,
         verify_items_spawned_batch_message: wasm.instance.exports.verify_items_spawned_batch_message as (message: number) => boolean,
@@ -269,7 +266,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         players_count: wasm.instance.exports.players_count as () => number,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         verify_hello_message: wasm.instance.exports.verify_hello_message as (message: number) => number,
-        apply_hello_message_to_me: wasm.instance.exports.apply_hello_message_to_me as (message: number) => void,
         verify_players_joined_batch_message: wasm.instance.exports.verify_players_joined_batch_message as (message: number) => boolean,
         apply_players_joined_batch_message: wasm.instance.exports.apply_players_joined_batch_message as (message: number) => void,
         verify_players_left_batch_message: wasm.instance.exports.verify_players_left_batch_message as (message: number) => boolean,
@@ -336,11 +332,6 @@ async function createGame(): Promise<Game> {
     // tsoding.github.io we just instantly close the connection.
     if (window.location.hostname === 'tsoding.github.io') ws.close();
     const level = common.createLevel(wasmClient);
-    // TODO: make a better initialization of the items on client
-    // The problem is that on the server all the items must be alive,
-    // but on the client we first need them to be dead so we can recieve
-    // the actual state of the items from the server.
-    wasmClient.kill_all_items(level.itemsPtr);
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
     const game: Game = {
         ws, particlesPtr, assets, spritePoolPtr, dts: [],

@@ -531,7 +531,7 @@ fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime,
     }
 }
 
-fn void kill_all_items(Item[]* items) @extern("kill_all_items") @wasm {
+fn void kill_all_items(Item[]* items) {
     foreach (&item: *items) {
         item.alive = false;
     }
@@ -747,7 +747,10 @@ fn bool verify_hello_message(Message *message) @extern("verify_hello_message") @
     return true;
 }
 
-fn void apply_hello_message_to_me(HelloMessage *hello_message) @extern("apply_hello_message_to_me") @wasm {
+fn void apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
+    // TODO: maybe we should reset everything (bombs, etc) on hello message
+    // So to let the server recreate the world properly
+    kill_all_items(items);
     me.id         = hello_message.id;
     me.position.x = hello_message.x;
     me.position.y = hello_message.y;
@@ -962,7 +965,7 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
 fn bool process_message(Message *message, Item[] *items, Bombs *bombs, ParticlePool *particle_pool) @extern("process_message") @wasm {
     // TODO: verify_* functions should return the typed message with exception, so we can turn this into sequence of if-try-s
     if (verify_hello_message(message)) {
-        apply_hello_message_to_me((HelloMessage*)message);
+        apply_hello_message_to_me((HelloMessage*)message, items);
     } else if (verify_players_joined_batch_message(message)) {
         apply_players_joined_batch_message((PlayersJoinedBatchMessage*)message);
     } else if (verify_players_left_batch_message(message)) {

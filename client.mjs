@@ -168,7 +168,6 @@ async function instantiateWasmClient(url) {
         push_sprite: wasm.instance.exports.push_sprite,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool,
         emit_particle: wasm.instance.exports.emit_particle,
-        kill_all_items: wasm.instance.exports.kill_all_items,
         verify_items_collected_batch_message: wasm.instance.exports.verify_items_collected_batch_message,
         apply_items_collected_batch_message_to_level_items: wasm.instance.exports.apply_items_collected_batch_message_to_level_items,
         verify_items_spawned_batch_message: wasm.instance.exports.verify_items_spawned_batch_message,
@@ -185,7 +184,6 @@ async function instantiateWasmClient(url) {
         players_count: wasm.instance.exports.players_count,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players,
         verify_hello_message: wasm.instance.exports.verify_hello_message,
-        apply_hello_message_to_me: wasm.instance.exports.apply_hello_message_to_me,
         verify_players_joined_batch_message: wasm.instance.exports.verify_players_joined_batch_message,
         apply_players_joined_batch_message: wasm.instance.exports.apply_players_joined_batch_message,
         verify_players_left_batch_message: wasm.instance.exports.verify_players_left_batch_message,
@@ -233,7 +231,6 @@ async function createGame() {
     if (window.location.hostname === 'tsoding.github.io')
         ws.close();
     const level = common.createLevel(wasmClient);
-    wasmClient.kill_all_items(level.itemsPtr);
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
     const game = {
         ws, particlesPtr, assets, spritePoolPtr, dts: [],
