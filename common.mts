@@ -5,7 +5,6 @@ export interface WasmCommon {
     wasm: WebAssembly.WebAssemblyInstantiatedSource,
     memory: WebAssembly.Memory,
     _initialize: () => void,
-    reset_temp_mark: () => void,
     allocate_temporary_buffer: (size: number) => number,
 }
 
@@ -14,7 +13,6 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         wasm,
         memory: wasm.instance.exports.memory  as WebAssembly.Memory,
         _initialize: wasm.instance.exports._initialize as () => void,
-        reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
     }
 }

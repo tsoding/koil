@@ -94,7 +94,7 @@ fn SpritePool *allocate_sprite_pool() @extern("allocate_sprite_pool") @wasm {
     return mem::new(SpritePool);
 }
 
-fn void reset_sprite_pool(SpritePool *sprite_pool) @extern("reset_sprite_pool") @wasm {
+fn void reset_sprite_pool(SpritePool *sprite_pool) {
     sprite_pool.length = 0;
     sprite_pool.visible_length = 0;
 }
@@ -307,77 +307,6 @@ fn void render_walls(Image *display, float *zbuffer, Image *wall, Scene *scene) 
         zbuffer[x] = v.dot(d);
         if (scene.get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
     }
-}
-
-// TODO: @translate
-// It's not really needed right now so it can be translated later
-fn void render_minimap(Image *display, SpritePool *sprite_pool) @extern("render_minimap") @wasm {
-    // ctx.save();
-
-    // // A couple of temporary vectors
-    // const p1 = new Vector2();
-    // const p2 = new Vector2();
-
-    // const cellSize = ctx.canvas.width*MINIMAP_SCALE;
-
-    // ctx.translate(ctx.canvas.width*0.03, ctx.canvas.height*0.03);
-    // ctx.scale(cellSize, cellSize);
-
-    // ctx.fillStyle = "#181818";
-    // ctx.fillRect(0, 0, scene.width, scene.height);
-
-    // ctx.lineWidth = 0.05;
-    // const walls = new Uint8ClampedArray(wasmCommon.memory.buffer, scene.wallsPtr, scene.width*scene.height);
-    // for (let y = 0; y < scene.height; ++y) {
-    //     for (let x = 0; x < scene.width; ++x) {
-    //         if (sceneGetTile(walls, scene, p1.set(x, y))) {
-    //             ctx.fillStyle = "blue";
-    //             ctx.fillRect(x, y, 1, 1);
-    //         }
-    //     }
-    // }
-
-    // // Grid
-    // ctx.strokeStyle = "#303030";
-    // for (let x = 0; x <= scene.width; ++x) {
-    //     strokeLine(ctx, p1.set(x, 0), p2.set(x, scene.height));
-    // }
-    // for (let y = 0; y <= scene.height; ++y) {
-    //     strokeLine(ctx, p1.set(0, y), p2.set(scene.width, y));
-    // }
-
-    // ctx.fillStyle = "magenta";
-    // ctx.fillRect(player.position.x - PLAYER_SIZE*0.5,
-    //              player.position.y - PLAYER_SIZE*0.5,
-    //              PLAYER_SIZE, PLAYER_SIZE);
-
-    // ctx.strokeStyle = "magenta";
-    // strokeLine(ctx, camera.fovLeft, camera.fovRight);
-    // strokeLine(ctx, camera.position, camera.fovLeft);
-    // strokeLine(ctx, camera.position, camera.fovRight);
-
-    // if (MINIMAP_SPRITES) {
-    //     ctx.strokeStyle = "yellow";
-    //     ctx.fillStyle = "white"
-    //     for (let i = 0; i < spritePool.length; ++i) {
-    //         const sprite = spritePool.items[i];
-    //         ctx.fillRect(sprite.position.x - MINIMAP_SPRITE_SIZE*0.5,
-    //                      sprite.position.y - MINIMAP_SPRITE_SIZE*0.5,
-    //                      MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
-
-    //     }
-
-    //     const sp = new Vector2();
-    //     for (let sprite of visibleSprites) {
-    //         strokeLine(ctx, player.position, sprite.position);
-    //         sp.copy(sprite.position).sub(player.position).norm().scale(sprite.dist).add(player.position);
-    //         ctx.fillRect(sp.x - MINIMAP_SPRITE_SIZE*0.5,
-    //                      sp.y - MINIMAP_SPRITE_SIZE*0.5,
-    //                      MINIMAP_SPRITE_SIZE, MINIMAP_SPRITE_SIZE);
-    //     }
-    // }
-
-    // ctx.restore();
 }
 
 fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
@@ -928,10 +857,14 @@ fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, Par
     render_walls(display, zbuffer, wall_image, common::scene);
     cull_and_sort_sprites(sprite_pool);
     render_sprites(display, zbuffer, sprite_pool);
+
+    ping_server_if_needed();
+    reset_sprite_pool(sprite_pool);
+    common::reset_temp_mark();
 }
 
 uint ping_cooldown = PING_COOLDOWN;
-fn void ping_server_if_needed() @extern("ping_server_if_needed") @wasm {
+fn void ping_server_if_needed() {
     if (!platform_is_offline_mode()) {
         ping_cooldown -= 1;
         if (ping_cooldown == 0) {

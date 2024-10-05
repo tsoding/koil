@@ -5,7 +5,6 @@ export function makeWasmCommon(wasm) {
         wasm,
         memory: wasm.instance.exports.memory,
         _initialize: wasm.instance.exports._initialize,
-        reset_temp_mark: wasm.instance.exports.reset_temp_mark,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
     };
 }

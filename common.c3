@@ -421,7 +421,7 @@ fn void update_player(Player *player, Scene *scene, float delta_time) {
 /// Temporary Memory //////////////////////////////
 
 usz temp_mark = 0;
-fn void reset_temp_mark() @extern("reset_temp_mark") @wasm {
+fn void reset_temp_mark() {
     allocator::temp().reset(temp_mark);
 }
 

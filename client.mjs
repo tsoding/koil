@@ -3,7 +3,6 @@ import { SERVER_PORT } from './common.mjs';
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
-const MINIMAP = false;
 let game;
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
@@ -56,9 +55,6 @@ function createDisplay(wasmClient, backImageWidth, backImageHeight) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const minimapWidth = backImageWidth * 0.03;
-    const minimapHeight = backImageHeight * 0.03;
-    const minimapPtr = wasmClient.allocate_image(minimapWidth, minimapHeight);
     const backImagePtr = wasmClient.allocate_image(backImageWidth, backImageHeight);
     const zBufferPtr = wasmClient.allocate_zbuffer(backImageWidth);
     const backCanvas = new OffscreenCanvas(backImageWidth, backImageHeight);
@@ -70,7 +66,6 @@ function createDisplay(wasmClient, backImageWidth, backImageHeight) {
         ctx,
         backCtx,
         backImagePtr,
-        minimapPtr,
         zBufferPtr,
     };
 }
@@ -163,7 +158,6 @@ async function instantiateWasmClient(url) {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
         allocate_sprite_pool: wasm.instance.exports.allocate_sprite_pool,
-        reset_sprite_pool: wasm.instance.exports.reset_sprite_pool,
         render_minimap: wasm.instance.exports.render_minimap,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool,
         allocate_image: wasm.instance.exports.allocate_image,
@@ -175,7 +169,6 @@ async function instantiateWasmClient(url) {
         key_down: wasm.instance.exports.key_down,
         key_up: wasm.instance.exports.key_up,
         render_game: wasm.instance.exports.render_game,
-        ping_server_if_needed: wasm.instance.exports.ping_server_if_needed,
         ping_msecs: wasm.instance.exports.ping_msecs,
         process_message: wasm.instance.exports.process_message,
     };
@@ -253,11 +246,6 @@ async function createGame() {
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
         game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
-        game.wasmClient.ping_server_if_needed();
-        game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
-        game.wasmClient.reset_temp_mark();
-        if (MINIMAP)
-            game.wasmClient.render_minimap(game.display.minimapPtr, game.spritePoolPtr);
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
         window.requestAnimationFrame(frame);

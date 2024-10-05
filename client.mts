@@ -4,7 +4,6 @@ import {SERVER_PORT} from './common.mjs';
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
-const MINIMAP = false;
 
 let game: Game;
 
@@ -51,7 +50,6 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
-    minimapPtr: number;
     backImagePtr: number;
     zBufferPtr: number;
 }
@@ -59,7 +57,6 @@ interface Display {
 interface WasmClient extends common.WasmCommon {
     allocate_zbuffer: (width: number) => number,
     allocate_sprite_pool: () => number,
-    reset_sprite_pool: (sprite_pool: number) => void,
     render_minimap: (display: number, sprite_pool: number) => void;
     allocate_particle_pool: () => number,
     allocate_image: (width: number, height: number) => number,
@@ -70,8 +67,8 @@ interface WasmClient extends common.WasmCommon {
     unregister_all_other_players: () => void,
     key_down: (key_code: number) => void,
     key_up: (key_code: number) => void,
+    // TODO: render_game() should be actually called something like tick() cause that's what it is
     render_game: (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
-    ping_server_if_needed: () => void,
     ping_msecs: () => number,
     process_message: (message: number, particle_pool: number) => boolean,
 }
@@ -86,9 +83,6 @@ function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImage
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const minimapWidth = backImageWidth*0.03;
-    const minimapHeight = backImageHeight*0.03;
-    const minimapPtr = wasmClient.allocate_image(minimapWidth, minimapHeight);
     const backImagePtr: number = wasmClient.allocate_image(backImageWidth, backImageHeight);
     const zBufferPtr: number = wasmClient.allocate_zbuffer(backImageWidth);
     const backCanvas = new OffscreenCanvas(backImageWidth, backImageHeight);
@@ -99,7 +93,6 @@ function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImage
         ctx,
         backCtx,
         backImagePtr,
-        minimapPtr,
         zBufferPtr,
     };
 }
@@ -224,7 +217,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
         allocate_sprite_pool: wasm.instance.exports.allocate_sprite_pool as () => number,
-        reset_sprite_pool: wasm.instance.exports.reset_sprite_pool as (sprite_pool: number) => void,
         render_minimap: wasm.instance.exports.render_minimap as (display: number, sprite_pool: number) => void,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
@@ -236,7 +228,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
         key_up: wasm.instance.exports.key_up as (key_code: number) => void,
         render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, sprite_pool: number, particle_pool: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
-        ping_server_if_needed: wasm.instance.exports.ping_server_if_needed as () => void,
         ping_msecs: wasm.instance.exports.ping_msecs as () => number,
         process_message: wasm.instance.exports.process_message as (message: number) => boolean,
     };
@@ -340,10 +331,6 @@ async function createGame(): Promise<Game> {
         prevTimestamp = timestamp;
 
         game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
-        game.wasmClient.ping_server_if_needed();
-        game.wasmClient.reset_sprite_pool(game.spritePoolPtr);
-        game.wasmClient.reset_temp_mark();
-        if (MINIMAP) game.wasmClient.render_minimap(game.display.minimapPtr, game.spritePoolPtr);
 
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
