@@ -180,7 +180,7 @@ fn String display_time_interval(uint diffSecs) {
     return result_count == 0 ? "0 secs" : string::join_new(&result, " ", allocator::temp());
 }
 
-fn void stats_print_per_n_ticks(int n) @extern("stats_print_per_n_ticks") @wasm {
+fn void stats_print_per_n_ticks(int n) {
     if (stats[StatEntry.TICKS_COUNT].counter.value%n == 0) {
         io::printn("Stats:");
         foreach (&stat: stats) {
@@ -189,7 +189,7 @@ fn void stats_print_per_n_ticks(int n) @extern("stats_print_per_n_ticks") @wasm 
     }
 }
 
-fn void stats_push_sample(StatEntry entry, float sample) @extern("stats_push_sample") @wasm {
+fn void stats_push_sample(StatEntry entry, float sample) {
     assert(entry < StatEntry.COUNT);
     Stat *stat = &stats[entry];
     assert(stat.kind == StatKind.AVERAGE);
@@ -207,7 +207,7 @@ fn void stats_inc_counter(StatEntry entry, int delta) @extern("stats_inc_counter
 
 List(<usz>) collected_items;
 
-fn void collect_items_by_player_at(float player_position_x, float player_position_y, Item[] *items) @extern("collect_items_by_player_at") @wasm {
+fn void collect_items_by_player_at(float player_position_x, float player_position_y, Item[] *items) {
     foreach (item_index, item: *items) {
         if (item.alive) {
             if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
@@ -217,7 +217,7 @@ fn void collect_items_by_player_at(float player_position_x, float player_positio
     }
 }
 
-fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) @extern("collected_items_as_batch_message") @wasm {
+fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
     if (collected_items.size == 0) return null;
     int size = ItemsCollectedBatchMessage.sizeof + int.sizeof*collected_items.size;
     ItemsCollectedBatchMessage *message = mem::tcalloc(size);
@@ -234,14 +234,14 @@ fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) @
 
 List(<usz>) thrown_bombs;
 
-fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) @extern("throw_bomb_on_server_side") @wasm {
+fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
     if (try player = players.get(player_id)) {
         int index = common::throw_bomb(player.player.position.x, player.player.position.y, player.player.direction, bombs);
         if (index >= 0) thrown_bombs.push(index);
     }
 }
 
-fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern("thrown_bombs_as_batch_message") @wasm {
+fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
     if (thrown_bombs.size == 0) return null;
     int size = BombsSpawnedBatchMessage.sizeof + BombSpawned.sizeof*thrown_bombs.size;
     BombsSpawnedBatchMessage *message = mem::tcalloc(size);
@@ -265,7 +265,7 @@ fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern
 
 List(<usz>) exploded_bombs;
 
-fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) @extern("update_bombs_on_server_side") @wasm {
+fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) {
     foreach (bombIndex, &bomb: *bombs) {
         if (bomb.lifetime > 0) {
             common::update_bomb(bomb, scene, delta_time);
@@ -276,7 +276,7 @@ fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs
     }
 }
 
-fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) @extern("exploded_bombs_as_batch_message") @wasm {
+fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
     if (exploded_bombs.size == 0) return null;
     int size = BombsExplodedBatchMessage.sizeof + BombExploded.sizeof*exploded_bombs.size;
     BombsExplodedBatchMessage *message = mem::tcalloc(size);
@@ -334,7 +334,7 @@ fn void unregister_player(uint id) @extern("unregister_player") @wasm {
     players.remove(id);
 }
 
-fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @extern("all_players_as_joined_batch_message") @wasm {
+fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
     if (players.is_empty()) return null;
     int size = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*players.len();
     PlayersJoinedBatchMessage *message = mem::tcalloc(size);
@@ -397,7 +397,7 @@ fn PlayersLeftBatchMessage *left_players_as_batch_message() {
     return message;
 }
 
-fn void process_joined_players(Item[]* items) @extern("process_joined_players") @wasm {
+fn void process_joined_players(Item[]* items) {
     if (joined_ids.is_empty()) return; 
 
     // Initialize joined players
@@ -449,7 +449,7 @@ fn void process_joined_players(Item[]* items) @extern("process_joined_players") 
     }
 }
 
-fn void process_left_players() @extern("process_left_players") @wasm {
+fn void process_left_players() {
     // Notifying about whom left
     if (left_ids.is_empty()) return;
     PlayersLeftBatchMessage *players_left_batch_message = left_players_as_batch_message();
@@ -458,7 +458,7 @@ fn void process_left_players() @extern("process_left_players") @wasm {
     };
 }
 
-fn void process_moving_players() @extern("process_moving_players") @wasm {
+fn void process_moving_players() {
     int count = 0;
     players.@each_entry(; PlayerOnServerEntry* entry) {
         if (entry.value.new_moving != entry.value.player.moving) {
@@ -489,7 +489,7 @@ fn void process_moving_players() @extern("process_moving_players") @wasm {
     };
 }
 
-fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs") @wasm {
+fn void process_thrown_bombs(Bombs *bombs) {
     // Notifying about thrown bombs
     BombsSpawnedBatchMessage *bombs_spawned_batch_message = thrown_bombs_as_batch_message(bombs);
     if (bombs_spawned_batch_message != null) {
@@ -499,7 +499,7 @@ fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs") @wasm
     }
 }
 
-fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, float delta_time) @extern("process_world_simulation") @wasm {
+fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, float delta_time) {
     // Simulating the world for one server tick.
     players.@each_entry(; PlayerOnServerEntry* entry) {
         common::update_player(&entry.value.player, scene, delta_time);
@@ -522,7 +522,7 @@ fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, floa
     }
 }
 
-fn void process_pings() @extern("process_pings") @wasm {
+fn void process_pings() {
     // Sending out pings
     ping_ids.@each_entry(; PingEntry *entry) {
         uint id = entry.key;
@@ -537,7 +537,7 @@ fn void process_pings() @extern("process_pings") @wasm {
     };
 }
 
-fn void player_update_moving(uint id, AmmaMovingMessage *message) @extern("player_update_moving") @wasm {
+fn void player_update_moving(uint id, AmmaMovingMessage *message) {
     if (try value = players.get_ref(id)) {
         if (message.start) {
             value.new_moving |= (1<<(uint)message.direction);
@@ -547,31 +547,31 @@ fn void player_update_moving(uint id, AmmaMovingMessage *message) @extern("playe
     }
 }
 
-fn void schedule_ping_for_player(uint id, PingMessage *message) @extern("schedule_ping_for_player") @wasm {
+fn void schedule_ping_for_player(uint id, PingMessage *message) {
     ping_ids.set(id, message.timestamp);
 }
 
-fn void clear_intermediate_ids() @extern("clear_intermediate_ids") @wasm {
+fn void clear_intermediate_ids() {
     joined_ids.clear();
     left_ids.clear();
     ping_ids.clear();
 }
 
-fn bool verify_ping_message(Message *message) @extern("verify_ping_message") @wasm {
+fn bool verify_ping_message(Message *message) {
     if (message.size != PingMessage.sizeof) return false;
     PingMessage* ping_message = (PingMessage*)message;
     if (ping_message.kind != PING) return false;
     return true;
 }
 
-fn bool verify_amma_throwing_message(Message *message) @extern("verify_amma_throwing_message") @wasm {
+fn bool verify_amma_throwing_message(Message *message) {
     if (message.size != AmmaThrowingMessage.sizeof) return false;
     AmmaThrowingMessage* amma_throwing_message = (AmmaThrowingMessage*)message;
     if (amma_throwing_message.kind != AMMA_THROWING) return false;
     return true;
 }
 
-fn bool verify_amma_moving_message(Message *message) @extern("verify_amma_moving_message") @wasm {
+fn bool verify_amma_moving_message(Message *message) {
     if (message.size != AmmaMovingMessage.sizeof) return false;
     AmmaMovingMessage* amma_moving_message = (AmmaMovingMessage*)message;
     if (amma_moving_message.kind != AMMA_MOVING) return false;

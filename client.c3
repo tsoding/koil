@@ -416,7 +416,7 @@ fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
               fn int(Sprite *a, Sprite *b) => (int)math::copysign(1.0f, b.pdist - a.pdist));
 }
 
-fn void push_sprite(SpritePool *sprite_pool, Image *image, float x, float y, float z, float scale, int crop_position_x, int crop_position_y, int crop_size_x, int crop_size_y) @extern("push_sprite") @wasm {
+fn void push_sprite(SpritePool *sprite_pool, Image *image, float x, float y, float z, float scale, int crop_position_x, int crop_position_y, int crop_size_x, int crop_size_y) {
     if (sprite_pool.length >= SPRITE_POOL_CAPACITY) return;
 
     usz last = sprite_pool.length;
@@ -472,7 +472,7 @@ fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) 
     }
 }
 
-fn void emit_particle(float source_x, float source_y, float source_z, ParticlePool *particle_pool) @extern("emit_particle") @wasm {
+fn void emit_particle(float source_x, float source_y, float source_z, ParticlePool *particle_pool) {
     foreach (&particle: particle_pool.items) {
         if (particle.lifetime <= 0) {
             particle.lifetime = PARTICLE_LIFETIME;
@@ -537,7 +537,7 @@ fn void kill_all_items(Item[]* items) {
     }
 }
 
-fn bool verify_items_collected_batch_message(Message *message) @extern("verify_items_collected_batch_message") @wasm {
+fn bool verify_items_collected_batch_message(Message *message) {
     if (message.size < ItemsCollectedBatchMessage.sizeof) return false;
     if ((message.size - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return false;
     ItemsCollectedBatchMessage* items_collected_batch_message = (ItemsCollectedBatchMessage*)message;
@@ -545,7 +545,7 @@ fn bool verify_items_collected_batch_message(Message *message) @extern("verify_i
     return true;
 }
 
-fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items) @extern("apply_items_collected_batch_message_to_level_items") @wasm {
+fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items) {
     usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
@@ -567,7 +567,7 @@ fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMe
     return true;
 }
 
-fn bool verify_items_spawned_batch_message(Message *message) @extern("verify_items_spawned_batch_message") @wasm {
+fn bool verify_items_spawned_batch_message(Message *message) {
     if (message.size < ItemsSpawnedBatchMessage.sizeof) return false;
     if ((message.size - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return false;
     ItemsSpawnedBatchMessage* items_spawned_batch_message = (ItemsSpawnedBatchMessage*)message;
@@ -575,7 +575,7 @@ fn bool verify_items_spawned_batch_message(Message *message) @extern("verify_ite
     return true;
 }
 
-fn bool apply_items_spawned_batch_message_to_level_items(ItemsSpawnedBatchMessage *message, Item[]* items) @extern("apply_items_spawned_batch_message_to_level_items") @wasm {
+fn bool apply_items_spawned_batch_message_to_level_items(ItemsSpawnedBatchMessage *message, Item[]* items) {
     usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int itemIndex = message.items[i].itemIndex;
@@ -593,7 +593,7 @@ fn bool apply_items_spawned_batch_message_to_level_items(ItemsSpawnedBatchMessag
     return true;
 }
 
-fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *key_image, Image *bomb_image) @extern("render_items") @wasm {
+fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *key_image, Image *bomb_image) {
     foreach (item: *items) {
         if (item.alive) {
             float z = 0.25f + ITEM_AMP - ITEM_AMP*math::sin(ITEM_FREQ*(float)math::PI*time + item.position.x + item.position.y);
@@ -659,7 +659,7 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
     }
 }
 
-fn bool verify_bombs_spawned_batch_message(Message *message) @extern("verify_bombs_spawned_batch_message") @wasm {
+fn bool verify_bombs_spawned_batch_message(Message *message) {
     if (message.size < BombsSpawnedBatchMessage.sizeof) return false;
     if ((message.size - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return false;
     BombsSpawnedBatchMessage* bombs_spawned_batch_message = (BombsSpawnedBatchMessage*)message;
@@ -667,7 +667,7 @@ fn bool verify_bombs_spawned_batch_message(Message *message) @extern("verify_bom
     return true;
 }
 
-fn bool apply_bombs_spawned_batch_message_to_level_items(BombsSpawnedBatchMessage *message, Bombs *bombs) @extern("apply_bombs_spawned_batch_message_to_level_items") @wasm {
+fn bool apply_bombs_spawned_batch_message_to_level_items(BombsSpawnedBatchMessage *message, Bombs *bombs) {
     usz count = (message.size - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
@@ -688,7 +688,7 @@ fn bool apply_bombs_spawned_batch_message_to_level_items(BombsSpawnedBatchMessag
     return true;
 }
 
-fn bool verify_bombs_exploded_batch_message(Message *message) @extern("verify_bombs_exploded_batch_message") @wasm {
+fn bool verify_bombs_exploded_batch_message(Message *message) {
     if (message.size < BombsExplodedBatchMessage.sizeof) return false;
     if ((message.size - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return false;
     BombsExplodedBatchMessage* bombs_exploded_batch_message = (BombsExplodedBatchMessage*)message;
@@ -696,7 +696,7 @@ fn bool verify_bombs_exploded_batch_message(Message *message) @extern("verify_bo
     return true;
 }
 
-fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) @extern("apply_bombs_exploded_batch_message_to_level_items") @wasm {
+fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) {
     usz count = (message.size - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
@@ -740,7 +740,7 @@ const Control[*] CONTROL_KEYS = {
     {83, MOVING_BACKWARD},
 };
 
-fn bool verify_hello_message(Message *message) @extern("verify_hello_message") @wasm {
+fn bool verify_hello_message(Message *message) {
     if (message.size != HelloMessage.sizeof) return false;
     HelloMessage* hello_message = (HelloMessage*)message;
     if (hello_message.kind != HELLO) return false;
@@ -759,7 +759,7 @@ fn void apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
     me.hue        = hello_message.hue;
 }
 
-fn bool verify_players_joined_batch_message(Message *message) @extern("verify_players_joined_batch_message") @wasm {
+fn bool verify_players_joined_batch_message(Message *message) {
     if (message.size < PlayersJoinedBatchMessage.sizeof) return false;
     if ((message.size - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return false;
     PlayersJoinedBatchMessage* players_joined_batch_message = (PlayersJoinedBatchMessage*)message;
@@ -767,7 +767,7 @@ fn bool verify_players_joined_batch_message(Message *message) @extern("verify_pl
     return true;
 }
 
-fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) @extern("apply_players_joined_batch_message") @wasm {
+fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
     usz count = (message.size - PlayersJoinedBatchMessage.sizeof)/PlayerStruct.sizeof;
     for (usz i = 0; i < count; ++i) {
         PlayerStruct *player_struct = &message.players[i];
@@ -797,7 +797,7 @@ fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) @
     }
 }
 
-fn bool verify_players_left_batch_message(Message *message) @extern("verify_players_left_batch_message") @wasm {
+fn bool verify_players_left_batch_message(Message *message) {
     if (message.size < PlayersLeftBatchMessage.sizeof) return false;
     if ((message.size - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return false;
     PlayersLeftBatchMessage* players_left_batch_message = (PlayersLeftBatchMessage*)message;
@@ -805,14 +805,14 @@ fn bool verify_players_left_batch_message(Message *message) @extern("verify_play
     return true;
 }
 
-fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) @extern("apply_players_left_batch_message") @wasm {
+fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) {
     usz count = (message.size - PlayersLeftBatchMessage.sizeof)/uint.sizeof;
     for (usz i = 0; i < count; ++i) {
         other_players.remove(message.ids[i]);
     }
 }
 
-fn bool verify_players_moving_batch_message(Message *message) @extern("verify_players_moving_batch_message") @wasm {
+fn bool verify_players_moving_batch_message(Message *message) {
     if (message.size < PlayersMovingBatchMessage.sizeof) return false;
     if ((message.size - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return false;
     PlayersMovingBatchMessage* players_moving_batch_message = (PlayersMovingBatchMessage*)message;
@@ -820,7 +820,7 @@ fn bool verify_players_moving_batch_message(Message *message) @extern("verify_pl
     return true;
 }
 
-fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) @extern("apply_players_moving_batch_message") @wasm {
+fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
     usz count = (message.size - PlayersMovingBatchMessage.sizeof)/PlayerStruct.sizeof;
     for (usz i = 0; i < count; ++i) {
         PlayerStruct *player_struct = &message.players[i];
@@ -946,7 +946,7 @@ fn void ping_server_if_needed() @extern("ping_server_if_needed") @wasm {
     }
 }
 
-fn bool verify_pong_message(Message *message) @extern("verify_pong_message") @wasm {
+fn bool verify_pong_message(Message *message) {
     if (message.size != PongMessage.sizeof) return false;
     PongMessage* pong_message = (PongMessage*)message;
     if (pong_message.kind != PONG) return false;
@@ -954,7 +954,7 @@ fn bool verify_pong_message(Message *message) @extern("verify_pong_message") @wa
 }
 
 uint ping = 0;
-fn void process_pong_message(PongMessage *message) @extern("process_pong_message") @wasm {
+fn void process_pong_message(PongMessage *message) {
     ping = platform_now_msecs() - message.timestamp;
 }
 
