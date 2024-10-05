@@ -110,10 +110,7 @@ struct ParticlePool {
     Particle[PARTICLE_POOL_CAPACITY] items;
     int length;
 }
-
-fn ParticlePool *allocate_particle_pool() @extern("allocate_particle_pool") @wasm {
-    return mem::new(ParticlePool);
-}
+ParticlePool particle_pool;
 
 struct Camera {
     Vector2 position;
@@ -842,7 +839,7 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *display, float *zbuffer, ParticlePool *particle_pool, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+fn void render_game(Image *display, float *zbuffer, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
     update_all_players(common::scene, delta_time);
     update_items(&sprite_pool, time, &common::items, key_image, bomb_image);
     update_bombs_on_client_side(&sprite_pool, particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
@@ -892,7 +889,7 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
     return ping;
 }
 
-fn bool process_message(Message *message, ParticlePool *particle_pool) @extern("process_message") @wasm {
+fn bool process_message(Message *message) @extern("process_message") @wasm {
     // TODO: verify_* functions should return the typed message with exception, so we can turn this into sequence of if-try-s
     if (verify_hello_message(message)) {
         apply_hello_message_to_me((HelloMessage*)message, &common::items);

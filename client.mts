@@ -56,7 +56,6 @@ interface Display {
 
 interface WasmClient extends common.WasmCommon {
     allocate_zbuffer: (width: number) => number,
-    allocate_particle_pool: () => number,
     allocate_image: (width: number, height: number) => number,
     image_width: (image: number) => number,
     image_height: (image: number) => number,
@@ -66,9 +65,9 @@ interface WasmClient extends common.WasmCommon {
     key_down: (key_code: number) => void,
     key_up: (key_code: number) => void,
     // TODO: render_game() should be actually called something like tick() cause that's what it is
-    render_game: (display: number, zbuffer: number, particle_pool: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+    render_game: (display: number, zbuffer: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
     ping_msecs: () => number,
-    process_message: (message: number, particle_pool: number) => boolean,
+    process_message: (message: number) => boolean,
 }
 
 function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
@@ -118,7 +117,6 @@ interface Assets {
 
 interface Game {
     ws: WebSocket,
-    particlesPtr: number,
     assets: Assets,
     dts: number[],
     wasmClient: WasmClient,
@@ -213,7 +211,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
     return {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
-        allocate_particle_pool: wasm.instance.exports.allocate_particle_pool as () => number,
         allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
         image_width: wasm.instance.exports.image_width as (image: number) => number,
         image_height: wasm.instance.exports.image_height as (image: number) => number,
@@ -222,7 +219,7 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
         key_up: wasm.instance.exports.key_up as (key_code: number) => void,
-        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, particle_pool: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
         ping_msecs: wasm.instance.exports.ping_msecs as () => number,
         process_message: wasm.instance.exports.process_message as (message: number) => boolean,
     };
@@ -262,8 +259,6 @@ async function createGame(): Promise<Game> {
         bombBlastSound,
     }
 
-    const particlesPtr = wasmClient.allocate_particle_pool();
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
     // HACK: This application is deployed to GitHub Pages for the demo
@@ -276,7 +271,7 @@ async function createGame(): Promise<Game> {
     // tsoding.github.io we just instantly close the connection.
     if (window.location.hostname === 'tsoding.github.io') ws.close();
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
-    const game: Game = {ws, particlesPtr, assets, dts: [], wasmClient, display};
+    const game: Game = {ws, assets, dts: [], wasmClient, display};
 
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
@@ -295,7 +290,7 @@ async function createGame(): Promise<Game> {
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmClient, event.data);
         // console.log(`Received message from server`, new Uint8ClampedArray(event.data));
-        if (!game.wasmClient.process_message(eventDataPtr, game.particlesPtr)) {
+        if (!game.wasmClient.process_message(eventDataPtr)) {
             ws?.close();
             return;
         }
@@ -324,7 +319,7 @@ async function createGame(): Promise<Game> {
         const time = timestamp/1000;
         prevTimestamp = timestamp;
 
-        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
 
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);

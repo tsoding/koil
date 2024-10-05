@@ -157,7 +157,6 @@ async function instantiateWasmClient(url) {
     return {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
-        render_minimap: wasm.instance.exports.render_minimap,
         allocate_particle_pool: wasm.instance.exports.allocate_particle_pool,
         allocate_image: wasm.instance.exports.allocate_image,
         image_width: wasm.instance.exports.image_width,
