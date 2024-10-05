@@ -916,9 +916,9 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Scene *scene, Item[] *items, Bombs *bombs, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+fn void render_game(Image *display, float *zbuffer, SpritePool *sprite_pool, ParticlePool *particle_pool, Scene *scene, Bombs *bombs, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
     update_all_players(scene, delta_time);
-    update_items(sprite_pool, time, items, key_image, bomb_image);
+    update_items(sprite_pool, time, &common::items, key_image, bomb_image);
     update_bombs_on_client_side(sprite_pool, particle_pool, bomb_image, scene, delta_time, bombs);
     update_particles(particle_image, sprite_pool, delta_time, scene, particle_pool);
 
@@ -962,10 +962,10 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
     return ping;
 }
 
-fn bool process_message(Message *message, Item[] *items, Bombs *bombs, ParticlePool *particle_pool) @extern("process_message") @wasm {
+fn bool process_message(Message *message, Bombs *bombs, ParticlePool *particle_pool) @extern("process_message") @wasm {
     // TODO: verify_* functions should return the typed message with exception, so we can turn this into sequence of if-try-s
     if (verify_hello_message(message)) {
-        apply_hello_message_to_me((HelloMessage*)message, items);
+        apply_hello_message_to_me((HelloMessage*)message, &common::items);
     } else if (verify_players_joined_batch_message(message)) {
         apply_players_joined_batch_message((PlayersJoinedBatchMessage*)message);
     } else if (verify_players_left_batch_message(message)) {
@@ -977,11 +977,11 @@ fn bool process_message(Message *message, Item[] *items, Bombs *bombs, ParticleP
     } else if (verify_pong_message(message)) {
         process_pong_message((PongMessage*)message);
     } else if (verify_items_collected_batch_message(message)) {
-        if (!apply_items_collected_batch_message_to_level_items((ItemsCollectedBatchMessage*)message, items)) {
+        if (!apply_items_collected_batch_message_to_level_items((ItemsCollectedBatchMessage*)message, &common::items)) {
             return false;
         }
     } else if (verify_items_spawned_batch_message(message)) {
-        if (!apply_items_spawned_batch_message_to_level_items((ItemsSpawnedBatchMessage*)message, items)) {
+        if (!apply_items_spawned_batch_message_to_level_items((ItemsSpawnedBatchMessage*)message, &common::items)) {
             return false;
         }
     } else if (verify_bombs_spawned_batch_message(message)) {

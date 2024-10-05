@@ -104,7 +104,7 @@ wss.on("connection", (ws, req) => {
 })
 
 function tick() {
-    const tickTime = wasmServer.tick(level.itemsPtr, level.bombsPtr, level.scenePtr);
+    const tickTime = wasmServer.tick(level.bombsPtr, level.scenePtr);
     setTimeout(tick, Math.max(0, 1000/SERVER_FPS - tickTime));
 }
 
@@ -113,7 +113,7 @@ interface WasmServer extends common.WasmCommon {
     register_new_player: (id: number, x: number, y: number, hue: number) => void,
     unregister_player: (id: number) => void,
     process_message_on_server: (id: number, message: number, bombs: number) => boolean,
-    tick: (items: number, bombs: number, scene: number) => number,
+    tick: (bombs: number, scene: number) => number,
 }
 
 function platform_now_secs(): number {
@@ -155,7 +155,7 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
         register_new_player: wasm.instance.exports.register_new_player as (id: number, x: number, y: number, hue: number) => void,
         unregister_player: wasm.instance.exports.unregister_player as (id: number) => void,
         process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number, bombs: number) => boolean,
-        tick: wasm.instance.exports.tick as (items: number, bombs: number, scene: number) => number,
+        tick: wasm.instance.exports.tick as (bombs: number, scene: number) => number,
     };
 }
 

@@ -5,7 +5,6 @@ export interface WasmCommon {
     wasm: WebAssembly.WebAssemblyInstantiatedSource,
     memory: WebAssembly.Memory,
     _initialize: () => void,
-    allocate_items: () => number,
     reset_temp_mark: () => void,
     allocate_temporary_buffer: (size: number) => number,
     allocate_bombs: () => number,
@@ -17,7 +16,6 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
         wasm,
         memory: wasm.instance.exports.memory  as WebAssembly.Memory,
         _initialize: wasm.instance.exports._initialize as () => void,
-        allocate_items: wasm.instance.exports.allocate_items as () => number,
         reset_temp_mark: wasm.instance.exports.reset_temp_mark as () => void,
         allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
         allocate_bombs: wasm.instance.exports.allocate_bombs as () => number,
@@ -29,15 +27,13 @@ export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource):
 // between Client and Server and constantly synced over the network.
 export interface Level {
     scenePtr: number,
-    itemsPtr: number,
     bombsPtr: number,
 }
 
 export function createLevel(wasmCommon: WasmCommon): Level {
     const scenePtr = wasmCommon.allocate_default_scene();
-    const itemsPtr = wasmCommon.allocate_items();
     const bombsPtr = wasmCommon.allocate_bombs();
-    return {scenePtr, itemsPtr, bombsPtr};
+    return {scenePtr, bombsPtr};
 }
 
 export function arrayBufferAsMessageInWasm(wasmCommon: WasmCommon, buffer: ArrayBuffer): number {

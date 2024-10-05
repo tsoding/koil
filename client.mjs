@@ -231,7 +231,7 @@ async function createGame() {
             return;
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmClient, event.data);
-        if (!game.wasmClient.process_message(eventDataPtr, game.level.itemsPtr, game.level.bombsPtr, game.particlesPtr)) {
+        if (!game.wasmClient.process_message(eventDataPtr, game.level.bombsPtr, game.particlesPtr)) {
             ws?.close();
             return;
         }
@@ -242,7 +242,7 @@ async function createGame() {
     return game;
 }
 function renderGame(display, deltaTime, time, game) {
-    game.wasmClient.render_game(display.backImagePtr, display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.level.scenePtr, game.level.itemsPtr, game.level.bombsPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+    game.wasmClient.render_game(display.backImagePtr, display.zBufferPtr, game.spritePoolPtr, game.particlesPtr, game.level.scenePtr, game.level.bombsPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
     displaySwapBackImageData(display, game.wasmClient);
     if (MINIMAP)
         game.wasmClient.render_minimap(display.minimapPtr, game.level.scenePtr, game.spritePoolPtr);

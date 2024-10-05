@@ -158,10 +158,6 @@ Item[] items = {
     },
 };
 
-fn Item[]* allocate_items() @export("allocate_items") @wasm {
-    return &items;
-}
-
 fn bool collect_item(float player_position_x, float player_position_y, Item[] *items, usz item_index) @extern("collect_item") @wasm {
     if (item_index >= items.len) return false;
     Item *item = &(*items)[item_index];

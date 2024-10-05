@@ -598,16 +598,16 @@ fn bool process_message_on_server(uint id, Message *message, Bombs *bombs) @exte
 }
 
 uint previous_timestamp = 0;
-fn uint tick(Item[]* items, Bombs *bombs, Scene *scene) @extern("tick") @wasm {
+fn uint tick(Bombs *bombs, Scene *scene) @extern("tick") @wasm {
     uint timestamp = platform_now_msecs();
     float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
     previous_timestamp = timestamp;
 
-    process_joined_players(items);
+    process_joined_players(&common::items);
     process_left_players();
     process_moving_players();
     process_thrown_bombs(bombs);
-    process_world_simulation(items, scene, bombs, delta_time);
+    process_world_simulation(&common::items, scene, bombs, delta_time);
     process_pings();
 
     uint tickTime = platform_now_msecs() - timestamp;

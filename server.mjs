@@ -85,7 +85,7 @@ wss.on("connection", (ws, req) => {
     });
 });
 function tick() {
-    const tickTime = wasmServer.tick(level.itemsPtr, level.bombsPtr, level.scenePtr);
+    const tickTime = wasmServer.tick(level.bombsPtr, level.scenePtr);
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
 function platform_now_secs() {
