@@ -842,8 +842,8 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
 fn void render_game(Image *display, float *zbuffer, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
     update_all_players(common::scene, delta_time);
     update_items(&sprite_pool, time, &common::items, key_image, bomb_image);
-    update_bombs_on_client_side(&sprite_pool, particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
-    update_particles(particle_image, &sprite_pool, delta_time, common::scene, particle_pool);
+    update_bombs_on_client_side(&sprite_pool, &particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
+    update_particles(particle_image, &sprite_pool, delta_time, common::scene, &particle_pool);
 
     render_other_players(&sprite_pool, player_image);
 
@@ -916,7 +916,7 @@ fn bool process_message(Message *message) @extern("process_message") @wasm {
             return false;
         }
     } else if (verify_bombs_exploded_batch_message(message)) {
-        if (!apply_bombs_exploded_batch_message_to_level_items((BombsExplodedBatchMessage*)message, &common::bombs, particle_pool)) {
+        if (!apply_bombs_exploded_batch_message_to_level_items((BombsExplodedBatchMessage*)message, &common::bombs, &particle_pool)) {
             return false;
         }
     } else {
