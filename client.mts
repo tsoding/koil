@@ -167,11 +167,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
             },
             "platform_is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
             "platform_play_sound": (sound: number, player_position_x: number, player_position_y: number, object_position_x: number, object_position_y: number) => {
-                console.log("sound", sound,
-                            "player_position_x", player_position_x,
-                            "player_position_y", player_position_y,
-                            "object_position_x", object_position_x,
-                            "object_position_y", object_position_y)
                 const maxVolume = 1;
                 const dx = player_position_x - object_position_x;
                 const dy = player_position_y - object_position_y;

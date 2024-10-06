@@ -116,7 +116,6 @@ async function instantiateWasmClient(url) {
             },
             "platform_is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
             "platform_play_sound": (sound, player_position_x, player_position_y, object_position_x, object_position_y) => {
-                console.log("sound", sound, "player_position_x", player_position_x, "player_position_y", player_position_y, "object_position_x", object_position_x, "object_position_y", object_position_y);
                 const maxVolume = 1;
                 const dx = player_position_x - object_position_x;
                 const dy = player_position_y - object_position_y;
@@ -157,7 +156,6 @@ async function instantiateWasmClient(url) {
     return {
         ...wasmCommon,
         allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
-        allocate_particle_pool: wasm.instance.exports.allocate_particle_pool,
         allocate_image: wasm.instance.exports.allocate_image,
         image_width: wasm.instance.exports.image_width,
         image_height: wasm.instance.exports.image_height,
@@ -195,13 +193,12 @@ async function createGame() {
         itemPickupSound,
         bombBlastSound,
     };
-    const particlesPtr = wasmClient.allocate_particle_pool();
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(`${protocol}//${window.location.hostname}:${SERVER_PORT}`);
     if (window.location.hostname === 'tsoding.github.io')
         ws.close();
     const display = createDisplay(wasmClient, SCREEN_WIDTH, SCREEN_HEIGHT);
-    const game = { ws, particlesPtr, assets, dts: [], wasmClient, display };
+    const game = { ws, assets, dts: [], wasmClient, display };
     ws.binaryType = 'arraybuffer';
     ws.addEventListener("close", (event) => {
         console.log("WEBSOCKET CLOSE", event);
@@ -217,7 +214,7 @@ async function createGame() {
             return;
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmClient, event.data);
-        if (!game.wasmClient.process_message(eventDataPtr, game.particlesPtr)) {
+        if (!game.wasmClient.process_message(eventDataPtr)) {
             ws?.close();
             return;
         }
@@ -242,7 +239,7 @@ async function createGame() {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
-        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.particlesPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
         window.requestAnimationFrame(frame);
