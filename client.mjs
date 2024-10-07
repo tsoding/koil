@@ -153,8 +153,6 @@ async function instantiateWasmClient(url) {
     return {
         ...wasmCommon,
         allocate_image: wasm.instance.exports.allocate_image,
-        image_width: wasm.instance.exports.image_width,
-        image_height: wasm.instance.exports.image_height,
         image_pixels: wasm.instance.exports.image_pixels,
         players_count: wasm.instance.exports.players_count,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players,
