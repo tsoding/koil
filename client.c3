@@ -126,10 +126,23 @@ fn void Camera.update(Camera *camera) {
     camera.fovRight = common::from_polar(camera.direction+halfFov, fovLen) + camera.position;
 }
 
-fn float *allocate_zbuffer(int width) @extern("allocate_zbuffer") @wasm
+struct Display {
+    Image *image;
+    float *zbuffer;
+}
+
+Display display;
+
+fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
 {
-    float[] zbuffer = mem::new_array(float, width);
-    return &zbuffer[0];
+    if (display.image) mem::free(display.image);
+    if (display.zbuffer) mem::free(display.zbuffer);
+    display.image = allocate_image(width, height);
+    display.zbuffer = mem::calloc(float.sizeof*width);
+}
+
+fn Color *pixels_of_display() @extern("pixels_of_display") @wasm {
+    return &display.image.pixels[0];
 }
 
 const Color SCENE_FLOOR1   = {0x17, 0x29, 0x29, 0xff};
@@ -839,7 +852,7 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *display, float *zbuffer, Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+fn void render_game(Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
     update_all_players(common::scene, delta_time);
     update_items(&sprite_pool, time, &common::items, key_image, bomb_image);
     update_bombs_on_client_side(&sprite_pool, &particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
@@ -847,10 +860,10 @@ fn void render_game(Image *display, float *zbuffer, Image *key_image, Image *bom
 
     render_other_players(&sprite_pool, player_image);
 
-    render_floor_and_ceiling(display);
-    render_walls(display, zbuffer, wall_image, common::scene);
+    render_floor_and_ceiling(display.image);
+    render_walls(display.image, display.zbuffer, wall_image, common::scene);
     cull_and_sort_sprites(&sprite_pool);
-    render_sprites(display, zbuffer, &sprite_pool);
+    render_sprites(display.image, display.zbuffer, &sprite_pool);
 
     ping_server_if_needed();
     reset_sprite_pool();

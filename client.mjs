@@ -45,6 +45,7 @@ function renderDebugInfo(ctx, deltaTime, game) {
     }
 }
 function createDisplay(wasmClient, backImageWidth, backImageHeight) {
+    wasmClient.resize_display(backImageWidth, backImageHeight);
     const gameCanvas = document.getElementById("game");
     if (gameCanvas === null)
         throw new Error("No canvas with id `game` is found");
@@ -55,8 +56,6 @@ function createDisplay(wasmClient, backImageWidth, backImageHeight) {
     if (ctx === null)
         throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
-    const backImagePtr = wasmClient.allocate_image(backImageWidth, backImageHeight);
-    const zBufferPtr = wasmClient.allocate_zbuffer(backImageWidth);
     const backCanvas = new OffscreenCanvas(backImageWidth, backImageHeight);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null)
@@ -65,14 +64,12 @@ function createDisplay(wasmClient, backImageWidth, backImageHeight) {
     return {
         ctx,
         backCtx,
-        backImagePtr,
-        zBufferPtr,
     };
 }
 function displaySwapBackImageData(display, wasmClient) {
-    const backImagePixels = wasmClient.image_pixels(display.backImagePtr);
-    const backImageWidth = wasmClient.image_width(display.backImagePtr);
-    const backImageHeight = wasmClient.image_height(display.backImagePtr);
+    const backImageWidth = display.backCtx.canvas.width;
+    const backImageHeight = display.backCtx.canvas.height;
+    const backImagePixels = wasmClient.pixels_of_display();
     const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, backImagePixels, backImageWidth * backImageHeight * 4);
     display.backCtx.putImageData(new ImageData(backImageData, backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
@@ -155,7 +152,6 @@ async function instantiateWasmClient(url) {
     wasmCommon._initialize();
     return {
         ...wasmCommon,
-        allocate_zbuffer: wasm.instance.exports.allocate_zbuffer,
         allocate_image: wasm.instance.exports.allocate_image,
         image_width: wasm.instance.exports.image_width,
         image_height: wasm.instance.exports.image_height,
@@ -167,6 +163,8 @@ async function instantiateWasmClient(url) {
         render_game: wasm.instance.exports.render_game,
         ping_msecs: wasm.instance.exports.ping_msecs,
         process_message: wasm.instance.exports.process_message,
+        resize_display: wasm.instance.exports.resize_display,
+        pixels_of_display: wasm.instance.exports.pixels_of_display,
     };
 }
 async function createGame() {
@@ -239,7 +237,7 @@ async function createGame() {
         const deltaTime = (timestamp - prevTimestamp) / 1000;
         const time = timestamp / 1000;
         prevTimestamp = timestamp;
-        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+        game.wasmClient.render_game(game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
         window.requestAnimationFrame(frame);

@@ -50,12 +50,9 @@ function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game:
 interface Display {
     ctx: CanvasRenderingContext2D;
     backCtx: OffscreenCanvasRenderingContext2D;
-    backImagePtr: number;
-    zBufferPtr: number;
 }
 
 interface WasmClient extends common.WasmCommon {
-    allocate_zbuffer: (width: number) => number,
     allocate_image: (width: number, height: number) => number,
     image_width: (image: number) => number,
     image_height: (image: number) => number,
@@ -65,12 +62,16 @@ interface WasmClient extends common.WasmCommon {
     key_down: (key_code: number) => void,
     key_up: (key_code: number) => void,
     // TODO: render_game() should be actually called something like tick() cause that's what it is
-    render_game: (display: number, zbuffer: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+    render_game: (key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
     ping_msecs: () => number,
     process_message: (message: number) => boolean,
+    resize_display: (width: number, height: number) => void,
+    pixels_of_display: () => number,
 }
 
 function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
+    wasmClient.resize_display(backImageWidth, backImageHeight);
+
     const gameCanvas = document.getElementById("game") as (HTMLCanvasElement | null);
     if (gameCanvas === null) throw new Error("No canvas with id `game` is found");
     const factor = 80;
@@ -80,8 +81,6 @@ function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImage
     if (ctx === null) throw new Error("2D context is not supported");
     ctx.imageSmoothingEnabled = false;
 
-    const backImagePtr: number = wasmClient.allocate_image(backImageWidth, backImageHeight);
-    const zBufferPtr: number = wasmClient.allocate_zbuffer(backImageWidth);
     const backCanvas = new OffscreenCanvas(backImageWidth, backImageHeight);
     const backCtx = backCanvas.getContext("2d");
     if (backCtx === null) throw new Error("2D context is not supported");
@@ -89,15 +88,13 @@ function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImage
     return {
         ctx,
         backCtx,
-        backImagePtr,
-        zBufferPtr,
     };
 }
 
 function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
-    const backImagePixels = wasmClient.image_pixels(display.backImagePtr);
-    const backImageWidth = wasmClient.image_width(display.backImagePtr);
-    const backImageHeight = wasmClient.image_height(display.backImagePtr);
+    const backImageWidth = display.backCtx.canvas.width;
+    const backImageHeight = display.backCtx.canvas.height;
+    const backImagePixels = wasmClient.pixels_of_display();
     const backImageData = new Uint8ClampedArray(wasmClient.memory.buffer, backImagePixels, backImageWidth*backImageHeight*4);
     display.backCtx.putImageData(new ImageData(backImageData, backImageWidth), 0, 0);
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
@@ -205,7 +202,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
 
     return {
         ...wasmCommon,
-        allocate_zbuffer: wasm.instance.exports.allocate_zbuffer as (width: number) => number,
         allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
         image_width: wasm.instance.exports.image_width as (image: number) => number,
         image_height: wasm.instance.exports.image_height as (image: number) => number,
@@ -214,9 +210,11 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
         key_up: wasm.instance.exports.key_up as (key_code: number) => void,
-        render_game: wasm.instance.exports.render_game as (display: number, zbuffer: number, key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+        render_game: wasm.instance.exports.render_game as (key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
         ping_msecs: wasm.instance.exports.ping_msecs as () => number,
         process_message: wasm.instance.exports.process_message as (message: number) => boolean,
+        resize_display: wasm.instance.exports.resize_display as (width: number, height: number) => void,
+        pixels_of_display: wasm.instance.exports.pixels_of_display as () => number,
     };
 }
 
@@ -314,7 +312,7 @@ async function createGame(): Promise<Game> {
         const time = timestamp/1000;
         prevTimestamp = timestamp;
 
-        game.wasmClient.render_game(game.display.backImagePtr, game.display.zBufferPtr, game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+        game.wasmClient.render_game(game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
 
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
