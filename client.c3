@@ -395,14 +395,13 @@ fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) 
     }
 }
 
-fn void emit_particle(float source_x, float source_y, float source_z, ParticlePool *particle_pool) {
+fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
     foreach (&particle: particle_pool.items) {
         if (particle.lifetime <= 0) {
             particle.lifetime = PARTICLE_LIFETIME;
 
-            particle.position.x = source_x;
-            particle.position.y = source_y;
-            particle.position_z = source_z;
+            particle.position = source.xy;
+            particle.position_z = source.z;
 
             float angle = platform_random()*2.0f*(float)math::PI;
             particle.velocity.x = math::cos(angle);
@@ -552,7 +551,7 @@ fn void update_items(SpritePool *sprite_pool, float time, Item[] *items, Image *
 fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_position_z, float player_position_x, float player_position_y, ParticlePool *particle_pool) {
     platform_play_sound(BOMB_BLAST, player_position_x, player_position_y, bomb_position_x, bomb_position_y);
     for (int i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-        emit_particle(bomb_position_x, bomb_position_y, bomb_position_z, particle_pool);
+        emit_particle({bomb_position_x, bomb_position_y, bomb_position_z}, particle_pool);
     }
 }
 
