@@ -803,7 +803,7 @@ fn void key_down(uint key_code) @extern("key_down") @wasm {
             message.kind = AMMA_THROWING;
             platform_send_message(message);
         } else {
-            common::throw_bomb(me.position.x, me.position.y, me.direction, &common::bombs);
+            common::throw_bomb(me.position, me.direction, &common::bombs);
         }
     }
 }

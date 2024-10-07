@@ -237,7 +237,7 @@ List(<usz>) thrown_bombs;
 
 fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
     if (try player = players.get(player_id)) {
-        int index = common::throw_bomb(player.player.position.x, player.player.position.y, player.player.direction, bombs);
+        int index = common::throw_bomb(player.player.position, player.player.direction, bombs);
         if (index >= 0) thrown_bombs.push(index);
     }
 }

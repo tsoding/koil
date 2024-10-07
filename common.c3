@@ -92,14 +92,14 @@ fn Scene *allocate_default_scene() {
     return scene;
 }
 
-fn bool Scene.get_tile(Scene *scene, Vector2 p) {
+fn bool Scene.get_tile(&scene, Vector2 p) {
     int x = (int)math::floor(p.x);
     int y = (int)math::floor(p.y);
     if (!(0 <= x && x < scene.width && 0 <= y && y < scene.height)) return false;
     return scene.walls[y*scene.width + x];
 }
 
-fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy) {
+fn bool Scene.can_rectangle_fit_here(&scene, float px, float py, float sx, float sy) {
     int x1 = (int)math::floor(px - sx*0.5f);
     int x2 = (int)math::floor(px + sx*0.5f);
     int y1 = (int)math::floor(py - sy*0.5f);
@@ -230,15 +230,13 @@ fn Bombs* allocate_bombs() @extern("allocate_bombs") @wasm {
     return mem::new(Bombs);
 }
 
-fn int throw_bomb(float player_position_x, float player_position_y, float player_direction, Bombs *bombs) {
+fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     foreach (index, &bomb: *bombs) {
         if (bomb.lifetime <= 0) {
             bomb.lifetime    = BOMB_LIFETIME;
-            bomb.position.x  = player_position_x;
-            bomb.position.y  = player_position_y;
+            bomb.position    = position;
             bomb.position_z  = 0.6;
-            bomb.velocity.x  = math::cos(player_direction);
-            bomb.velocity.y  = math::sin(player_direction);
+            bomb.velocity    = from_polar(direction, 1.0f);
             bomb.velocity_z  = 0.5;
             bomb.velocity   *= BOMB_THROW_VELOCITY;
             bomb.velocity_z *= BOMB_THROW_VELOCITY;
@@ -409,11 +407,11 @@ fn void update_player(Player *player, Scene *scene, float delta_time) {
     player.direction = (player.direction + angular_velocity*delta_time)%(2*(float)math::PI);
 
     float nx = player.position.x + control_velocity.x*delta_time;
-    if (scene_can_rectangle_fit_here(scene, nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (scene.can_rectangle_fit_here(nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.x = nx;
     }
     float ny = player.position.y + control_velocity.y*delta_time;
-    if (scene_can_rectangle_fit_here(scene, player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+    if (scene.can_rectangle_fit_here(player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player.position.y = ny;
     }
 }
