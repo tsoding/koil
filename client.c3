@@ -342,23 +342,20 @@ fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
               fn int(Sprite *a, Sprite *b) => (int)math::copysign(1.0f, b.pdist - a.pdist));
 }
 
-fn void push_sprite(SpritePool *sprite_pool, Image *image, float x, float y, float z, float scale, int crop_position_x, int crop_position_y, int crop_size_x, int crop_size_y) {
+fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) {
     if (sprite_pool.length >= SPRITE_POOL_CAPACITY) return;
 
     usz last = sprite_pool.length;
 
     sprite_pool.items[last].image = image;
-    sprite_pool.items[last].position.x = x;
-    sprite_pool.items[last].position.y = y;
-    sprite_pool.items[last].z = z;
+    sprite_pool.items[last].position = position.xy;
+    sprite_pool.items[last].z = position.z;
     sprite_pool.items[last].scale = scale;
     sprite_pool.items[last].pdist = 0;
     sprite_pool.items[last].dist = 0;
     sprite_pool.items[last].t = 0;
-    sprite_pool.items[last].crop_position.x = crop_position_x;
-    sprite_pool.items[last].crop_position.y = crop_position_y;
-    sprite_pool.items[last].crop_size.x = crop_size_x;
-    sprite_pool.items[last].crop_size.y = crop_size_y;
+    sprite_pool.items[last].crop_position = crop_position;
+    sprite_pool.items[last].crop_size = crop_size;
 
     sprite_pool.length += 1;
 }
@@ -449,9 +446,9 @@ fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime,
             if (particle.lifetime > 0) {
                 push_sprite(sprite_pool,
                             image,
-                            particle.position.x, particle.position.y, particle.position_z,
+                            {particle.position, particle.position_z},
                             PARTICLE_SCALE,
-                            0, 0, image.width, image.height);
+                            {0, 0}, {image.width, image.height});
             }
         }
     }
@@ -525,19 +522,9 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
             float z = 0.25f + ITEM_AMP - ITEM_AMP*math::sin(ITEM_FREQ*(float)math::PI*time + item.position.x + item.position.y);
             switch (item.kind) {
                 case KEY:
-                    push_sprite(sprite_pool,
-                                key_image,
-                                item.position.x, item.position.y, z,
-                                0.25f,
-                                0, 0,
-                                key_image.width, key_image.height);
+                    push_sprite(sprite_pool, key_image, {item.position, z}, 0.25f, {0, 0}, {key_image.width, key_image.height});
                 case BOMB:
-                    push_sprite(sprite_pool,
-                                bomb_image,
-                                item.position.x, item.position.y, z,
-                                0.25f,
-                                0, 0,
-                                bomb_image.width, bomb_image.height);
+                    push_sprite(sprite_pool, bomb_image, {item.position, z}, 0.25f, {0, 0}, {bomb_image.width, bomb_image.height});
             }
         }
     }
@@ -572,7 +559,7 @@ fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_po
 fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, Scene *scene, float delta_time, Bombs *bombs) {
     foreach (&bomb: *bombs) {
         if (bomb.lifetime > 0) {
-            push_sprite(sprite_pool, bomb_image, bomb.position.x, bomb.position.y, bomb.position_z, common::BOMB_SCALE, 0, 0, bomb_image.width, bomb_image.height);
+            push_sprite(sprite_pool, bomb_image, {bomb.position, bomb.position_z}, common::BOMB_SCALE, {0, 0}, {bomb_image.width, bomb_image.height});
 
             if (common::update_bomb(bomb, scene, delta_time)) {
                 platform_play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
@@ -785,7 +772,7 @@ fn void update_all_players(Scene *scene, float delta_time) {
 fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
     other_players.@each_entry(; OtherPlayersEntry *entry) {
         uint index = sprite_angle_index(me.position, entry.value);
-        push_sprite(sprite_pool, player_image, entry.value.position.x, entry.value.position.y, 1, 1, 55*index, 0, 55, 55);
+        push_sprite(sprite_pool, player_image, {entry.value.position, 1}, 1, {55*index, 0}, {55, 55});
     };
 }
 
