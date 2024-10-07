@@ -311,7 +311,7 @@ HashMap(<uint, bool>) left_ids;
 def PingEntry = Entry(<uint, uint>);
 HashMap(<uint, uint>) ping_ids;
 
-fn void register_new_player(uint id, float x, float y, char hue) @extern("register_new_player") @wasm {
+fn void register_new_player(uint id) @extern("register_new_player") @wasm {
     assert(!players.has_key(id));
     joined_ids.set(id, true);
     stats_inc_counter(PLAYERS_JOINED, 1);
@@ -319,8 +319,6 @@ fn void register_new_player(uint id, float x, float y, char hue) @extern("regist
     players.set(id, {
         .player = {
             .id = id,
-            .position = {x, y},
-            .hue = hue,
         }
     });
 }

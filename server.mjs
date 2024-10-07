@@ -32,10 +32,7 @@ wss.on("connection", (ws, req) => {
         connectionLimits.set(remoteAddress, count + 1);
     }
     const id = idCounter++;
-    const x = 0;
-    const y = 0;
-    const hue = Math.floor(Math.random() * 255);
-    wasmServer.register_new_player(id, x, y, hue);
+    wasmServer.register_new_player(id);
     connections.set(id, { ws, remoteAddress });
     ws.addEventListener("message", (event) => {
         if (!(event.data instanceof ArrayBuffer)) {

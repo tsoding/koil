@@ -46,10 +46,7 @@ wss.on("connection", (ws, req) => {
     }
 
     const id = idCounter++;
-    const x = 0;//Math.random()*(common.WORLD_WIDTH - common.PLAYER_SIZE);
-    const y = 0;//Math.random()*(common.WORLD_HEIGHT - common.PLAYER_SIZE);
-    const hue = Math.floor(Math.random()*255);
-    wasmServer.register_new_player(id, x, y, hue);
+    wasmServer.register_new_player(id);
     connections.set(id, {ws, remoteAddress});
     // console.log(`Player ${id} connected`);
     ws.addEventListener("message", (event) => {
@@ -85,7 +82,7 @@ function tick() {
 
 interface WasmServer extends common.WasmCommon {
     stats_inc_players_rejected_counter: () => void,
-    register_new_player: (id: number, x: number, y: number, hue: number) => void,
+    register_new_player: (id: number) => void,
     unregister_player: (id: number) => void,
     process_message_on_server: (id: number, message: number) => boolean,
     tick: () => number,
@@ -127,7 +124,7 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
     return {
         ...wasmCommon,
         stats_inc_players_rejected_counter: wasm.instance.exports.stats_inc_players_rejected_counter as () => void,
-        register_new_player: wasm.instance.exports.register_new_player as (id: number, x: number, y: number, hue: number) => void,
+        register_new_player: wasm.instance.exports.register_new_player as (id: number) => void,
         unregister_player: wasm.instance.exports.unregister_player as (id: number) => void,
         process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number) => boolean,
         tick: wasm.instance.exports.tick as () => number,
