@@ -54,8 +54,6 @@ interface Display {
 
 interface WasmClient extends common.WasmCommon {
     allocate_image: (width: number, height: number) => number,
-    image_width: (image: number) => number,
-    image_height: (image: number) => number,
     image_pixels: (image: number) => number,
     players_count: () => number,
     unregister_all_other_players: () => void,
@@ -203,8 +201,6 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
     return {
         ...wasmCommon,
         allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
-        image_width: wasm.instance.exports.image_width as (image: number) => number,
-        image_height: wasm.instance.exports.image_height as (image: number) => number,
         image_pixels: wasm.instance.exports.image_pixels as (image: number) => number,
         players_count: wasm.instance.exports.players_count as () => number,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,

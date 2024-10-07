@@ -49,14 +49,6 @@ struct Image {
     Color[*] pixels;
 }
 
-fn usz image_width(Image *image) @extern("image_width") @wasm {
-    return image.width;
-}
-
-fn usz image_height(Image *image) @extern("image_height") @wasm {
-    return image.height;
-}
-
 fn Color *image_pixels(Image *image) @extern("image_pixels") @wasm {
     return &image.pixels[0];
 }
