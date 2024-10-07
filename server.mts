@@ -6,27 +6,6 @@ const SERVER_FPS = 60;
 const SERVER_TOTAL_LIMIT = 2000;
 const SERVER_SINGLE_IP_LIMIT = 10;
 
-// IMPORTANT: This must be synchronized with the StatEntry in server.c3 until server.mts is fully rewritten in C3.
-enum StatEntry {
-    UPTIME,
-    TICKS_COUNT,
-    TICK_TIMES,
-    MESSAGES_SENT,
-    MESSAGES_RECEIVED,
-    TICK_MESSAGES_SENT,
-    TICK_MESSAGES_RECEIVED,
-    BYTES_SENT,
-    BYTES_RECEIVED,
-    TICK_BYTE_SENT,
-    TICK_BYTE_RECEIVED,
-    PLAYERS_CURRENTLY,
-    PLAYERS_JOINED,
-    PLAYERS_LEFT,
-    BOGUS_AMOGUS_MESSAGES,
-    PLAYERS_REJECTED,
-    COUNT,
-}
-
 interface PlayerConnection {
     ws: WebSocket,
     remoteAddress: string,
@@ -42,14 +21,14 @@ wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
 
     if (connections.size >= SERVER_TOTAL_LIMIT) {
-        wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
+        wasmServer.stats_inc_players_rejected_counter();
         ws.close();
         return;
     }
 
     if (req.socket.remoteAddress === undefined) {
         // NOTE: something weird happened the client does not have a remote address
-        wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
+        wasmServer.stats_inc_players_rejected_counter();
         ws.close();
         return;
     }
@@ -59,7 +38,7 @@ wss.on("connection", (ws, req) => {
     {
         let count = connectionLimits.get(remoteAddress) || 0;
         if (count >= SERVER_SINGLE_IP_LIMIT) {
-            wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
+            wasmServer.stats_inc_players_rejected_counter();
             ws.close();
             return;
         }
@@ -74,11 +53,8 @@ wss.on("connection", (ws, req) => {
     connections.set(id, {ws, remoteAddress});
     // console.log(`Player ${id} connected`);
     ws.addEventListener("message", (event) => {
-        if (!(event.data instanceof ArrayBuffer)){
-            wasmServer.stats_inc_counter(StatEntry.BOGUS_AMOGUS_MESSAGES, 1);
-            // console.log(`Received bogus-amogus message from client ${id}:`, message)
-            ws.close();
-            return;
+        if (!(event.data instanceof ArrayBuffer)) {
+            throw new Error("binaryType of the client WebSocket must be 'arraybuffer'");
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmServer, event.data);
         // console.log(`Received message from player ${id}`, new Uint8ClampedArray(event.data));
@@ -108,7 +84,7 @@ function tick() {
 }
 
 interface WasmServer extends common.WasmCommon {
-    stats_inc_counter: (entry: number, delta: number) => void,
+    stats_inc_players_rejected_counter: () => void,
     register_new_player: (id: number, x: number, y: number, hue: number) => void,
     unregister_player: (id: number) => void,
     process_message_on_server: (id: number, message: number) => boolean,
@@ -150,7 +126,7 @@ async function instantiateWasmServer(path: string): Promise<WasmServer> {
     wasmCommon._initialize();
     return {
         ...wasmCommon,
-        stats_inc_counter: wasm.instance.exports.stats_inc_counter as (entry: number) => void,
+        stats_inc_players_rejected_counter: wasm.instance.exports.stats_inc_players_rejected_counter as () => void,
         register_new_player: wasm.instance.exports.register_new_player as (id: number, x: number, y: number, hue: number) => void,
         unregister_player: wasm.instance.exports.unregister_player as (id: number) => void,
         process_message_on_server: wasm.instance.exports.process_message_on_server as (id: number, message: number) => boolean,

@@ -45,7 +45,6 @@ struct Stat {
     }
 }
 
-// IMPORTANT: This must be synchronized with the StatEntry in server.mts until server.mts is fully rewritten in C3.
 enum StatEntry: usz {
     UPTIME,
     TICKS_COUNT,
@@ -197,7 +196,7 @@ fn void stats_push_sample(StatEntry entry, float sample) {
     stat.average.samples.push(sample);
 }
 
-fn void stats_inc_counter(StatEntry entry, int delta) @extern("stats_inc_counter") @wasm {
+fn void stats_inc_counter(StatEntry entry, int delta) {
     assert(entry < StatEntry.COUNT);
     Stat *stat = &stats[entry];
     assert(stat.kind == StatKind.AVERAGE);
@@ -633,6 +632,10 @@ fn uint tick() @extern("tick") @wasm {
 
     common::reset_temp_mark();
     return tickTime;
+}
+
+fn void stats_inc_players_rejected_counter() @extern("stats_inc_players_rejected_counter") @wasm {
+    stats_inc_counter(PLAYERS_REJECTED, 1);
 }
 
 /// Entry point //////////////////////////////

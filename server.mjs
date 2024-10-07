@@ -4,26 +4,6 @@ import * as common from './common.mjs';
 const SERVER_FPS = 60;
 const SERVER_TOTAL_LIMIT = 2000;
 const SERVER_SINGLE_IP_LIMIT = 10;
-var StatEntry;
-(function (StatEntry) {
-    StatEntry[StatEntry["UPTIME"] = 0] = "UPTIME";
-    StatEntry[StatEntry["TICKS_COUNT"] = 1] = "TICKS_COUNT";
-    StatEntry[StatEntry["TICK_TIMES"] = 2] = "TICK_TIMES";
-    StatEntry[StatEntry["MESSAGES_SENT"] = 3] = "MESSAGES_SENT";
-    StatEntry[StatEntry["MESSAGES_RECEIVED"] = 4] = "MESSAGES_RECEIVED";
-    StatEntry[StatEntry["TICK_MESSAGES_SENT"] = 5] = "TICK_MESSAGES_SENT";
-    StatEntry[StatEntry["TICK_MESSAGES_RECEIVED"] = 6] = "TICK_MESSAGES_RECEIVED";
-    StatEntry[StatEntry["BYTES_SENT"] = 7] = "BYTES_SENT";
-    StatEntry[StatEntry["BYTES_RECEIVED"] = 8] = "BYTES_RECEIVED";
-    StatEntry[StatEntry["TICK_BYTE_SENT"] = 9] = "TICK_BYTE_SENT";
-    StatEntry[StatEntry["TICK_BYTE_RECEIVED"] = 10] = "TICK_BYTE_RECEIVED";
-    StatEntry[StatEntry["PLAYERS_CURRENTLY"] = 11] = "PLAYERS_CURRENTLY";
-    StatEntry[StatEntry["PLAYERS_JOINED"] = 12] = "PLAYERS_JOINED";
-    StatEntry[StatEntry["PLAYERS_LEFT"] = 13] = "PLAYERS_LEFT";
-    StatEntry[StatEntry["BOGUS_AMOGUS_MESSAGES"] = 14] = "BOGUS_AMOGUS_MESSAGES";
-    StatEntry[StatEntry["PLAYERS_REJECTED"] = 15] = "PLAYERS_REJECTED";
-    StatEntry[StatEntry["COUNT"] = 16] = "COUNT";
-})(StatEntry || (StatEntry = {}));
 const wasmServer = await instantiateWasmServer('server.wasm');
 const connections = new Map();
 const connectionLimits = new Map();
@@ -32,12 +12,12 @@ const wss = new WebSocketServer({ port: common.SERVER_PORT });
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
     if (connections.size >= SERVER_TOTAL_LIMIT) {
-        wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
+        wasmServer.stats_inc_players_rejected_counter();
         ws.close();
         return;
     }
     if (req.socket.remoteAddress === undefined) {
-        wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
+        wasmServer.stats_inc_players_rejected_counter();
         ws.close();
         return;
     }
@@ -45,7 +25,7 @@ wss.on("connection", (ws, req) => {
     {
         let count = connectionLimits.get(remoteAddress) || 0;
         if (count >= SERVER_SINGLE_IP_LIMIT) {
-            wasmServer.stats_inc_counter(StatEntry.PLAYERS_REJECTED, 1);
+            wasmServer.stats_inc_players_rejected_counter();
             ws.close();
             return;
         }
@@ -59,9 +39,7 @@ wss.on("connection", (ws, req) => {
     connections.set(id, { ws, remoteAddress });
     ws.addEventListener("message", (event) => {
         if (!(event.data instanceof ArrayBuffer)) {
-            wasmServer.stats_inc_counter(StatEntry.BOGUS_AMOGUS_MESSAGES, 1);
-            ws.close();
-            return;
+            throw new Error("binaryType of the client WebSocket must be 'arraybuffer'");
         }
         const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmServer, event.data);
         if (!wasmServer.process_message_on_server(id, eventDataPtr)) {
@@ -119,7 +97,7 @@ async function instantiateWasmServer(path) {
     wasmCommon._initialize();
     return {
         ...wasmCommon,
-        stats_inc_counter: wasm.instance.exports.stats_inc_counter,
+        stats_inc_players_rejected_counter: wasm.instance.exports.stats_inc_players_rejected_counter,
         register_new_player: wasm.instance.exports.register_new_player,
         unregister_player: wasm.instance.exports.unregister_player,
         process_message_on_server: wasm.instance.exports.process_message_on_server,
