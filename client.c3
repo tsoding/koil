@@ -548,10 +548,10 @@ fn void update_items(SpritePool *sprite_pool, float time, Item[] *items, Image *
 }
 
 
-fn void explode_bomb(float bomb_position_x, float bomb_position_y, float bomb_position_z, float player_position_x, float player_position_y, ParticlePool *particle_pool) {
-    platform_play_sound(BOMB_BLAST, player_position_x, player_position_y, bomb_position_x, bomb_position_y);
+fn void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePool *particle_pool) {
+    platform_play_sound(BOMB_BLAST, player_position.x, player_position.y, bomb_position.x, bomb_position.y);
     for (int i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
-        emit_particle({bomb_position_x, bomb_position_y, bomb_position_z}, particle_pool);
+        emit_particle(bomb_position, particle_pool);
     }
 }
 
@@ -565,7 +565,7 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
             }
 
             if (platform_is_offline_mode() && bomb.lifetime <= 0) {
-                explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, me.position.x, me.position.y, particle_pool);
+                explode_bomb({bomb.position, bomb.position_z}, me.position, particle_pool);
             }
         }
     }
@@ -621,7 +621,7 @@ fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMess
         bomb.position.x = message.bombs[i].x;
         bomb.position.y = message.bombs[i].y;
         bomb.position_z = message.bombs[i].z;
-        explode_bomb(bomb.position.x, bomb.position.y, bomb.position_z, me.position.x, me.position.y, particle_pool);
+        explode_bomb({bomb.position, bomb.position_z}, me.position, particle_pool);
     }
 
     return true;
