@@ -208,7 +208,7 @@ fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x
         u = t.x;
     }
 
-    float y1f = (display.height - strip_height)*0.5f; 
+    float y1f = (display.height - strip_height)*0.5f;
     int y1 = (int)math::ceil(y1f);
     int y2 = (int)math::floor(y1 + strip_height);
     int by1 = math::max(0, y1);
@@ -459,15 +459,15 @@ fn void kill_all_items(Item[]* items) {
     }
 }
 
-fn bool verify_items_collected_batch_message(Message *message) {
-    if (message.size < ItemsCollectedBatchMessage.sizeof) return false;
-    if ((message.size - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return false;
+fn ItemsCollectedBatchMessage*! verify_items_collected_batch_message(Message *message) {
+    if (message.size < ItemsCollectedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return MessageFault.INVALID?;
     ItemsCollectedBatchMessage* items_collected_batch_message = (ItemsCollectedBatchMessage*)message;
-    if (items_collected_batch_message.kind != MessageKind.ITEM_COLLECTED) return false;
-    return true;
+    if (items_collected_batch_message.kind != MessageKind.ITEM_COLLECTED) return MessageFault.INVALID?;
+    return items_collected_batch_message;
 }
 
-fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMessage *message, Item[]* items) {
+fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message, Item[]* items) {
     usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
@@ -489,15 +489,15 @@ fn bool apply_items_collected_batch_message_to_level_items(ItemsCollectedBatchMe
     return true;
 }
 
-fn bool verify_items_spawned_batch_message(Message *message) {
-    if (message.size < ItemsSpawnedBatchMessage.sizeof) return false;
-    if ((message.size - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return false;
+fn ItemsSpawnedBatchMessage*! verify_items_spawned_batch_message(Message *message) {
+    if (message.size < ItemsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return MessageFault.INVALID?;
     ItemsSpawnedBatchMessage* items_spawned_batch_message = (ItemsSpawnedBatchMessage*)message;
-    if (items_spawned_batch_message.kind != MessageKind.ITEM_SPAWNED) return false;
-    return true;
+    if (items_spawned_batch_message.kind != MessageKind.ITEM_SPAWNED) return MessageFault.INVALID?;
+    return items_spawned_batch_message;
 }
 
-fn bool apply_items_spawned_batch_message_to_level_items(ItemsSpawnedBatchMessage *message, Item[]* items) {
+fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Item[]* items) {
     usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int itemIndex = message.items[i].itemIndex;
@@ -571,15 +571,15 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
     }
 }
 
-fn bool verify_bombs_spawned_batch_message(Message *message) {
-    if (message.size < BombsSpawnedBatchMessage.sizeof) return false;
-    if ((message.size - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return false;
+fn BombsSpawnedBatchMessage*! verify_bombs_spawned_batch_message(Message *message) {
+    if (message.size < BombsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return MessageFault.INVALID?;
     BombsSpawnedBatchMessage* bombs_spawned_batch_message = (BombsSpawnedBatchMessage*)message;
-    if (bombs_spawned_batch_message.kind != MessageKind.BOMB_SPAWNED) return false;
-    return true;
+    if (bombs_spawned_batch_message.kind != MessageKind.BOMB_SPAWNED) return MessageFault.INVALID?;
+    return bombs_spawned_batch_message;
 }
 
-fn bool apply_bombs_spawned_batch_message_to_level_items(BombsSpawnedBatchMessage *message, Bombs *bombs) {
+fn bool apply_bombs_spawned_batch_message(BombsSpawnedBatchMessage *message, Bombs *bombs) {
     usz count = (message.size - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
@@ -600,15 +600,15 @@ fn bool apply_bombs_spawned_batch_message_to_level_items(BombsSpawnedBatchMessag
     return true;
 }
 
-fn bool verify_bombs_exploded_batch_message(Message *message) {
-    if (message.size < BombsExplodedBatchMessage.sizeof) return false;
-    if ((message.size - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return false;
+fn BombsExplodedBatchMessage*! verify_bombs_exploded_batch_message(Message *message) {
+    if (message.size < BombsExplodedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return MessageFault.INVALID?;
     BombsExplodedBatchMessage* bombs_exploded_batch_message = (BombsExplodedBatchMessage*)message;
-    if (bombs_exploded_batch_message.kind != MessageKind.BOMB_EXPLODED) return false;
-    return true;
+    if (bombs_exploded_batch_message.kind != MessageKind.BOMB_EXPLODED) return MessageFault.INVALID?;
+    return bombs_exploded_batch_message;
 }
 
-fn bool apply_bombs_exploded_batch_message_to_level_items(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) {
+fn bool apply_bombs_exploded_batch_message(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) {
     usz count = (message.size - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
@@ -652,14 +652,18 @@ const Control[*] CONTROL_KEYS = {
     {83, MOVING_BACKWARD},
 };
 
-fn bool verify_hello_message(Message *message) {
-    if (message.size != HelloMessage.sizeof) return false;
-    HelloMessage* hello_message = (HelloMessage*)message;
-    if (hello_message.kind != HELLO) return false;
-    return true;
+fault MessageFault {
+    INVALID
 }
 
-fn void apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
+fn HelloMessage*! verify_hello_message(Message *message) {
+    if (message.size != HelloMessage.sizeof) return MessageFault.INVALID?;
+    HelloMessage* hello_message = (HelloMessage*)message;
+    if (hello_message.kind != HELLO) return MessageFault.INVALID?;
+    return hello_message;
+}
+
+fn bool apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
     // TODO: maybe we should reset everything (bombs, etc) on hello message
     // So to let the server recreate the world properly
     kill_all_items(items);
@@ -669,14 +673,15 @@ fn void apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
     me.direction  = hello_message.direction;
     me.moving     = 0;
     me.hue        = hello_message.hue;
+    return true;
 }
 
-fn bool verify_players_joined_batch_message(Message *message) {
-    if (message.size < PlayersJoinedBatchMessage.sizeof) return false;
-    if ((message.size - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return false;
+fn PlayersJoinedBatchMessage*! verify_players_joined_batch_message(Message *message) {
+    if (message.size < PlayersJoinedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
     PlayersJoinedBatchMessage* players_joined_batch_message = (PlayersJoinedBatchMessage*)message;
-    if (players_joined_batch_message.kind != PLAYER_JOINED) return false;
-    return true;
+    if (players_joined_batch_message.kind != PLAYER_JOINED) return MessageFault.INVALID?;
+    return players_joined_batch_message;
 }
 
 fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
@@ -709,12 +714,12 @@ fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
     }
 }
 
-fn bool verify_players_left_batch_message(Message *message) {
-    if (message.size < PlayersLeftBatchMessage.sizeof) return false;
-    if ((message.size - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return false;
+fn PlayersLeftBatchMessage*! verify_players_left_batch_message(Message *message) {
+    if (message.size < PlayersLeftBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return MessageFault.INVALID?;
     PlayersLeftBatchMessage* players_left_batch_message = (PlayersLeftBatchMessage*)message;
-    if (players_left_batch_message.kind != PLAYER_LEFT) return false;
-    return true;
+    if (players_left_batch_message.kind != PLAYER_LEFT) return MessageFault.INVALID?;
+    return players_left_batch_message;
 }
 
 fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) {
@@ -724,12 +729,12 @@ fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) {
     }
 }
 
-fn bool verify_players_moving_batch_message(Message *message) {
-    if (message.size < PlayersMovingBatchMessage.sizeof) return false;
-    if ((message.size - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return false;
+fn PlayersMovingBatchMessage*! verify_players_moving_batch_message(Message *message) {
+    if (message.size < PlayersMovingBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.size - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
     PlayersMovingBatchMessage* players_moving_batch_message = (PlayersMovingBatchMessage*)message;
-    if (players_moving_batch_message.kind != PLAYER_MOVING) return false;
-    return true;
+    if (players_moving_batch_message.kind != PLAYER_MOVING) return MessageFault.INVALID?;
+    return players_moving_batch_message;
 }
 
 fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
@@ -862,11 +867,11 @@ fn void ping_server_if_needed() {
     }
 }
 
-fn bool verify_pong_message(Message *message) {
-    if (message.size != PongMessage.sizeof) return false;
+fn PongMessage*! verify_pong_message(Message *message) {
+    if (message.size != PongMessage.sizeof) return MessageFault.INVALID?;
     PongMessage* pong_message = (PongMessage*)message;
-    if (pong_message.kind != PONG) return false;
-    return true;
+    if (pong_message.kind != PONG) return MessageFault.INVALID?;
+    return pong_message;
 }
 
 uint ping = 0;
@@ -878,42 +883,56 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
     return ping;
 }
 
-fn bool process_message(Message *message) @extern("process_message") @wasm {
-    // TODO: verify_* functions should return the typed message with exception, so we can turn this into sequence of if-try-s
-    if (verify_hello_message(message)) {
-        apply_hello_message_to_me((HelloMessage*)message, &common::items);
-    } else if (verify_players_joined_batch_message(message)) {
-        apply_players_joined_batch_message((PlayersJoinedBatchMessage*)message);
-    } else if (verify_players_left_batch_message(message)) {
-        apply_players_left_batch_message((PlayersLeftBatchMessage*)message);
-    } else if (verify_players_moving_batch_message(message)) {
-        if (!apply_players_moving_batch_message((PlayersMovingBatchMessage*)message)) {
-            return false;
-        }
-    } else if (verify_pong_message(message)) {
-        process_pong_message((PongMessage*)message);
-    } else if (verify_items_collected_batch_message(message)) {
-        if (!apply_items_collected_batch_message_to_level_items((ItemsCollectedBatchMessage*)message, &common::items)) {
-            return false;
-        }
-    } else if (verify_items_spawned_batch_message(message)) {
-        if (!apply_items_spawned_batch_message_to_level_items((ItemsSpawnedBatchMessage*)message, &common::items)) {
-            return false;
-        }
-    } else if (verify_bombs_spawned_batch_message(message)) {
-        if (!apply_bombs_spawned_batch_message_to_level_items((BombsSpawnedBatchMessage*)message, &common::bombs)) {
-            return false;
-        }
-    } else if (verify_bombs_exploded_batch_message(message)) {
-        if (!apply_bombs_exploded_batch_message_to_level_items((BombsExplodedBatchMessage*)message, &common::bombs, &particle_pool)) {
-            return false;
-        }
-    } else {
-        // TODO: print the bytes of the bogus amogus message
-        io::printn(string::tformat("Received bogus-amogus message from server. %s", message));
-        return false;
+fn bool process_message(Message *unknown_message) @extern("process_message") @wasm {
+    if (try message = verify_hello_message(unknown_message)) {
+        apply_hello_message_to_me(message, &common::items);
+        return true;
     }
-    return true;
+    if (try message = verify_players_joined_batch_message(unknown_message)) {
+        apply_players_joined_batch_message(message);
+        return true;
+    }
+    if (try message = verify_players_left_batch_message(unknown_message)) {
+        apply_players_left_batch_message(message);
+        return true;
+    }
+    if (try message = verify_players_moving_batch_message(unknown_message)) {
+        if (!apply_players_moving_batch_message(message)) {
+            return false;
+        }
+        return true;
+    }
+    if (try message = verify_pong_message(unknown_message)) {
+        process_pong_message(message);
+        return true;
+    }
+    if (try message = verify_items_collected_batch_message(unknown_message)) {
+        if (!apply_items_collected_batch_message(message, &common::items)) {
+            return false;
+        }
+        return true;
+    }
+    if (try message = verify_items_spawned_batch_message(unknown_message)) {
+        if (!apply_items_spawned_batch_message(message, &common::items)) {
+            return false;
+        }
+        return true;
+    }
+    if (try message = verify_bombs_spawned_batch_message(unknown_message)) {
+        if (!apply_bombs_spawned_batch_message(message, &common::bombs)) {
+            return false;
+        }
+        return true;
+    }
+    if (try message = verify_bombs_exploded_batch_message(unknown_message)) {
+        if (!apply_bombs_exploded_batch_message(message, &common::bombs, &particle_pool)) {
+            return false;
+        }
+        return true;
+    }
+    // TODO: print the bytes of the bogus amogus message
+    io::printn(string::tformat("Received bogus-amogus message from server. %s", unknown_message));
+    return false;
 }
 
 Player me;
