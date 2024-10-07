@@ -1,3 +1,4 @@
+module server;
 import std::io;
 import std::math;
 import std::collections::ringbuffer;

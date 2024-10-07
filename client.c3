@@ -1,3 +1,4 @@
+module client;
 import common;
 import std::math;
 import std::sort;
@@ -226,10 +227,7 @@ fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x
 }
 
 fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) {
-    float dx = p2.x - p1.x;
-    float dy = p2.y - p1.y;
-    return Vector2{math::floor(p2.x + math::copysign(1.0f, dx)*EPS),
-                   math::floor(p2.y + math::copysign(1.0f, dy)*EPS)};
+    return math::floor(p2 + math::copysign(Vector2{1.0f, 1.0f}, p2 - p1)*EPS);
 }
 
 fn float snap(float x, float dx) {
