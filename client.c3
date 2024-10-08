@@ -28,6 +28,8 @@ const float MINIMAP_SCALE = 0.07;
 
 const uint SPRITE_ANGLES_COUNT = 8;
 
+$exec("packer.c3;common.c3;stb_image.o");
+
 def Color = char[<4>];
 
 // WARNING! Must be synchronized with AssetSound in client.mts
@@ -47,18 +49,7 @@ extern fn uint platform_now_msecs();
 struct Image {
     usz width;
     usz height;
-    Color[*] pixels;
-}
-
-fn Color *image_pixels(Image *image) @extern("image_pixels") @wasm {
-    return &image.pixels[0];
-}
-
-fn Image* allocate_image(usz width, usz height) @extern("allocate_image") @wasm {
-    Image* image = mem::calloc(Image.sizeof + Color.sizeof*width*height);
-    image.width = width;
-    image.height = height;
-    return image;
+    Color *pixels;
 }
 
 struct Sprite {
@@ -120,7 +111,7 @@ fn void Camera.update(Camera *camera) {
 }
 
 struct Display {
-    Image *image;
+    Image image;
     float *zbuffer;
 }
 
@@ -128,9 +119,11 @@ Display display;
 
 fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
 {
-    if (display.image) mem::free(display.image);
+    if (display.image.pixels) mem::free(display.image.pixels);
     if (display.zbuffer) mem::free(display.zbuffer);
-    display.image = allocate_image(width, height);
+    display.image.width = width;
+    display.image.height = height;
+    display.image.pixels = mem::calloc(Color.sizeof*width*height);
     display.zbuffer = mem::calloc(float.sizeof*width);
 }
 
@@ -833,18 +826,49 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
     }
 }
 
-fn void render_game(Image *key_image, Image *bomb_image, Image *particle_image, Image *wall_image, Image *player_image, float delta_time, float time) @extern("render_game") @wasm {
+fn Asset *asset_by_filename(String filename) {
+    foreach (&asset: assets) {
+        if (asset.filename == filename) {
+            return asset;
+        }
+    }
+    return null;
+}
+
+fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
+    Asset *asset = null;
+
+    asset = asset_by_filename("assets/images/custom/key.png");
+    assert(asset);
+    Image key_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+
+    asset = asset_by_filename("assets/images/custom/bomb.png");
+    assert(asset);
+    Image bomb_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+
+    asset = asset_by_filename("assets/images/custom/particle.png");
+    assert(asset);
+    Image particle_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+
+    asset = asset_by_filename("assets/images/custom/wall.png");
+    assert(asset);
+    Image wall_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+
+    asset = asset_by_filename("assets/images/custom/player.png");
+    assert(asset);
+    Image player_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+
     update_all_players(common::scene, delta_time);
-    update_items(&sprite_pool, time, &common::items, key_image, bomb_image);
-    update_bombs_on_client_side(&sprite_pool, &particle_pool, bomb_image, common::scene, delta_time, &common::bombs);
-    update_particles(particle_image, &sprite_pool, delta_time, common::scene, &particle_pool);
+    update_items(&sprite_pool, time, &common::items, &key_image, &bomb_image);
+    update_bombs_on_client_side(&sprite_pool, &particle_pool, &bomb_image, common::scene, delta_time, &common::bombs);
+    update_particles(&particle_image, &sprite_pool, delta_time, common::scene, &particle_pool);
 
-    render_other_players(&sprite_pool, player_image);
+    render_other_players(&sprite_pool, &player_image);
 
-    render_floor_and_ceiling(display.image);
-    render_walls(display.image, display.zbuffer, wall_image, common::scene);
+    render_floor_and_ceiling(&display.image);
+    render_walls(&display.image, display.zbuffer, &wall_image, common::scene);
     cull_and_sort_sprites(&sprite_pool);
-    render_sprites(display.image, display.zbuffer, &sprite_pool);
+    render_sprites(&display.image, display.zbuffer, &sprite_pool);
 
     ping_server_if_needed();
     reset_sprite_pool();

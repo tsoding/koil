@@ -53,14 +53,12 @@ interface Display {
 }
 
 interface WasmClient extends common.WasmCommon {
-    allocate_image: (width: number, height: number) => number,
-    image_pixels: (image: number) => number,
     players_count: () => number,
     unregister_all_other_players: () => void,
     key_down: (key_code: number) => void,
     key_up: (key_code: number) => void,
     // TODO: render_game() should be actually called something like tick() cause that's what it is
-    render_game: (key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+    render_game: (delta_time: number, time: number) => void,
     ping_msecs: () => number,
     process_message: (message: number) => boolean,
     resize_display: (width: number, height: number) => void,
@@ -99,12 +97,6 @@ function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
 }
 
 interface Assets {
-    wallImagePtr: number,
-    keyImagePtr: number,
-    bombImagePtr: number,
-    playerImagePtr: number,
-    particleImagePtr: number,
-    nullImagePtr: number,
     bombRicochetSound: HTMLAudioElement,
     itemPickupSound: HTMLAudioElement,
     bombBlastSound: HTMLAudioElement
@@ -116,27 +108,6 @@ interface Game {
     dts: number[],
     wasmClient: WasmClient,
     display: Display,
-}
-
-async function loadImage(url: string): Promise<HTMLImageElement> {
-    const image = new Image();
-    image.src = url;
-    return new Promise((resolve, reject) => {
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-    });
-}
-
-async function loadWasmImage(wasmClient: WasmClient, url: string): Promise<number> {
-    const image = await loadImage(url);
-    const canvas = new OffscreenCanvas(image.width, image.height);
-    const ctx = canvas.getContext("2d");
-    if (ctx === null) throw new Error("2d canvas is not supported");
-    ctx.drawImage(image, 0, 0);
-    const imageData = ctx.getImageData(0, 0, image.width, image.height);
-    const ptr = wasmClient.allocate_image(image.width, image.height);
-    new Uint8ClampedArray(wasmClient.memory.buffer, wasmClient.image_pixels(ptr), image.width*image.height*4).set(imageData.data);
-    return ptr;
 }
 
 // WARNING! Must be synchronized with AssetSound in client.c3
@@ -200,13 +171,11 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
 
     return {
         ...wasmCommon,
-        allocate_image: wasm.instance.exports.allocate_image as (width: number, height: number) => number,
-        image_pixels: wasm.instance.exports.image_pixels as (image: number) => number,
         players_count: wasm.instance.exports.players_count as () => number,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
         key_up: wasm.instance.exports.key_up as (key_code: number) => void,
-        render_game: wasm.instance.exports.render_game as (key_image: number, bomb_image: number, particle_image: number, wall_image: number, player_image: number, delta_time: number, time: number) => void,
+        render_game: wasm.instance.exports.render_game as (delta_time: number, time: number) => void,
         ping_msecs: wasm.instance.exports.ping_msecs as () => number,
         process_message: wasm.instance.exports.process_message as (message: number) => boolean,
         resize_display: wasm.instance.exports.resize_display as (width: number, height: number) => void,
@@ -217,32 +186,10 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
 async function createGame(): Promise<Game> {
     const wasmClient = await instantiateWasmClient("client.wasm");
 
-    const [
-        wallImagePtr,
-        keyImagePtr,
-        bombImagePtr,
-        playerImagePtr,
-        particleImagePtr,
-        nullImagePtr,
-    ] = await Promise.all([
-        loadWasmImage(wasmClient, "assets/images/custom/wall.png"),
-        loadWasmImage(wasmClient, "assets/images/custom/key.png"),
-        loadWasmImage(wasmClient, "assets/images/custom/bomb.png"),
-        loadWasmImage(wasmClient, "assets/images/custom/player.png"),
-        loadWasmImage(wasmClient, "assets/images/custom/particle.png"),
-        loadWasmImage(wasmClient, "assets/images/custom/null.png"),
-    ]);
-
     const itemPickupSound = new Audio("assets/sounds/bomb-pickup.ogg");
     const bombRicochetSound = new Audio("assets/sounds/ricochet.wav");
     const bombBlastSound = new Audio("assets/sounds/blast.ogg");
     const assets = {
-        wallImagePtr,
-        keyImagePtr,
-        bombImagePtr,
-        playerImagePtr,
-        particleImagePtr,
-        nullImagePtr,
         bombRicochetSound,
         itemPickupSound,
         bombBlastSound,
@@ -308,7 +255,7 @@ async function createGame(): Promise<Game> {
         const time = timestamp/1000;
         prevTimestamp = timestamp;
 
-        game.wasmClient.render_game(game.assets.keyImagePtr, game.assets.bombImagePtr, game.assets.particleImagePtr, game.assets.wallImagePtr, game.assets.playerImagePtr, deltaTime, time);
+        game.wasmClient.render_game(deltaTime, time);
 
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);

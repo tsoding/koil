@@ -1,6 +1,16 @@
 module common;
 import std::math;
 import std::io;
+import std::collections::list;
+
+struct Asset {
+    String filename;
+    usz offset;
+    usz width;
+    usz height;
+}
+
+def Assets = List(<Asset>);
 
 const float BOMB_GRAVITY = 10;
 const float BOMB_LIFETIME = 2;
@@ -188,16 +198,16 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
         if (item.alive) itemsCount += 1;
     }
     if (itemsCount == 0) return null;
-    int size = ItemsSpawnedBatchMessage.sizeof + ItemSpawned.sizeof*itemsCount;
+    usz size = ItemsSpawnedBatchMessage.sizeof + ItemSpawned.sizeof*itemsCount;
     ItemsSpawnedBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    message.size = (int)size;
     message.kind = MessageKind.ITEM_SPAWNED;
     usz index = 0;
     foreach (itemIndex, item: *items) {
         if (item.alive) {
             message.items[index] = {
                 .itemKind = item.kind,
-                .itemIndex = itemIndex,
+                .itemIndex = (int)itemIndex,
                 .x = item.position.x,
                 .y = item.position.y,
             };
@@ -240,7 +250,7 @@ fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
             bomb.velocity_z  = 0.5;
             bomb.velocity   *= BOMB_THROW_VELOCITY;
             bomb.velocity_z *= BOMB_THROW_VELOCITY;
-            return index;
+            return (int)index;
         }
     }
     return -1;
