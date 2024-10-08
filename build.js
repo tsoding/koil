@@ -26,12 +26,7 @@ function cmd(program, args = []) {
 
 if (!0) cmd("tsc", []);
 if (!0) {
-    cmd("clang", [
-        "-DSTB_IMAGE_IMPLEMENTATION",
-        "-x", "c",
-        "-c",
-        "stb_image.h"
-    ]).on('close', (data) => {
+    cmd("clang", ["-DSTB_IMAGE_IMPLEMENTATION", "-x", "c", "-c", "stb_image.h"]).on('close', (data) => {
         if (data !== 0) return;
         cmd("c3c", ["compile", "packer.c3", "common.c3", "stb_image.o"]).on('close', (data) => {
             if (data !== 0) return;
