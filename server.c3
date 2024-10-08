@@ -1,206 +1,22 @@
 module server;
+import common;
 import std::io;
 import std::math;
-import std::collections::ringbuffer;
 import std::collections::list;
 import std::collections::map;
-import common;
-
-/// Stats //////////////////////////////
 
 extern fn int platform_now_secs();
 extern fn uint platform_send_message(uint player_id, void *message);
 extern fn uint platform_now_msecs();
 
 const int SERVER_FPS = 60;
-const usz AVERAGE_CAPACITY = 30;
-def Samples = RingBuffer(<float, AVERAGE_CAPACITY>);
-
-enum StatKind {
-    COUNTER,
-    AVERAGE,
-    TIMER,
-}
-
-struct StatCounter {
-    int value;
-}
-
-struct StatAverage {
-    Samples samples;
-}
-
-struct StatTimer {
-    uint started_at;
-}
-
-struct Stat {
-    StatKind kind;
-    String description;
-
-    union {
-        StatCounter counter;
-        StatAverage average;
-        StatTimer timer;
-    }
-}
-
-enum StatEntry: usz {
-    UPTIME,
-    TICKS_COUNT,
-    TICK_TIMES,
-    MESSAGES_SENT,
-    MESSAGES_RECEIVED,
-    TICK_MESSAGES_SENT,
-    TICK_MESSAGES_RECEIVED,
-    BYTES_SENT,
-    BYTES_RECEIVED,
-    TICK_BYTE_SENT,
-    TICK_BYTE_RECEIVED,
-    PLAYERS_CURRENTLY,
-    PLAYERS_JOINED,
-    PLAYERS_LEFT,
-    BOGUS_AMOGUS_MESSAGES,
-    PLAYERS_REJECTED,
-    COUNT,
-}
-
-// TODO: Why do I have to cast to usz in here? Is there cleaner way to do this?
-Stat[(usz)StatEntry.COUNT] stats = {
-    [StatEntry.UPTIME] = {
-        .kind = TIMER,
-        .description = "Uptime"
-    },
-    [StatEntry.TICKS_COUNT] = {
-        .kind = COUNTER,
-        .description = "Ticks count"
-    },
-    [StatEntry.TICK_TIMES] = {
-        .kind = AVERAGE,
-        .description = "Average time to process a tick"
-    },
-    [StatEntry.MESSAGES_SENT] = {
-        .kind = COUNTER,
-        .description = "Total messages sent"
-    },
-    [StatEntry.MESSAGES_RECEIVED] = {
-        .kind = COUNTER,
-        .description = "Total messages received"
-    },
-    [StatEntry.TICK_MESSAGES_SENT] = {
-        .kind = AVERAGE,
-        .description = "Average messages sent per tick"
-    },
-    [StatEntry.TICK_MESSAGES_RECEIVED] = {
-        .kind = AVERAGE,
-        .description = "Average messages received per tick"
-    },
-    [StatEntry.BYTES_SENT] = {
-        .kind = COUNTER,
-        .description = "Total bytes sent"
-    },
-    [StatEntry.BYTES_RECEIVED] = {
-        .kind = COUNTER,
-        .description = "Total bytes received"
-    },
-    [StatEntry.TICK_BYTE_SENT] = {
-        .kind = AVERAGE,
-        .description = "Average bytes sent per tick"
-    },
-    [StatEntry.TICK_BYTE_RECEIVED] = {
-        .kind = AVERAGE,
-        .description = "Average bytes received per tick"
-    },
-    [StatEntry.PLAYERS_CURRENTLY] = {
-        .kind = COUNTER,
-        .description = "Currently players"
-    },
-    [StatEntry.PLAYERS_JOINED] = {
-        .kind = COUNTER,
-        .description = "Total players joined"
-    },
-    [StatEntry.PLAYERS_LEFT] = {
-        .kind = COUNTER,
-        .description = "Total players left"
-    },
-    [StatEntry.BOGUS_AMOGUS_MESSAGES] = {
-        .kind = COUNTER,
-        .description = "Total bogus-amogus messages"
-    },
-    [StatEntry.PLAYERS_REJECTED] = {
-        .kind = COUNTER,
-        .description = "Total players rejected"
-    },
-};
-int messages_recieved_within_tick = 0;
-int bytes_received_within_tick = 0;
-int message_sent_within_tick = 0;
-int bytes_sent_within_tick = 0;
 
 fn void send_message_and_update_stats(uint player_id, void* message) {
     uint sent = platform_send_message(player_id, message);
     if (sent > 0) {
-        bytes_sent_within_tick += sent;
-        message_sent_within_tick += 1;
+        stats::bytes_sent_within_tick += sent;
+        stats::message_sent_within_tick += 1;
     }
-}
-
-fn float Samples.average(&self) {
-    float sum = 0;
-    for (usz i = 0; i < self.written; ++i) {
-        sum += self.get(i);
-    }
-    return sum/self.written;
-}
-
-fn String get_stat(Stat *stat) {
-    switch (stat.kind) {
-        case COUNTER: return string::tformat("%d", stat.counter.value);
-        case AVERAGE: return string::tformat("%f", stat.average.samples.average());
-        case TIMER:   return display_time_interval(platform_now_secs() - stat.timer.started_at);
-    }
-}
-
-fn String plural_number(int num, String singular, String plural) {
-    return num == 1 ? singular : plural;
-}
-
-fn String display_time_interval(uint diffSecs) {
-    String[4] result;
-    usz result_count = 0;
-
-    uint days = diffSecs/60/60/24;
-    if (days > 0) result[result_count++] = string::tformat("%d %s", days, plural_number(days, "day", "days"));
-    uint hours = diffSecs/60/60%24;
-    if (hours > 0) result[result_count++] = string::tformat("%d %s", hours, plural_number(hours, "hour", "hours"));
-    uint mins = diffSecs/60%60;
-    if (mins > 0) result[result_count++] = string::tformat("%d %s", mins, plural_number(mins, "min", "mins"));
-    uint secs = diffSecs%60;
-    if (secs > 0) result[result_count++] = string::tformat("%d %s", secs, plural_number(secs, "sec", "secs"));
-    return result_count == 0 ? "0 secs" : string::join_new(&result, " ", allocator::temp());
-}
-
-fn void stats_print_per_n_ticks(int n) {
-    if (stats[StatEntry.TICKS_COUNT].counter.value%n == 0) {
-        io::printn("Stats:");
-        foreach (&stat: stats) {
-            io::printn(string::tformat("  %s %s", stat.description, get_stat(stat)));
-        }
-    }
-}
-
-fn void stats_push_sample(StatEntry entry, float sample) {
-    assert(entry < StatEntry.COUNT);
-    Stat *stat = &stats[entry];
-    assert(stat.kind == StatKind.AVERAGE);
-    stat.average.samples.push(sample);
-}
-
-fn void stats_inc_counter(StatEntry entry, int delta) {
-    assert(entry < StatEntry.COUNT);
-    Stat *stat = &stats[entry];
-    assert(stat.kind == StatKind.AVERAGE);
-    stat.counter.value += delta;
 }
 
 /// Items //////////////////////////////
@@ -314,8 +130,8 @@ HashMap(<uint, uint>) ping_ids;
 fn void register_new_player(uint id) @extern("register_new_player") @wasm {
     assert(!players.has_key(id));
     joined_ids.set(id, true);
-    stats_inc_counter(PLAYERS_JOINED, 1);
-    stats_inc_counter(PLAYERS_CURRENTLY, 1);
+    stats::inc_counter(PLAYERS_JOINED, 1);
+    stats::inc_counter(PLAYERS_CURRENTLY, 1);
     players.set(id, {
         .player = {
             .id = id,
@@ -327,8 +143,8 @@ fn void unregister_player(uint id) @extern("unregister_player") @wasm {
     if (catch joined_ids.remove(id)) {
         left_ids.set(id, false);
     }
-    stats_inc_counter(PLAYERS_LEFT, 1);
-    stats_inc_counter(PLAYERS_CURRENTLY, -1);
+    stats::inc_counter(PLAYERS_LEFT, 1);
+    stats::inc_counter(PLAYERS_CURRENTLY, -1);
     players.remove(id);
 }
 
@@ -577,10 +393,10 @@ fn bool verify_amma_moving_message(Message *message) {
 }
 
 fn bool process_message_on_server(uint id, Message *message) @extern("process_message_on_server") @wasm {
-    stats_inc_counter(MESSAGES_RECEIVED, 1);
-    messages_recieved_within_tick += 1;
-    stats_inc_counter(BYTES_RECEIVED, message.size);
-    bytes_received_within_tick += message.size;
+    stats::inc_counter(MESSAGES_RECEIVED, 1);
+    stats::messages_recieved_within_tick += 1;
+    stats::inc_counter(BYTES_RECEIVED, message.size);
+    stats::bytes_received_within_tick += message.size;
     if (verify_amma_moving_message(message)) {
         player_update_moving(id, (AmmaMovingMessage*)message);
     } else if (verify_amma_throwing_message(message)) {
@@ -589,7 +405,7 @@ fn bool process_message_on_server(uint id, Message *message) @extern("process_me
         schedule_ping_for_player(id, (PingMessage*)message);
     } else {
         // console.log(`Received bogus-amogus message from client ${id}:`, view)
-        stats_inc_counter(BOGUS_AMOGUS_MESSAGES, 1);
+        stats::inc_counter(BOGUS_AMOGUS_MESSAGES, 1);
         return false;
     }
     return true;
@@ -609,31 +425,31 @@ fn uint tick() @extern("tick") @wasm {
     process_pings();
 
     uint tickTime = platform_now_msecs() - timestamp;
-    stats_inc_counter(TICKS_COUNT, 1);
-    stats_push_sample(TICK_TIMES, tickTime/1000.0f);
-    stats_inc_counter(MESSAGES_SENT, message_sent_within_tick);
-    stats_push_sample(TICK_MESSAGES_SENT, message_sent_within_tick);
-    stats_push_sample(TICK_MESSAGES_RECEIVED, messages_recieved_within_tick);
-    stats_inc_counter(BYTES_SENT, bytes_sent_within_tick);
-    stats_push_sample(TICK_BYTE_SENT, bytes_sent_within_tick);
-    stats_push_sample(TICK_BYTE_RECEIVED, bytes_received_within_tick);
+    stats::inc_counter(TICKS_COUNT, 1);
+    stats::push_sample(TICK_TIMES, tickTime/1000.0f);
+    stats::inc_counter(MESSAGES_SENT, stats::message_sent_within_tick);
+    stats::push_sample(TICK_MESSAGES_SENT, stats::message_sent_within_tick);
+    stats::push_sample(TICK_MESSAGES_RECEIVED, stats::messages_recieved_within_tick);
+    stats::inc_counter(BYTES_SENT, stats::bytes_sent_within_tick);
+    stats::push_sample(TICK_BYTE_SENT, stats::bytes_sent_within_tick);
+    stats::push_sample(TICK_BYTE_RECEIVED, stats::bytes_received_within_tick);
 
     clear_intermediate_ids();
 
-    bytes_received_within_tick = 0;
-    messages_recieved_within_tick = 0;
-    message_sent_within_tick = 0;
-    bytes_sent_within_tick = 0;
+    stats::bytes_received_within_tick = 0;
+    stats::messages_recieved_within_tick = 0;
+    stats::message_sent_within_tick = 0;
+    stats::bytes_sent_within_tick = 0;
 
     // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
-    stats_print_per_n_ticks(SERVER_FPS);
+    stats::print_per_n_ticks(SERVER_FPS);
 
     common::reset_temp_mark();
     return tickTime;
 }
 
 fn void stats_inc_players_rejected_counter() @extern("stats_inc_players_rejected_counter") @wasm {
-    stats_inc_counter(PLAYERS_REJECTED, 1);
+    stats::inc_counter(PLAYERS_REJECTED, 1);
 }
 
 /// Entry point //////////////////////////////
@@ -647,8 +463,196 @@ fn void entry() @init(2048) @private {
         common::platform_write(&buffer[0], buffer.len);
         return buffer.len;
     };
-    stats[StatEntry.UPTIME].timer.started_at = platform_now_secs();
+    stats::stats[StatEntry.UPTIME].timer.started_at = platform_now_secs();
     common::temp_mark = allocator::temp().used;
     common::scene = common::allocate_default_scene();
     previous_timestamp = platform_now_msecs();
+}
+
+/// Stats //////////////////////////////
+
+module server::stats;
+import std::collections::ringbuffer;
+import std::io;
+
+const usz AVERAGE_CAPACITY = 30;
+def StatSamples = RingBuffer(<float, AVERAGE_CAPACITY>);
+
+enum StatKind {
+    COUNTER,
+    AVERAGE,
+    TIMER,
+}
+
+struct StatCounter {
+    int value;
+}
+
+struct StatAverage {
+    StatSamples samples;
+}
+
+struct StatTimer {
+    uint started_at;
+}
+
+struct Stat {
+    StatKind kind;
+    String description;
+
+    union {
+        StatCounter counter;
+        StatAverage average;
+        StatTimer timer;
+    }
+}
+
+enum StatEntry: usz {
+    UPTIME,
+    TICKS_COUNT,
+    TICK_TIMES,
+    MESSAGES_SENT,
+    MESSAGES_RECEIVED,
+    TICK_MESSAGES_SENT,
+    TICK_MESSAGES_RECEIVED,
+    BYTES_SENT,
+    BYTES_RECEIVED,
+    TICK_BYTE_SENT,
+    TICK_BYTE_RECEIVED,
+    PLAYERS_CURRENTLY,
+    PLAYERS_JOINED,
+    PLAYERS_LEFT,
+    BOGUS_AMOGUS_MESSAGES,
+    PLAYERS_REJECTED,
+    COUNT,
+}
+
+// TODO: Why do I have to cast to usz in here? Is there cleaner way to do this?
+Stat[(usz)StatEntry.COUNT] stats = {
+    [StatEntry.UPTIME] = {
+        .kind = TIMER,
+        .description = "Uptime"
+    },
+    [StatEntry.TICKS_COUNT] = {
+        .kind = COUNTER,
+        .description = "Ticks count"
+    },
+    [StatEntry.TICK_TIMES] = {
+        .kind = AVERAGE,
+        .description = "Average time to process a tick"
+    },
+    [StatEntry.MESSAGES_SENT] = {
+        .kind = COUNTER,
+        .description = "Total messages sent"
+    },
+    [StatEntry.MESSAGES_RECEIVED] = {
+        .kind = COUNTER,
+        .description = "Total messages received"
+    },
+    [StatEntry.TICK_MESSAGES_SENT] = {
+        .kind = AVERAGE,
+        .description = "Average messages sent per tick"
+    },
+    [StatEntry.TICK_MESSAGES_RECEIVED] = {
+        .kind = AVERAGE,
+        .description = "Average messages received per tick"
+    },
+    [StatEntry.BYTES_SENT] = {
+        .kind = COUNTER,
+        .description = "Total bytes sent"
+    },
+    [StatEntry.BYTES_RECEIVED] = {
+        .kind = COUNTER,
+        .description = "Total bytes received"
+    },
+    [StatEntry.TICK_BYTE_SENT] = {
+        .kind = AVERAGE,
+        .description = "Average bytes sent per tick"
+    },
+    [StatEntry.TICK_BYTE_RECEIVED] = {
+        .kind = AVERAGE,
+        .description = "Average bytes received per tick"
+    },
+    [StatEntry.PLAYERS_CURRENTLY] = {
+        .kind = COUNTER,
+        .description = "Currently players"
+    },
+    [StatEntry.PLAYERS_JOINED] = {
+        .kind = COUNTER,
+        .description = "Total players joined"
+    },
+    [StatEntry.PLAYERS_LEFT] = {
+        .kind = COUNTER,
+        .description = "Total players left"
+    },
+    [StatEntry.BOGUS_AMOGUS_MESSAGES] = {
+        .kind = COUNTER,
+        .description = "Total bogus-amogus messages"
+    },
+    [StatEntry.PLAYERS_REJECTED] = {
+        .kind = COUNTER,
+        .description = "Total players rejected"
+    },
+};
+int messages_recieved_within_tick = 0;
+int bytes_received_within_tick = 0;
+int message_sent_within_tick = 0;
+int bytes_sent_within_tick = 0;
+
+fn float StatSamples.average(&self) {
+    float sum = 0;
+    for (usz i = 0; i < self.written; ++i) {
+        sum += self.get(i);
+    }
+    return sum/self.written;
+}
+
+fn String Stat.display(&stat) {
+    switch (stat.kind) {
+        case COUNTER: return string::tformat("%d", stat.counter.value);
+        case AVERAGE: return string::tformat("%f", stat.average.samples.average());
+        case TIMER:   return display_time_interval(server::platform_now_secs() - stat.timer.started_at);
+    }
+}
+
+fn String plural_number(int num, String singular, String plural) {
+    return num == 1 ? singular : plural;
+}
+
+fn String display_time_interval(uint diffSecs) {
+    String[4] result;
+    usz result_count = 0;
+
+    uint days = diffSecs/60/60/24;
+    if (days > 0) result[result_count++] = string::tformat("%d %s", days, plural_number(days, "day", "days"));
+    uint hours = diffSecs/60/60%24;
+    if (hours > 0) result[result_count++] = string::tformat("%d %s", hours, plural_number(hours, "hour", "hours"));
+    uint mins = diffSecs/60%60;
+    if (mins > 0) result[result_count++] = string::tformat("%d %s", mins, plural_number(mins, "min", "mins"));
+    uint secs = diffSecs%60;
+    if (secs > 0) result[result_count++] = string::tformat("%d %s", secs, plural_number(secs, "sec", "secs"));
+    return result_count == 0 ? "0 secs" : string::join_new(&result, " ", allocator::temp());
+}
+
+fn void push_sample(StatEntry entry, float sample) {
+    assert(entry < StatEntry.COUNT);
+    Stat *stat = &stats[entry];
+    assert(stat.kind == StatKind.AVERAGE);
+    stat.average.samples.push(sample);
+}
+
+fn void inc_counter(StatEntry entry, int delta) {
+    assert(entry < StatEntry.COUNT);
+    Stat *stat = &stats[entry];
+    assert(stat.kind == StatKind.AVERAGE);
+    stat.counter.value += delta;
+}
+
+fn void print_per_n_ticks(int n) {
+    if (stats[StatEntry.TICKS_COUNT].counter.value%n == 0) {
+        io::printn("Stats:");
+        foreach (&stat: stats) {
+            io::printn(string::tformat("  %s %s", stat.description, stat.display()));
+        }
+    }
 }
