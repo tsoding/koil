@@ -33,28 +33,31 @@ if (!0) {
         "stb_image.h"
     ]).on('close', (data) => {
         if (data !== 0) return;
-        cmd("c3c", [
-            "compile",
-            "-D", "PLATFORM_WEB",
-            "--reloc=none",
-            "--target", "wasm32",
-            "-O5", "-g0", "--link-libc=no", "--no-entry",
-            "--trust=full",
-            "-o", "client",
-            "-z", "--export-table",
-            "-z", "--allow-undefined",
-            "client.c3", "common.c3",
-        ])
-        cmd("c3c", [
-            "compile",
-            "-D", "PLATFORM_WEB",
-            "--reloc=none",
-            "--target", "wasm32",
-            "-O5", "-g0", "--link-libc=no", "--no-entry",
-            "-o", "server",
-            "-z", "--export-table",
-            "-z", "--allow-undefined",
-            "server.c3", "common.c3",
-        ])
+        cmd("c3c", ["compile", "packer.c3", "common.c3", "stb_image.o"]).on('close', (data) => {
+            if (data !== 0) return;
+            cmd("c3c", [
+                "compile",
+                "-D", "PLATFORM_WEB",
+                "--reloc=none",
+                "--target", "wasm32",
+                "-O5", "-g0", "--link-libc=no", "--no-entry",
+                "--trust=full",
+                "-o", "client",
+                "-z", "--export-table",
+                "-z", "--allow-undefined",
+                "client.c3", "common.c3",
+            ])
+        });
     })
+    cmd("c3c", [
+        "compile",
+        "-D", "PLATFORM_WEB",
+        "--reloc=none",
+        "--target", "wasm32",
+        "-O5", "-g0", "--link-libc=no", "--no-entry",
+        "-o", "server",
+        "-z", "--export-table",
+        "-z", "--allow-undefined",
+        "server.c3", "common.c3",
+    ])
 }

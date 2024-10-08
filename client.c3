@@ -28,7 +28,7 @@ const float MINIMAP_SCALE = 0.07;
 
 const uint SPRITE_ANGLES_COUNT = 8;
 
-$exec("packer.c3;common.c3;stb_image.o");
+$exec("./packer");
 
 def Color = char[<4>];
 
