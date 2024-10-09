@@ -33,9 +33,9 @@ fn void collect_items_by_player(Player player, Item[] *items) {
 
 fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
     if (collected_items.size == 0) return null;
-    int size = ItemsCollectedBatchMessage.sizeof + int.sizeof*collected_items.size;
-    ItemsCollectedBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = ItemsCollectedBatchMessage.sizeof + int.sizeof*collected_items.size;
+    ItemsCollectedBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.ITEM_COLLECTED;
     for (int i = 0; i < collected_items.size; ++i) {
         message.ids[i] = collected_items[i];
@@ -57,9 +57,9 @@ fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
 
 fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
     if (thrown_bombs.size == 0) return null;
-    int size = BombsSpawnedBatchMessage.sizeof + BombSpawned.sizeof*thrown_bombs.size;
-    BombsSpawnedBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = BombsSpawnedBatchMessage.sizeof + BombSpawned.sizeof*thrown_bombs.size;
+    BombsSpawnedBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.BOMB_SPAWNED;
 
     foreach (index, bombIndex: thrown_bombs) {
@@ -92,9 +92,9 @@ fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs
 
 fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
     if (exploded_bombs.size == 0) return null;
-    int size = BombsExplodedBatchMessage.sizeof + BombExploded.sizeof*exploded_bombs.size;
-    BombsExplodedBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = BombsExplodedBatchMessage.sizeof + BombExploded.sizeof*exploded_bombs.size;
+    BombsExplodedBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.BOMB_EXPLODED;
 
     foreach (index, bombIndex: exploded_bombs) {
@@ -148,9 +148,9 @@ fn void unregister_player(uint id) @extern("unregister_player") @wasm {
 
 fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
     if (players.is_empty()) return null;
-    int size = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*players.len();
-    PlayersJoinedBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*players.len();
+    PlayersJoinedBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.PLAYER_JOINED;
     
     int index = 0;
@@ -169,9 +169,9 @@ fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
 
 fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
     if (joined_ids.is_empty()) return null;
-    int size = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*joined_ids.len();
-    PlayersJoinedBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*joined_ids.len();
+    PlayersJoinedBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.PLAYER_JOINED;
 
     int index = 0;
@@ -194,9 +194,9 @@ fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
 fn PlayersLeftBatchMessage *left_players_as_batch_message() {
     if (left_ids.is_empty()) return null;
 
-    int size = PlayersLeftBatchMessage.sizeof + uint.sizeof*left_ids.len();
-    PlayersLeftBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = PlayersLeftBatchMessage.sizeof + uint.sizeof*left_ids.len();
+    PlayersLeftBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.PLAYER_LEFT;
 
     int index = 0;
@@ -225,15 +225,15 @@ fn void process_joined_players(Item[]* items) {
             uint joined_id = entry.key;
             if (try joined_player = players.get(joined_id)) { // This should never happen, but we're handling none existing ids for more robustness
                 // The greetings
-                HelloMessage *hello_message = mem::tcalloc(HelloMessage.sizeof);
-                hello_message.size      = HelloMessage.sizeof;
-                hello_message.kind      = HELLO;
-                hello_message.id        = joined_player.player.id;
-                hello_message.x         = joined_player.player.position.x;
-                hello_message.y         = joined_player.player.position.y;
-                hello_message.direction = joined_player.player.direction;
-                hello_message.hue       = joined_player.player.hue;
-                send_message_and_update_stats(joined_id, hello_message);
+                send_message_and_update_stats(joined_id, &&HelloMessage {
+                    .byte_length = HelloMessage.sizeof,
+                    .kind       = HELLO,
+                    .id         = joined_player.player.id,
+                    .x          = joined_player.player.position.x,
+                    .y          = joined_player.player.position.y,
+                    .direction  = joined_player.player.direction,
+                    .hue        = joined_player.player.hue,
+                });
 
                 // Reconstructing the state of the other players
                 if (players_joined_batch_message != null) {
@@ -279,9 +279,9 @@ fn void process_moving_players() {
     };
     if (count <= 0) return;
 
-    int size = PlayersMovingBatchMessage.sizeof + PlayerStruct.sizeof*count;
-    PlayersMovingBatchMessage *message = mem::tcalloc(size);
-    message.size = size;
+    int byte_length = PlayersMovingBatchMessage.sizeof + PlayerStruct.sizeof*count;
+    PlayersMovingBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = byte_length;
     message.kind = MessageKind.PLAYER_MOVING;
     int index = 0;
     players.@each_entry(; PlayerOnServerEntry* entry) {
@@ -340,11 +340,11 @@ fn void process_pings() {
         uint id = entry.key;
         uint timestamp = entry.value;
         if (try player = players.get(id)) { // This MAY happen. A player may send a ping and leave.
-            PongMessage *message = mem::tcalloc(PongMessage.sizeof);
-            message.size = PongMessage.sizeof;
-            message.kind = PONG;
-            message.timestamp = timestamp;
-            send_message_and_update_stats(id, message);
+            send_message_and_update_stats(id, &&PongMessage {
+                .byte_length = PongMessage.sizeof,
+                .kind = PONG,
+                .timestamp = timestamp,
+            });
         }
     };
 }
@@ -370,21 +370,21 @@ fn void clear_intermediate_ids() {
 }
 
 fn bool verify_ping_message(Message *message) {
-    if (message.size != PingMessage.sizeof) return false;
+    if (message.byte_length != PingMessage.sizeof) return false;
     PingMessage* ping_message = (PingMessage*)message;
     if (ping_message.kind != PING) return false;
     return true;
 }
 
 fn bool verify_amma_throwing_message(Message *message) {
-    if (message.size != AmmaThrowingMessage.sizeof) return false;
+    if (message.byte_length != AmmaThrowingMessage.sizeof) return false;
     AmmaThrowingMessage* amma_throwing_message = (AmmaThrowingMessage*)message;
     if (amma_throwing_message.kind != AMMA_THROWING) return false;
     return true;
 }
 
 fn bool verify_amma_moving_message(Message *message) {
-    if (message.size != AmmaMovingMessage.sizeof) return false;
+    if (message.byte_length != AmmaMovingMessage.sizeof) return false;
     AmmaMovingMessage* amma_moving_message = (AmmaMovingMessage*)message;
     if (amma_moving_message.kind != AMMA_MOVING) return false;
     return true;
@@ -393,8 +393,8 @@ fn bool verify_amma_moving_message(Message *message) {
 fn bool process_message_on_server(uint id, Message *message) @extern("process_message_on_server") @wasm {
     stats::inc_counter(MESSAGES_RECEIVED, 1);
     stats::messages_recieved_within_tick += 1;
-    stats::inc_counter(BYTES_RECEIVED, message.size);
-    stats::bytes_received_within_tick += message.size;
+    stats::inc_counter(BYTES_RECEIVED, message.byte_length);
+    stats::bytes_received_within_tick += message.byte_length;
     if (verify_amma_moving_message(message)) {
         player_update_moving(id, (AmmaMovingMessage*)message);
     } else if (verify_amma_throwing_message(message)) {

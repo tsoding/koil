@@ -58,8 +58,12 @@ enum MessageKind: char {
     BOMB_EXPLODED,
 }
 
+fault MessageFault {
+    INVALID
+}
+
 struct Message @packed {
-    int size;                   // TODO: it should emphasized throughout "substructures" that size is in bytes
+    uint byte_length;
     char[*] bytes;
 }
 
@@ -185,7 +189,7 @@ struct ItemSpawned @packed {
 }
 
 struct ItemsSpawnedBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     ItemSpawned[*] items;
 }
@@ -196,9 +200,9 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
         if (item.alive) itemsCount += 1;
     }
     if (itemsCount == 0) return null;
-    usz size = ItemsSpawnedBatchMessage.sizeof + ItemSpawned.sizeof*itemsCount;
-    ItemsSpawnedBatchMessage *message = mem::tcalloc(size);
-    message.size = (int)size;
+    usz byte_length = ItemsSpawnedBatchMessage.sizeof + ItemSpawned.sizeof*itemsCount;
+    ItemsSpawnedBatchMessage *message = mem::tcalloc(byte_length);
+    message.byte_length = (int)byte_length;
     message.kind = MessageKind.ITEM_SPAWNED;
     usz index = 0;
     foreach (itemIndex, item: *items) {
@@ -216,7 +220,7 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
 }
 
 struct ItemsCollectedBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     int[*] ids;
 }
@@ -298,7 +302,7 @@ struct BombSpawned @packed {
 }
 
 struct BombsSpawnedBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     BombSpawned[*] bombs;
 }
@@ -311,7 +315,7 @@ struct BombExploded @packed {
 }
 
 struct BombsExplodedBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     BombExploded[*] bombs;
 }
@@ -346,25 +350,25 @@ struct PlayerStruct @packed {
 }
 
 struct PlayersJoinedBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     PlayerStruct[*] players;
 }
 
 struct PlayersLeftBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     uint[*] ids;
 }
 
 struct PlayersMovingBatchMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     PlayerStruct[*] players;
 }
 
 struct HelloMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     uint id;
     float x;
@@ -374,25 +378,25 @@ struct HelloMessage @packed {
 }
 
 struct PongMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     uint timestamp;
 }
 
 struct AmmaMovingMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
     Moving direction;
     char start;
 }
 
 struct AmmaThrowingMessage @packed {
-    int size;
+    uint byte_length;
     MessageKind kind;
 }
 
 struct PingMessage {
-    int size;
+    uint byte_length;
     MessageKind kind;
     uint timestamp;
 }

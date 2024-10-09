@@ -453,15 +453,15 @@ fn void kill_all_items(Item[]* items) {
 }
 
 fn ItemsCollectedBatchMessage*! verify_items_collected_batch_message(Message *message) {
-    if (message.size < ItemsCollectedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < ItemsCollectedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return MessageFault.INVALID?;
     ItemsCollectedBatchMessage* items_collected_batch_message = (ItemsCollectedBatchMessage*)message;
     if (items_collected_batch_message.kind != MessageKind.ITEM_COLLECTED) return MessageFault.INVALID?;
     return items_collected_batch_message;
 }
 
 fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message, Item[]* items) {
-    usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
+    usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
         int itemIndex = message.ids[i];
@@ -483,15 +483,15 @@ fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message,
 }
 
 fn ItemsSpawnedBatchMessage*! verify_items_spawned_batch_message(Message *message) {
-    if (message.size < ItemsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < ItemsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return MessageFault.INVALID?;
     ItemsSpawnedBatchMessage* items_spawned_batch_message = (ItemsSpawnedBatchMessage*)message;
     if (items_spawned_batch_message.kind != MessageKind.ITEM_SPAWNED) return MessageFault.INVALID?;
     return items_spawned_batch_message;
 }
 
 fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Item[]* items) {
-    usz count = (message.size - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
+    usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int itemIndex = message.items[i].itemIndex;
         if (!(0 <= itemIndex && itemIndex < items.len)) {
@@ -565,15 +565,15 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
 }
 
 fn BombsSpawnedBatchMessage*! verify_bombs_spawned_batch_message(Message *message) {
-    if (message.size < BombsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < BombsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return MessageFault.INVALID?;
     BombsSpawnedBatchMessage* bombs_spawned_batch_message = (BombsSpawnedBatchMessage*)message;
     if (bombs_spawned_batch_message.kind != MessageKind.BOMB_SPAWNED) return MessageFault.INVALID?;
     return bombs_spawned_batch_message;
 }
 
 fn bool apply_bombs_spawned_batch_message(BombsSpawnedBatchMessage *message, Bombs *bombs) {
-    usz count = (message.size - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;
+    usz count = (message.byte_length - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
         if (!(0 <= bombIndex && bombIndex < bombs.len)) {
@@ -594,15 +594,15 @@ fn bool apply_bombs_spawned_batch_message(BombsSpawnedBatchMessage *message, Bom
 }
 
 fn BombsExplodedBatchMessage*! verify_bombs_exploded_batch_message(Message *message) {
-    if (message.size < BombsExplodedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < BombsExplodedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return MessageFault.INVALID?;
     BombsExplodedBatchMessage* bombs_exploded_batch_message = (BombsExplodedBatchMessage*)message;
     if (bombs_exploded_batch_message.kind != MessageKind.BOMB_EXPLODED) return MessageFault.INVALID?;
     return bombs_exploded_batch_message;
 }
 
 fn bool apply_bombs_exploded_batch_message(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) {
-    usz count = (message.size - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
+    usz count = (message.byte_length - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
     for (usz i = 0; i < count; ++i) {
         int bombIndex = message.bombs[i].bombIndex;
         if (!(0 <= bombIndex && bombIndex < bombs.len)) {
@@ -645,12 +645,8 @@ const Control[*] CONTROL_KEYS = {
     {83, MOVING_BACKWARD},
 };
 
-fault MessageFault {
-    INVALID
-}
-
 fn HelloMessage*! verify_hello_message(Message *message) {
-    if (message.size != HelloMessage.sizeof) return MessageFault.INVALID?;
+    if (message.byte_length != HelloMessage.sizeof) return MessageFault.INVALID?;
     HelloMessage* hello_message = (HelloMessage*)message;
     if (hello_message.kind != HELLO) return MessageFault.INVALID?;
     return hello_message;
@@ -670,15 +666,15 @@ fn bool apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
 }
 
 fn PlayersJoinedBatchMessage*! verify_players_joined_batch_message(Message *message) {
-    if (message.size < PlayersJoinedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < PlayersJoinedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
     PlayersJoinedBatchMessage* players_joined_batch_message = (PlayersJoinedBatchMessage*)message;
     if (players_joined_batch_message.kind != PLAYER_JOINED) return MessageFault.INVALID?;
     return players_joined_batch_message;
 }
 
 fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
-    usz count = (message.size - PlayersJoinedBatchMessage.sizeof)/PlayerStruct.sizeof;
+    usz count = (message.byte_length - PlayersJoinedBatchMessage.sizeof)/PlayerStruct.sizeof;
     for (usz i = 0; i < count; ++i) {
         PlayerStruct *player_struct = &message.players[i];
         uint id = player_struct.id;
@@ -708,30 +704,30 @@ fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
 }
 
 fn PlayersLeftBatchMessage*! verify_players_left_batch_message(Message *message) {
-    if (message.size < PlayersLeftBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < PlayersLeftBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return MessageFault.INVALID?;
     PlayersLeftBatchMessage* players_left_batch_message = (PlayersLeftBatchMessage*)message;
     if (players_left_batch_message.kind != PLAYER_LEFT) return MessageFault.INVALID?;
     return players_left_batch_message;
 }
 
 fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) {
-    usz count = (message.size - PlayersLeftBatchMessage.sizeof)/uint.sizeof;
+    usz count = (message.byte_length - PlayersLeftBatchMessage.sizeof)/uint.sizeof;
     for (usz i = 0; i < count; ++i) {
         other_players.remove(message.ids[i]);
     }
 }
 
 fn PlayersMovingBatchMessage*! verify_players_moving_batch_message(Message *message) {
-    if (message.size < PlayersMovingBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.size - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
+    if (message.byte_length < PlayersMovingBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
     PlayersMovingBatchMessage* players_moving_batch_message = (PlayersMovingBatchMessage*)message;
     if (players_moving_batch_message.kind != PLAYER_MOVING) return MessageFault.INVALID?;
     return players_moving_batch_message;
 }
 
 fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
-    usz count = (message.size - PlayersMovingBatchMessage.sizeof)/PlayerStruct.sizeof;
+    usz count = (message.byte_length - PlayersMovingBatchMessage.sizeof)/PlayerStruct.sizeof;
     for (usz i = 0; i < count; ++i) {
         PlayerStruct *player_struct = &message.players[i];
         uint id = player_struct.id;
@@ -781,7 +777,7 @@ fn void key_down(uint key_code) @extern("key_down") @wasm {
 
             if (!platform_is_offline_mode()) {
                 AmmaMovingMessage *message = mem::tcalloc(AmmaMovingMessage.sizeof);
-                message.size = AmmaMovingMessage.sizeof;
+                message.byte_length = AmmaMovingMessage.sizeof;
                 message.kind = AMMA_MOVING;
                 message.start = 1;
                 message.direction = direction;
@@ -797,7 +793,7 @@ fn void key_down(uint key_code) @extern("key_down") @wasm {
     if (key_code == KEY_SPACE) {
         if (!platform_is_offline_mode()) {
             AmmaThrowingMessage *message = mem::tcalloc(AmmaThrowingMessage.sizeof);
-            message.size = AmmaThrowingMessage.sizeof;
+            message.byte_length = AmmaThrowingMessage.sizeof;
             message.kind = AMMA_THROWING;
             platform_send_message(message);
         } else {
@@ -813,7 +809,7 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
 
             if (!platform_is_offline_mode()) {
                 AmmaMovingMessage *message = mem::tcalloc(AmmaMovingMessage.sizeof);
-                message.size = AmmaMovingMessage.sizeof;
+                message.byte_length = AmmaMovingMessage.sizeof;
                 message.kind = AMMA_MOVING;
                 message.start = 0;
                 message.direction = direction;
@@ -881,7 +877,7 @@ fn void ping_server_if_needed() {
         ping_cooldown -= 1;
         if (ping_cooldown == 0) {
             PingMessage ping = {
-                .size = PingMessage.sizeof,
+                .byte_length = PingMessage.sizeof,
                 .kind = PING,
                 .timestamp = platform_now_msecs(),
             };
@@ -892,7 +888,7 @@ fn void ping_server_if_needed() {
 }
 
 fn PongMessage*! verify_pong_message(Message *message) {
-    if (message.size != PongMessage.sizeof) return MessageFault.INVALID?;
+    if (message.byte_length != PongMessage.sizeof) return MessageFault.INVALID?;
     PongMessage* pong_message = (PongMessage*)message;
     if (pong_message.kind != PONG) return MessageFault.INVALID?;
     return pong_message;
