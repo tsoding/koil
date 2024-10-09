@@ -40,7 +40,7 @@ function cmd(program, args = []) {
 try {
     if (!0) await cmd("tsc", []);
     if (!0) {
-        await Promise.all([
+        await Promise.allSettled([
             cmd("clang", ["-DSTB_IMAGE_IMPLEMENTATION", "-x", "c", "-c", "stb_image.h"]).then(async () => {
                 await cmd("c3c", ["compile", "packer.c3", "common.c3", "stb_image.o"])
                 await cmd("c3c", [
