@@ -194,6 +194,14 @@ struct ItemsSpawnedBatchMessage @packed {
     ItemSpawned[*] items;
 }
 
+fn ItemsSpawnedBatchMessage*! verify_items_spawned_batch_message(Message *message) {
+    if (message.byte_length < ItemsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return MessageFault.INVALID?;
+    ItemsSpawnedBatchMessage* items_spawned_batch_message = (ItemsSpawnedBatchMessage*)message;
+    if (items_spawned_batch_message.kind != MessageKind.ITEM_SPAWNED) return MessageFault.INVALID?;
+    return items_spawned_batch_message;
+}
+
 fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
     foreach (&item: *items) {
@@ -223,6 +231,14 @@ struct ItemsCollectedBatchMessage @packed {
     uint byte_length;
     MessageKind kind;
     int[*] ids;
+}
+
+fn ItemsCollectedBatchMessage*! verify_items_collected_batch_message(Message *message) {
+    if (message.byte_length < ItemsCollectedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return MessageFault.INVALID?;
+    ItemsCollectedBatchMessage* items_collected_batch_message = (ItemsCollectedBatchMessage*)message;
+    if (items_collected_batch_message.kind != MessageKind.ITEM_COLLECTED) return MessageFault.INVALID?;
+    return items_collected_batch_message;
 }
 
 /// Bombs //////////////////////////////
@@ -307,6 +323,14 @@ struct BombsSpawnedBatchMessage @packed {
     BombSpawned[*] bombs;
 }
 
+fn BombsSpawnedBatchMessage*! verify_bombs_spawned_batch_message(Message *message) {
+    if (message.byte_length < BombsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return MessageFault.INVALID?;
+    BombsSpawnedBatchMessage* bombs_spawned_batch_message = (BombsSpawnedBatchMessage*)message;
+    if (bombs_spawned_batch_message.kind != MessageKind.BOMB_SPAWNED) return MessageFault.INVALID?;
+    return bombs_spawned_batch_message;
+}
+
 struct BombExploded @packed {
     uint bombIndex;
     float x;
@@ -318,6 +342,14 @@ struct BombsExplodedBatchMessage @packed {
     uint byte_length;
     MessageKind kind;
     BombExploded[*] bombs;
+}
+
+fn BombsExplodedBatchMessage*! verify_bombs_exploded_batch_message(Message *message) {
+    if (message.byte_length < BombsExplodedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return MessageFault.INVALID?;
+    BombsExplodedBatchMessage* bombs_exploded_batch_message = (BombsExplodedBatchMessage*)message;
+    if (bombs_exploded_batch_message.kind != MessageKind.BOMB_EXPLODED) return MessageFault.INVALID?;
+    return bombs_exploded_batch_message;
 }
 
 /// Player //////////////////////////////
@@ -355,16 +387,40 @@ struct PlayersJoinedBatchMessage @packed {
     PlayerStruct[*] players;
 }
 
+fn PlayersJoinedBatchMessage*! verify_players_joined_batch_message(Message *message) {
+    if (message.byte_length < PlayersJoinedBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
+    PlayersJoinedBatchMessage* players_joined_batch_message = (PlayersJoinedBatchMessage*)message;
+    if (players_joined_batch_message.kind != PLAYER_JOINED) return MessageFault.INVALID?;
+    return players_joined_batch_message;
+}
+
 struct PlayersLeftBatchMessage @packed {
     uint byte_length;
     MessageKind kind;
     uint[*] ids;
 }
 
+fn PlayersLeftBatchMessage*! verify_players_left_batch_message(Message *message) {
+    if (message.byte_length < PlayersLeftBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return MessageFault.INVALID?;
+    PlayersLeftBatchMessage* players_left_batch_message = (PlayersLeftBatchMessage*)message;
+    if (players_left_batch_message.kind != PLAYER_LEFT) return MessageFault.INVALID?;
+    return players_left_batch_message;
+}
+
 struct PlayersMovingBatchMessage @packed {
     uint byte_length;
     MessageKind kind;
     PlayerStruct[*] players;
+}
+
+fn PlayersMovingBatchMessage*! verify_players_moving_batch_message(Message *message) {
+    if (message.byte_length < PlayersMovingBatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
+    PlayersMovingBatchMessage* players_moving_batch_message = (PlayersMovingBatchMessage*)message;
+    if (players_moving_batch_message.kind != PLAYER_MOVING) return MessageFault.INVALID?;
+    return players_moving_batch_message;
 }
 
 struct HelloMessage @packed {
@@ -377,10 +433,24 @@ struct HelloMessage @packed {
     char hue;
 }
 
+fn HelloMessage*! verify_hello_message(Message *message) {
+    if (message.byte_length != HelloMessage.sizeof) return MessageFault.INVALID?;
+    HelloMessage* hello_message = (HelloMessage*)message;
+    if (hello_message.kind != HELLO) return MessageFault.INVALID?;
+    return hello_message;
+}
+
 struct PongMessage @packed {
     uint byte_length;
     MessageKind kind;
     uint timestamp;
+}
+
+fn PongMessage*! verify_pong_message(Message *message) {
+    if (message.byte_length != PongMessage.sizeof) return MessageFault.INVALID?;
+    PongMessage* pong_message = (PongMessage*)message;
+    if (pong_message.kind != PONG) return MessageFault.INVALID?;
+    return pong_message;
 }
 
 struct AmmaMovingMessage @packed {
@@ -390,15 +460,36 @@ struct AmmaMovingMessage @packed {
     char start;
 }
 
+fn AmmaMovingMessage*! verify_amma_moving_message(Message *message) {
+    if (message.byte_length != AmmaMovingMessage.sizeof) return MessageFault.INVALID?;
+    AmmaMovingMessage* amma_moving_message = (AmmaMovingMessage*)message;
+    if (amma_moving_message.kind != AMMA_MOVING) return MessageFault.INVALID?;
+    return amma_moving_message;
+}
+
 struct AmmaThrowingMessage @packed {
     uint byte_length;
     MessageKind kind;
+}
+
+fn AmmaThrowingMessage*! verify_amma_throwing_message(Message *message) {
+    if (message.byte_length != AmmaThrowingMessage.sizeof) return MessageFault.INVALID?;
+    AmmaThrowingMessage* amma_throwing_message = (AmmaThrowingMessage*)message;
+    if (amma_throwing_message.kind != AMMA_THROWING) return MessageFault.INVALID?;
+    return amma_throwing_message;
 }
 
 struct PingMessage {
     uint byte_length;
     MessageKind kind;
     uint timestamp;
+}
+
+fn PingMessage*! verify_ping_message(Message *message) {
+    if (message.byte_length != PingMessage.sizeof) return MessageFault.INVALID?;
+    PingMessage* ping_message = (PingMessage*)message;
+    if (ping_message.kind != PING) return MessageFault.INVALID?;
+    return ping_message;
 }
 
 fn void update_player(Player *player, Scene *scene, float delta_time) {

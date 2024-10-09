@@ -369,42 +369,21 @@ fn void clear_intermediate_ids() {
     ping_ids.clear();
 }
 
-fn PingMessage*! verify_ping_message(Message *message) {
-    if (message.byte_length != PingMessage.sizeof) return MessageFault.INVALID?;
-    PingMessage* ping_message = (PingMessage*)message;
-    if (ping_message.kind != PING) return MessageFault.INVALID?;
-    return ping_message;
-}
-
-fn AmmaThrowingMessage*! verify_amma_throwing_message(Message *message) {
-    if (message.byte_length != AmmaThrowingMessage.sizeof) return MessageFault.INVALID?;
-    AmmaThrowingMessage* amma_throwing_message = (AmmaThrowingMessage*)message;
-    if (amma_throwing_message.kind != AMMA_THROWING) return MessageFault.INVALID?;
-    return amma_throwing_message;
-}
-
-fn AmmaMovingMessage*! verify_amma_moving_message(Message *message) {
-    if (message.byte_length != AmmaMovingMessage.sizeof) return MessageFault.INVALID?;
-    AmmaMovingMessage* amma_moving_message = (AmmaMovingMessage*)message;
-    if (amma_moving_message.kind != AMMA_MOVING) return MessageFault.INVALID?;
-    return amma_moving_message;
-}
-
 fn bool process_message_on_server(uint id, Message *unknown_message) @extern("process_message_on_server") @wasm {
     stats::inc_counter(MESSAGES_RECEIVED, 1);
     stats::messages_recieved_within_tick += 1;
     stats::inc_counter(BYTES_RECEIVED, unknown_message.byte_length);
     stats::bytes_received_within_tick += unknown_message.byte_length;
 
-    if (try message = verify_amma_moving_message(unknown_message)) {
+    if (try message = common::verify_amma_moving_message(unknown_message)) {
         player_update_moving(id, message);
         return true;
     }
-    if (try verify_amma_throwing_message(unknown_message)) {
+    if (try common::verify_amma_throwing_message(unknown_message)) {
         throw_bomb_on_server_side(id, &common::bombs);
         return true;
     }
-    if (try message = verify_ping_message(unknown_message)) {
+    if (try message = common::verify_ping_message(unknown_message)) {
         schedule_ping_for_player(id, message);
         return true;
     }
