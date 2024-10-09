@@ -170,11 +170,9 @@ Item[] items = {
     },
 };
 
-fn bool collect_item(float player_position_x, float player_position_y, Item[] *items, usz item_index) @extern("collect_item") @wasm {
-    if (item_index >= items.len) return false;
-    Item *item = &(*items)[item_index];
+fn bool collect_item(Player player, Item *item) {
     if (!item.alive) return false;
-    if (Vector2{player_position_x, player_position_y}.distance(item.position) >= PLAYER_RADIUS) return false;
+    if (player.position.distance(item.position) >= PLAYER_RADIUS) return false;
     item.alive = false;
     return true;
 }

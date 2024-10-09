@@ -523,8 +523,8 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
 }
 
 fn void update_items_offline(Item[]* items) {
-    foreach (item_index, item: *items) {
-        if (common::collect_item(me.position.x, me.position.y, items, item_index)) {
+    foreach (item_index, &item: *items) {
+        if (common::collect_item(me, item)) {
             platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
         }
     }

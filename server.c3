@@ -23,12 +23,10 @@ fn void send_message_and_update_stats(uint player_id, void* message) {
 
 List(<usz>) collected_items;
 
-fn void collect_items_by_player_at(float player_position_x, float player_position_y, Item[] *items) {
-    foreach (item_index, item: *items) {
-        if (item.alive) {
-            if (common::collect_item(player_position_x, player_position_y, items, item_index)) {
-                collected_items.push(item_index);
-            }
+fn void collect_items_by_player(Player player, Item[] *items) {
+    foreach (index, &item: *items) {
+        if (common::collect_item(player, item)) {
+            collected_items.push(index);
         }
     }
 }
@@ -317,7 +315,7 @@ fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, floa
     // Simulating the world for one server tick.
     players.@each_entry(; PlayerOnServerEntry* entry) {
         common::update_player(&entry.value.player, scene, delta_time);
-        collect_items_by_player_at(entry.value.player.position.x, entry.value.player.position.y, items);
+        collect_items_by_player(entry.value.player, items);
     };
 
     ItemsCollectedBatchMessage *items_collected_batch_message = collected_items_as_batch_message(items);
