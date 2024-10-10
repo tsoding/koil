@@ -2,38 +2,19 @@ import { readFileSync } from 'fs';
 import { WebSocketServer } from 'ws';
 import * as common from './common.mjs';
 const SERVER_FPS = 60;
-const SERVER_TOTAL_LIMIT = 2000;
-const SERVER_SINGLE_IP_LIMIT = 10;
 const wasmServer = await instantiateWasmServer('server.wasm');
 const connections = new Map();
-const connectionLimits = new Map();
 let idCounter = 0;
 const wss = new WebSocketServer({ port: common.SERVER_PORT });
 wss.on("connection", (ws, req) => {
     ws.binaryType = 'arraybuffer';
-    if (connections.size >= SERVER_TOTAL_LIMIT) {
-        wasmServer.stats_inc_players_rejected_counter();
-        ws.close();
-        return;
-    }
-    if (req.socket.remoteAddress === undefined) {
-        wasmServer.stats_inc_players_rejected_counter();
-        ws.close();
-        return;
-    }
-    const remoteAddress = req.socket.remoteAddress;
-    {
-        let count = connectionLimits.get(remoteAddress) || 0;
-        if (count >= SERVER_SINGLE_IP_LIMIT) {
-            wasmServer.stats_inc_players_rejected_counter();
-            ws.close();
-            return;
-        }
-        connectionLimits.set(remoteAddress, count + 1);
-    }
+    const remoteAddressPtr = common.stringAsShortStringInWasm(wasmServer, req.socket.remoteAddress ?? "");
     const id = idCounter++;
-    wasmServer.register_new_player(id);
-    connections.set(id, { ws, remoteAddress });
+    if (!wasmServer.register_new_player(id, remoteAddressPtr)) {
+        ws.close();
+        return;
+    }
+    connections.set(id, ws);
     ws.addEventListener("message", (event) => {
         if (!(event.data instanceof ArrayBuffer)) {
             throw new Error("binaryType of the client WebSocket must be 'arraybuffer'");
@@ -45,15 +26,6 @@ wss.on("connection", (ws, req) => {
         }
     });
     ws.on("close", () => {
-        let count = connectionLimits.get(remoteAddress);
-        if (count !== undefined) {
-            if (count <= 1) {
-                connectionLimits.delete(remoteAddress);
-            }
-            else {
-                connectionLimits.set(remoteAddress, count - 1);
-            }
-        }
         wasmServer.unregister_player(id);
         connections.delete(id);
     });
@@ -77,7 +49,7 @@ function platform_send_message(player_id, message) {
     const size = new Uint32Array(wasmServer.memory.buffer, message, 1)[0];
     if (size === 0)
         return 0;
-    connection.ws.send(new Uint8Array(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE));
+    connection.send(new Uint8Array(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE));
     return size;
 }
 async function instantiateWasmServer(path) {
@@ -88,13 +60,18 @@ async function instantiateWasmServer(path) {
             platform_send_message,
             platform_now_msecs: () => performance.now(),
             fmodf: (x, y) => x % y,
+            memcmp: (ps1, ps2, n) => {
+                const mem = new Uint8ClampedArray(wasmServer.memory.buffer);
+                for (; n > 0 && mem[ps1] === mem[ps2]; n--, ps1++, ps2++)
+                    ;
+                return n > 0 ? mem[ps1] - mem[ps2] : 0;
+            },
         },
     });
     const wasmCommon = common.makeWasmCommon(wasm);
     wasmCommon._initialize();
     return {
         ...wasmCommon,
-        stats_inc_players_rejected_counter: wasm.instance.exports.stats_inc_players_rejected_counter,
         register_new_player: wasm.instance.exports.register_new_player,
         unregister_player: wasm.instance.exports.unregister_player,
         process_message_on_server: wasm.instance.exports.process_message_on_server,

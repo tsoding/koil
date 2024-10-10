@@ -1,5 +1,6 @@
 export const SERVER_PORT = 6970;
 export const UINT32_SIZE = 4;
+const SHORT_STRING_SIZE = 64;
 export function makeWasmCommon(wasm) {
     return {
         wasm,
@@ -14,5 +15,14 @@ export function arrayBufferAsMessageInWasm(wasmCommon, buffer) {
     new DataView(wasmCommon.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
     new Uint8ClampedArray(wasmCommon.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
     return wasmBufferPtr;
+}
+export function stringAsShortStringInWasm(wasmCommon, s) {
+    const shortStringPtr = wasmCommon.allocate_temporary_buffer(SHORT_STRING_SIZE);
+    const bytes = new Uint8ClampedArray(wasmCommon.memory.buffer, shortStringPtr, SHORT_STRING_SIZE);
+    bytes.fill(0);
+    for (let i = 0; i < s.length && i < SHORT_STRING_SIZE - 1; ++i) {
+        bytes[i] = s.charCodeAt(i);
+    }
+    return shortStringPtr;
 }
 //# sourceMappingURL=common.mjs.map

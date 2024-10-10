@@ -3,6 +3,8 @@ import std::math;
 import std::io;
 import std::collections::list;
 
+def ShortString = char[64];
+
 struct Asset {
     String filename;
     usz offset;

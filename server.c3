@@ -4,12 +4,17 @@ import std::io;
 import std::math;
 import std::collections::list;
 import std::collections::map;
+import std::hash::fnv32a;
+
+const usz SERVER_TOTAL_LIMIT = 2000;
+// const usz SERVER_SINGLE_IP_LIMIT = 10;
+const usz SERVER_SINGLE_IP_LIMIT = 2;
 
 extern fn int platform_now_secs();
 extern fn uint platform_send_message(uint player_id, void *message);
 extern fn uint platform_now_msecs();
 
-const int SERVER_FPS = 60;
+const int SERVER_FPS = 60;          // IMPORTANT! Must be in sync with SERVER_FPS in server.mts
 
 fn void send_message_and_update_stats(uint player_id, void* message) {
     uint sent = platform_send_message(player_id, message);
@@ -18,6 +23,13 @@ fn void send_message_and_update_stats(uint player_id, void* message) {
         stats::message_sent_within_tick += 1;
     }
 }
+
+/// Connection Limits //////////////////////////////
+
+def ShortString = char[64];   // IMPORTANT! The capacity must be in sync with the SHORT_STRING_SIZE in common.mts
+macro uint ShortString.hash(self) => fnv32a::encode(&self);
+def ConnectionLimitEntry = Entry(<ShortString, uint>);
+HashMap(<ShortString, uint>) connection_limits;
 
 /// Items //////////////////////////////
 
@@ -114,6 +126,7 @@ fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
 struct PlayerOnServer {
     Player player;
     char new_moving;
+    ShortString remote_address;
 }
 
 def PlayerOnServerEntry = Entry(<uint, PlayerOnServer>);
@@ -125,25 +138,63 @@ HashMap(<uint, bool>) left_ids;
 def PingEntry = Entry(<uint, uint>);
 HashMap(<uint, uint>) ping_ids;
 
-fn void register_new_player(uint id) @extern("register_new_player") @wasm {
+fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player") @wasm {
+    if (players.len() >= SERVER_TOTAL_LIMIT) {
+        stats::inc_counter(PLAYERS_REJECTED, 1);
+        return false;
+    }
+    
+    assert(remote_address != null);
+    usz remote_address_len = ((ZString)&(*remote_address)[0]).char_len(); // WutFace
+    if (remote_address_len == 0) {
+        stats::inc_counter(PLAYERS_REJECTED, 1);
+        return false;
+    }
+
+    if (try count = connection_limits.get(*remote_address)) {
+        // TODO: we need to let the player know somehow that they were rejected due to the limit
+        if (count >= SERVER_SINGLE_IP_LIMIT) {
+            stats::inc_counter(PLAYERS_REJECTED, 1);
+            return false;
+        }
+        connection_limits.set(*remote_address, count + 1);
+    } else {
+        connection_limits.set(*remote_address, 1);
+    }
+
     assert(!players.has_key(id));
     joined_ids.set(id, true);
-    stats::inc_counter(PLAYERS_JOINED, 1);
-    stats::inc_counter(PLAYERS_CURRENTLY, 1);
     players.set(id, {
         .player = {
             .id = id,
-        }
+        },
+        .remote_address = *remote_address,
     });
+
+    stats::inc_counter(PLAYERS_JOINED, 1);
+    stats::inc_counter(PLAYERS_CURRENTLY, 1);
+
+    return true;
 }
 
 fn void unregister_player(uint id) @extern("unregister_player") @wasm {
-    if (catch joined_ids.remove(id)) {
-        left_ids.set(id, false);
+    // console.log(`Player ${id} disconnected`);
+    if (try player = players.get(id)) {
+        if (try count = connection_limits.get(player.remote_address)) {
+            if (count <= 1) {
+                connection_limits.remove(player.remote_address);
+            } else {
+                connection_limits.set(player.remote_address, count - 1);
+            }
+        }
+
+        if (catch joined_ids.remove(id)) {
+            left_ids.set(id, false);
+        }
+        stats::inc_counter(PLAYERS_LEFT, 1);
+        stats::inc_counter(PLAYERS_CURRENTLY, -1);
+        players.remove(id);
     }
-    stats::inc_counter(PLAYERS_LEFT, 1);
-    stats::inc_counter(PLAYERS_CURRENTLY, -1);
-    players.remove(id);
 }
 
 fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
@@ -428,10 +479,6 @@ fn uint tick() @extern("tick") @wasm {
 
     common::reset_temp_mark();
     return tickTime;
-}
-
-fn void stats_inc_players_rejected_counter() @extern("stats_inc_players_rejected_counter") @wasm {
-    stats::inc_counter(PLAYERS_REJECTED, 1);
 }
 
 /// Entry point //////////////////////////////

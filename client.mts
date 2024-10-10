@@ -256,9 +256,9 @@ async function createGame(): Promise<Game> {
         prevTimestamp = timestamp;
 
         game.wasmClient.render_game(deltaTime, time);
-
         displaySwapBackImageData(game.display, game.wasmClient);
         renderDebugInfo(game.display.ctx, deltaTime, game);
+
         window.requestAnimationFrame(frame);
     }
     window.requestAnimationFrame((timestamp) => {
