@@ -191,8 +191,8 @@ struct ItemSpawned @packed {
 }
 
 def ItemsSpawnedBatchMessage = BatchMessage(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
-def verify_items_spawned_batch_message = msg::verify(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
-def alloc_items_spawned_batch_message = msg::alloc(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
+def verify_items_spawned_batch_message = msg::batch::verify(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
+def alloc_items_spawned_batch_message = msg::batch::alloc(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
 
 fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
@@ -217,8 +217,8 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
 }
 
 def ItemsCollectedBatchMessage = BatchMessage(<int, MessageKind.ITEM_COLLECTED>);
-def verify_items_collected_batch_message = msg::verify(<int, MessageKind.ITEM_COLLECTED>);
-def alloc_items_collected_batch_message = msg::alloc(<int, MessageKind.ITEM_COLLECTED>);
+def verify_items_collected_batch_message = msg::batch::verify(<int, MessageKind.ITEM_COLLECTED>);
+def alloc_items_collected_batch_message = msg::batch::alloc(<int, MessageKind.ITEM_COLLECTED>);
 
 /// Bombs //////////////////////////////
 
@@ -297,8 +297,8 @@ struct BombSpawned @packed {
 }
 
 def BombsSpawnedBatchMessage = BatchMessage(<BombSpawned, MessageKind.BOMB_SPAWNED>);
-def verify_bombs_spawned_batch_message = msg::verify(<BombSpawned, MessageKind.BOMB_SPAWNED>);
-def alloc_bombs_spawned_batch_message = msg::alloc(<BombSpawned, MessageKind.BOMB_SPAWNED>);
+def verify_bombs_spawned_batch_message = msg::batch::verify(<BombSpawned, MessageKind.BOMB_SPAWNED>);
+def alloc_bombs_spawned_batch_message = msg::batch::alloc(<BombSpawned, MessageKind.BOMB_SPAWNED>);
 
 struct BombExploded @packed {
     uint bombIndex;
@@ -308,8 +308,8 @@ struct BombExploded @packed {
 }
 
 def BombsExplodedBatchMessage = BatchMessage(<BombExploded, MessageKind.BOMB_EXPLODED>);
-def verify_bombs_exploded_batch_message = msg::verify(<BombExploded, MessageKind.BOMB_EXPLODED>);
-def alloc_bombs_exploded_batch_message = msg::alloc(<BombExploded, MessageKind.BOMB_EXPLODED>);
+def verify_bombs_exploded_batch_message = msg::batch::verify(<BombExploded, MessageKind.BOMB_EXPLODED>);
+def alloc_bombs_exploded_batch_message = msg::batch::alloc(<BombExploded, MessageKind.BOMB_EXPLODED>);
 
 /// Player //////////////////////////////
 
@@ -341,20 +341,18 @@ struct PlayerStruct @packed {
 }
 
 def PlayersJoinedBatchMessage = BatchMessage(<PlayerStruct, MessageKind.PLAYER_JOINED>);
-def verify_players_joined_batch_message = msg::verify(<PlayerStruct, MessageKind.PLAYER_JOINED>);
-def alloc_players_joined_batch_message = msg::alloc(<PlayerStruct, MessageKind.PLAYER_JOINED>);
+def verify_players_joined_batch_message = msg::batch::verify(<PlayerStruct, MessageKind.PLAYER_JOINED>);
+def alloc_players_joined_batch_message = msg::batch::alloc(<PlayerStruct, MessageKind.PLAYER_JOINED>);
 
 def PlayersLeftBatchMessage = BatchMessage(<uint, MessageKind.PLAYER_LEFT>);
-def verify_players_left_batch_message = msg::verify(<uint, MessageKind.PLAYER_LEFT>);
-def alloc_players_left_batch_message = msg::alloc(<uint, MessageKind.PLAYER_LEFT>);
+def verify_players_left_batch_message = msg::batch::verify(<uint, MessageKind.PLAYER_LEFT>);
+def alloc_players_left_batch_message = msg::batch::alloc(<uint, MessageKind.PLAYER_LEFT>);
 
 def PlayersMovingBatchMessage = BatchMessage(<PlayerStruct, MessageKind.PLAYER_MOVING>);
-def verify_players_moving_batch_message = msg::verify(<PlayerStruct, MessageKind.PLAYER_MOVING>);
-def alloc_players_moving_batch_message = msg::alloc(<PlayerStruct, MessageKind.PLAYER_MOVING>);
+def verify_players_moving_batch_message = msg::batch::verify(<PlayerStruct, MessageKind.PLAYER_MOVING>);
+def alloc_players_moving_batch_message = msg::batch::alloc(<PlayerStruct, MessageKind.PLAYER_MOVING>);
 
-struct HelloMessage @packed {
-    uint byte_length;
-    MessageKind kind;
+struct HelloPlayer @packed {
     uint id;
     float x;
     float y;
@@ -362,64 +360,27 @@ struct HelloMessage @packed {
     char hue;
 }
 
-fn HelloMessage*! verify_hello_message(Message *message) {
-    if (message.byte_length != HelloMessage.sizeof) return MessageFault.INVALID?;
-    HelloMessage* hello_message = (HelloMessage*)message;
-    if (hello_message.kind != HELLO) return MessageFault.INVALID?;
-    return hello_message;
-}
+def HelloMessage = SingleMessage(<HelloPlayer, MessageKind.HELLO>);
+def verify_hello_message = msg::single::verify(<HelloPlayer, MessageKind.HELLO>);
 
-struct PongMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    uint timestamp;
-}
+def PongMessage = SingleMessage(<uint, MessageKind.PONG>);
+def verify_pong_message = msg::single::verify(<uint, MessageKind.PONG>);
 
-fn PongMessage*! verify_pong_message(Message *message) {
-    if (message.byte_length != PongMessage.sizeof) return MessageFault.INVALID?;
-    PongMessage* pong_message = (PongMessage*)message;
-    if (pong_message.kind != PONG) return MessageFault.INVALID?;
-    return pong_message;
-}
-
-struct AmmaMovingMessage @packed {
-    uint byte_length;
-    MessageKind kind;
+struct AmmaMoving @packed {
     Moving direction;
     char start;
 }
 
-fn AmmaMovingMessage*! verify_amma_moving_message(Message *message) {
-    if (message.byte_length != AmmaMovingMessage.sizeof) return MessageFault.INVALID?;
-    AmmaMovingMessage* amma_moving_message = (AmmaMovingMessage*)message;
-    if (amma_moving_message.kind != AMMA_MOVING) return MessageFault.INVALID?;
-    return amma_moving_message;
-}
+def AmmaMovingMessage = SingleMessage(<AmmaMoving, MessageKind.AMMA_MOVING>);
+def verify_amma_moving_message = msg::single::verify(<AmmaMoving, MessageKind.AMMA_MOVING>);
 
-struct AmmaThrowingMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-}
+// TODO: EmptyMessage does not need Payload type, but since passing void is forbidden in C3, we must provide something.
+// Providing uint in here is a completely arbitrary decision. Investigate how such things should be made properly.
+def AmmaThrowingMessage = EmptyMessage(<MessageKind.AMMA_THROWING>);
+def verify_amma_throwing_message = msg::empty::verify(<MessageKind.AMMA_THROWING>);
 
-fn AmmaThrowingMessage*! verify_amma_throwing_message(Message *message) {
-    if (message.byte_length != AmmaThrowingMessage.sizeof) return MessageFault.INVALID?;
-    AmmaThrowingMessage* amma_throwing_message = (AmmaThrowingMessage*)message;
-    if (amma_throwing_message.kind != AMMA_THROWING) return MessageFault.INVALID?;
-    return amma_throwing_message;
-}
-
-struct PingMessage {
-    uint byte_length;
-    MessageKind kind;
-    uint timestamp;
-}
-
-fn PingMessage*! verify_ping_message(Message *message) {
-    if (message.byte_length != PingMessage.sizeof) return MessageFault.INVALID?;
-    PingMessage* ping_message = (PingMessage*)message;
-    if (ping_message.kind != PING) return MessageFault.INVALID?;
-    return ping_message;
-}
+def PingMessage = SingleMessage(<uint, MessageKind.PING>);
+def verify_ping_message = msg::single::verify(<uint, MessageKind.PING>);
 
 fn void update_player(Player *player, Scene *scene, float delta_time) {
     Vector2 control_velocity = {0, 0};
@@ -459,7 +420,36 @@ fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer"
     return mem::tcalloc(size);
 }
 
-module common::msg(<Payload, KIND>);
+module common::msg::empty(<KIND>);
+
+struct EmptyMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+}
+
+fn EmptyMessage*! verify(Message *message) {
+    if (message.byte_length != EmptyMessage.sizeof) return MessageFault.INVALID?;
+    EmptyMessage *empty_message = (EmptyMessage*)message;
+    if (empty_message.kind != KIND) return MessageFault.INVALID?;
+    return empty_message;
+}
+
+module common::msg::single(<Payload, KIND>);
+
+struct SingleMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    Payload payload;
+}
+
+fn SingleMessage*! verify(Message *message) {
+    if (message.byte_length != SingleMessage.sizeof) return MessageFault.INVALID?;
+    SingleMessage* single_message = (SingleMessage*)message;
+    if (single_message.kind != (MessageKind)KIND) return MessageFault.INVALID?;
+    return single_message;
+}
+
+module common::msg::batch(<Payload, KIND>);
 
 struct BatchMessage @packed {
     uint byte_length;

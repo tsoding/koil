@@ -256,12 +256,14 @@ fn void process_joined_players(Item[]* items) {
                 // The greetings
                 send_message_and_update_stats(joined_id, &&HelloMessage {
                     .byte_length = HelloMessage.sizeof,
-                    .kind       = HELLO,
-                    .id         = joined_player.player.id,
-                    .x          = joined_player.player.position.x,
-                    .y          = joined_player.player.position.y,
-                    .direction  = joined_player.player.direction,
-                    .hue        = joined_player.player.hue,
+                    .kind        = HELLO,
+                    .payload     = {
+                        .id         = joined_player.player.id,
+                        .x          = joined_player.player.position.x,
+                        .y          = joined_player.player.position.y,
+                        .direction  = joined_player.player.direction,
+                        .hue        = joined_player.player.hue,
+                    }
                 });
 
                 // Reconstructing the state of the other players
@@ -372,7 +374,7 @@ fn void process_pings() {
             send_message_and_update_stats(id, &&PongMessage {
                 .byte_length = PongMessage.sizeof,
                 .kind = PONG,
-                .timestamp = timestamp,
+                .payload = timestamp,
             });
         }
     };
@@ -380,16 +382,16 @@ fn void process_pings() {
 
 fn void player_update_moving(uint id, AmmaMovingMessage *message) {
     if (try value = players.get_ref(id)) {
-        if (message.start) {
-            value.new_moving |= (1<<(uint)message.direction);
+        if (message.payload.start) {
+            value.new_moving |= (1<<(uint)message.payload.direction);
         } else {
-            value.new_moving &= ~(1<<(uint)message.direction);
+            value.new_moving &= ~(1<<(uint)message.payload.direction);
         }
     }
 }
 
 fn void schedule_ping_for_player(uint id, PingMessage *message) {
-    ping_ids.set(id, message.timestamp);
+    ping_ids.set(id, message.payload);
 }
 
 fn void clear_intermediate_ids() {

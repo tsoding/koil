@@ -614,16 +614,16 @@ const Control[*] CONTROL_KEYS = {
     {83, MOVING_BACKWARD},
 };
 
-fn bool apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
+fn bool apply_hello_message_to_me(HelloPlayer hello_player, Item[]* items) {
     // TODO: maybe we should reset everything (bombs, etc) on hello message
     // So to let the server recreate the world properly
     kill_all_items(items);
-    me.id         = hello_message.id;
-    me.position.x = hello_message.x;
-    me.position.y = hello_message.y;
-    me.direction  = hello_message.direction;
+    me.id         = hello_player.id;
+    me.position.x = hello_player.x;
+    me.position.y = hello_player.y;
+    me.direction  = hello_player.direction;
     me.moving     = 0;
-    me.hue        = hello_message.hue;
+    me.hue        = hello_player.hue;
     return true;
 }
 
@@ -714,12 +714,14 @@ fn void key_down(uint key_code) @extern("key_down") @wasm {
             Moving direction = control.moving;
 
             if (!platform_is_offline_mode()) {
-                AmmaMovingMessage *message = mem::tcalloc(AmmaMovingMessage.sizeof);
-                message.byte_length = AmmaMovingMessage.sizeof;
-                message.kind = AMMA_MOVING;
-                message.start = 1;
-                message.direction = direction;
-                platform_send_message(message);
+                platform_send_message(&&AmmaMovingMessage {
+                    .byte_length = AmmaMovingMessage.sizeof,
+                    .kind = AMMA_MOVING,
+                    .payload = {
+                        .start = 1,
+                        .direction = direction,
+                    },
+                });
             } else {
                 me.moving |= 1<<(uint)direction;
             }
@@ -746,12 +748,14 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
             Moving direction = control.moving;
 
             if (!platform_is_offline_mode()) {
-                AmmaMovingMessage *message = mem::tcalloc(AmmaMovingMessage.sizeof);
-                message.byte_length = AmmaMovingMessage.sizeof;
-                message.kind = AMMA_MOVING;
-                message.start = 0;
-                message.direction = direction;
-                platform_send_message(message);
+                platform_send_message(&&AmmaMovingMessage {
+                    .byte_length = AmmaMovingMessage.sizeof,
+                    .kind = AMMA_MOVING,
+                    .payload = {
+                        .start = 0,
+                        .direction = direction,
+                    }
+                });
             } else {
                 me.moving &= ~(1<<(uint)direction);
             }
@@ -814,12 +818,11 @@ fn void ping_server_if_needed() {
     if (!platform_is_offline_mode()) {
         ping_cooldown -= 1;
         if (ping_cooldown == 0) {
-            PingMessage ping = {
+            platform_send_message(&&PingMessage {
                 .byte_length = PingMessage.sizeof,
                 .kind = PING,
-                .timestamp = platform_now_msecs(),
-            };
-            platform_send_message(&ping);
+                .payload = platform_now_msecs(),
+            });
             ping_cooldown = PING_COOLDOWN;
         }
     }
@@ -827,7 +830,7 @@ fn void ping_server_if_needed() {
 
 uint ping = 0;
 fn void process_pong_message(PongMessage *message) {
-    ping = platform_now_msecs() - message.timestamp;
+    ping = platform_now_msecs() - message.payload;
 }
 
 fn uint ping_msecs() @extern("ping_msecs") @wasm {
@@ -836,7 +839,7 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
 
 fn bool process_message(Message *unknown_message) @extern("process_message") @wasm {
     if (try message = common::verify_hello_message(unknown_message)) {
-        apply_hello_message_to_me(message, &common::items);
+        apply_hello_message_to_me(message.payload, &common::items);
         return true;
     }
     if (try message = common::verify_players_joined_batch_message(unknown_message)) {
