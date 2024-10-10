@@ -7,9 +7,9 @@ import std::collections::map;
 import std::hash::fnv32a;
 
 const usz SERVER_TOTAL_LIMIT = 2000;
-// const usz SERVER_SINGLE_IP_LIMIT = 10;
-const usz SERVER_SINGLE_IP_LIMIT = 2;
+const usz SERVER_SINGLE_IP_LIMIT = 10;
 
+// TODO: we can probably replace platform_now_secs() with the platform_now_msecs()
 extern fn int platform_now_secs();
 extern fn uint platform_send_message(uint player_id, void *message);
 extern fn uint platform_now_msecs();
