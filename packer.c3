@@ -22,14 +22,14 @@ fn int main() {
         int x, y;
         int comp = 4;
         char *pixels = stbi_load((ZString)filename, &x, &y, null, comp);
-        int size = x*y*comp;
-        usz offset = pack.len();
-        assets.push({filename, offset, x, y});
-        pack.append_chars((String)pixels[0..size-1]);
         if (pixels == null) {
             io::printf("ERROR: could not load file %s\n", filename);
             return 1;
         }
+        int size = x*y*comp;
+        usz offset = pack.len();
+        assets.push({filename, offset, x, y});
+        pack.append_chars((String)pixels[0..size-1]);
     }
 
     io::printfn("Asset[] assets = {");
