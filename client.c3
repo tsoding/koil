@@ -1,5 +1,6 @@
 module client;
 import common;
+import common::msg;
 import std::math;
 import std::sort;
 import std::io;
@@ -456,7 +457,7 @@ fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message,
     usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
-        int itemIndex = message.ids[i];
+        int itemIndex = message.payload[i];
 
         if (!(0 <= itemIndex && itemIndex < items.len)) {
             io::printn(string::tformat("Received bogus-amogus ItemCollected message from server. Invalid index %d", itemIndex));
@@ -477,16 +478,16 @@ fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message,
 fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Item[]* items) {
     usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
-        int itemIndex = message.items[i].itemIndex;
+        int itemIndex = message.payload[i].itemIndex;
         if (!(0 <= itemIndex && itemIndex < items.len)) {
             io::printn(string::tformat("Received bogus-amogus ItemSpawned message from server. Invalid item index %d", itemIndex));
             return false;
         }
         Item *item = &(*items)[itemIndex];
         item.alive = true;
-        item.kind = message.items[i].itemKind;
-        item.position.x = message.items[i].x;
-        item.position.y = message.items[i].y;
+        item.kind = message.payload[i].itemKind;
+        item.position.x = message.payload[i].x;
+        item.position.y = message.payload[i].y;
     }
 
     return true;
@@ -551,19 +552,19 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
 fn bool apply_bombs_spawned_batch_message(BombsSpawnedBatchMessage *message, Bombs *bombs) {
     usz count = (message.byte_length - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
-        int bombIndex = message.bombs[i].bombIndex;
+        int bombIndex = message.payload[i].bombIndex;
         if (!(0 <= bombIndex && bombIndex < bombs.len)) {
             io::printn(string::tformat("Received bogus-amogus BombSpawned message from server. Invalid bomb index %d", bombIndex));
             return false;
         }
         Bomb *bomb = &(*bombs)[bombIndex];
-        bomb.lifetime   = message.bombs[i].lifetime;
-        bomb.position.x = message.bombs[i].x;
-        bomb.position.y = message.bombs[i].y;
-        bomb.position_z = message.bombs[i].z;
-        bomb.velocity.x = message.bombs[i].dx;
-        bomb.velocity.y = message.bombs[i].dy;
-        bomb.velocity_z = message.bombs[i].dz;
+        bomb.lifetime   = message.payload[i].lifetime;
+        bomb.position.x = message.payload[i].x;
+        bomb.position.y = message.payload[i].y;
+        bomb.position_z = message.payload[i].z;
+        bomb.velocity.x = message.payload[i].dx;
+        bomb.velocity.y = message.payload[i].dy;
+        bomb.velocity_z = message.payload[i].dz;
     }
 
     return true;
@@ -572,16 +573,16 @@ fn bool apply_bombs_spawned_batch_message(BombsSpawnedBatchMessage *message, Bom
 fn bool apply_bombs_exploded_batch_message(BombsExplodedBatchMessage *message, Bombs *bombs, ParticlePool *particle_pool) {
     usz count = (message.byte_length - BombsExplodedBatchMessage.sizeof)/BombExploded.sizeof;
     for (usz i = 0; i < count; ++i) {
-        int bombIndex = message.bombs[i].bombIndex;
+        int bombIndex = message.payload[i].bombIndex;
         if (!(0 <= bombIndex && bombIndex < bombs.len)) {
             io::printn(string::tformat("Received bogus-amogus BombExploded message from server. Invalid bomb index %d", bombIndex));
             return false;
         }
         Bomb *bomb = &(*bombs)[bombIndex];
         bomb.lifetime = 0.0;
-        bomb.position.x = message.bombs[i].x;
-        bomb.position.y = message.bombs[i].y;
-        bomb.position_z = message.bombs[i].z;
+        bomb.position.x = message.payload[i].x;
+        bomb.position.y = message.payload[i].y;
+        bomb.position_z = message.payload[i].z;
         explode_bomb({bomb.position, bomb.position_z}, me.position, particle_pool);
     }
 
@@ -629,7 +630,7 @@ fn bool apply_hello_message_to_me(HelloMessage *hello_message, Item[]* items) {
 fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
     usz count = (message.byte_length - PlayersJoinedBatchMessage.sizeof)/PlayerStruct.sizeof;
     for (usz i = 0; i < count; ++i) {
-        PlayerStruct *player_struct = &message.players[i];
+        PlayerStruct *player_struct = &message.payload[i];
         uint id = player_struct.id;
         if (try player = other_players.get_ref(id)) {
             player.position.x = player_struct.x;
@@ -657,16 +658,16 @@ fn void apply_players_joined_batch_message(PlayersJoinedBatchMessage *message) {
 }
 
 fn void apply_players_left_batch_message(PlayersLeftBatchMessage *message) {
-    usz count = (message.byte_length - PlayersLeftBatchMessage.sizeof)/uint.sizeof;
+    usz count = message.count();
     for (usz i = 0; i < count; ++i) {
-        other_players.remove(message.ids[i]);
+        other_players.remove(message.payload[i]);
     }
 }
 
 fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
-    usz count = (message.byte_length - PlayersMovingBatchMessage.sizeof)/PlayerStruct.sizeof;
+    usz count = message.count();
     for (usz i = 0; i < count; ++i) {
-        PlayerStruct *player_struct = &message.players[i];
+        PlayerStruct *player_struct = &message.payload[i];
         uint id = player_struct.id;
         if (try player = other_players.get_ref(id)) {
             player.moving = player_struct.moving;

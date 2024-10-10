@@ -190,19 +190,9 @@ struct ItemSpawned @packed {
     float y;
 }
 
-struct ItemsSpawnedBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    ItemSpawned[*] items;
-}
-
-fn ItemsSpawnedBatchMessage*! verify_items_spawned_batch_message(Message *message) {
-    if (message.byte_length < ItemsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - ItemsSpawnedBatchMessage.sizeof)%ItemSpawned.sizeof != 0) return MessageFault.INVALID?;
-    ItemsSpawnedBatchMessage* items_spawned_batch_message = (ItemsSpawnedBatchMessage*)message;
-    if (items_spawned_batch_message.kind != MessageKind.ITEM_SPAWNED) return MessageFault.INVALID?;
-    return items_spawned_batch_message;
-}
+def ItemsSpawnedBatchMessage = BatchMessage(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
+def verify_items_spawned_batch_message = msg::verify(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
+def alloc_items_spawned_batch_message = msg::alloc(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
 
 fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
@@ -210,14 +200,11 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
         if (item.alive) itemsCount += 1;
     }
     if (itemsCount == 0) return null;
-    usz byte_length = ItemsSpawnedBatchMessage.sizeof + ItemSpawned.sizeof*itemsCount;
-    ItemsSpawnedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = (int)byte_length;
-    message.kind = MessageKind.ITEM_SPAWNED;
+    ItemsSpawnedBatchMessage *message = alloc_items_spawned_batch_message(itemsCount);
     usz index = 0;
     foreach (itemIndex, item: *items) {
         if (item.alive) {
-            message.items[index] = {
+            message.payload[index] = {
                 .itemKind = item.kind,
                 .itemIndex = (int)itemIndex,
                 .x = item.position.x,
@@ -229,19 +216,9 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     return message;
 }
 
-struct ItemsCollectedBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    int[*] ids;
-}
-
-fn ItemsCollectedBatchMessage*! verify_items_collected_batch_message(Message *message) {
-    if (message.byte_length < ItemsCollectedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - ItemsCollectedBatchMessage.sizeof)%int.sizeof != 0) return MessageFault.INVALID?;
-    ItemsCollectedBatchMessage* items_collected_batch_message = (ItemsCollectedBatchMessage*)message;
-    if (items_collected_batch_message.kind != MessageKind.ITEM_COLLECTED) return MessageFault.INVALID?;
-    return items_collected_batch_message;
-}
+def ItemsCollectedBatchMessage = BatchMessage(<int, MessageKind.ITEM_COLLECTED>);
+def verify_items_collected_batch_message = msg::verify(<int, MessageKind.ITEM_COLLECTED>);
+def alloc_items_collected_batch_message = msg::alloc(<int, MessageKind.ITEM_COLLECTED>);
 
 /// Bombs //////////////////////////////
 
@@ -319,19 +296,9 @@ struct BombSpawned @packed {
     float lifetime;
 }
 
-struct BombsSpawnedBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    BombSpawned[*] bombs;
-}
-
-fn BombsSpawnedBatchMessage*! verify_bombs_spawned_batch_message(Message *message) {
-    if (message.byte_length < BombsSpawnedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - BombsSpawnedBatchMessage.sizeof)%BombSpawned.sizeof != 0) return MessageFault.INVALID?;
-    BombsSpawnedBatchMessage* bombs_spawned_batch_message = (BombsSpawnedBatchMessage*)message;
-    if (bombs_spawned_batch_message.kind != MessageKind.BOMB_SPAWNED) return MessageFault.INVALID?;
-    return bombs_spawned_batch_message;
-}
+def BombsSpawnedBatchMessage = BatchMessage(<BombSpawned, MessageKind.BOMB_SPAWNED>);
+def verify_bombs_spawned_batch_message = msg::verify(<BombSpawned, MessageKind.BOMB_SPAWNED>);
+def alloc_bombs_spawned_batch_message = msg::alloc(<BombSpawned, MessageKind.BOMB_SPAWNED>);
 
 struct BombExploded @packed {
     uint bombIndex;
@@ -340,19 +307,9 @@ struct BombExploded @packed {
     float z;
 }
 
-struct BombsExplodedBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    BombExploded[*] bombs;
-}
-
-fn BombsExplodedBatchMessage*! verify_bombs_exploded_batch_message(Message *message) {
-    if (message.byte_length < BombsExplodedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - BombsExplodedBatchMessage.sizeof)%BombExploded.sizeof != 0) return MessageFault.INVALID?;
-    BombsExplodedBatchMessage* bombs_exploded_batch_message = (BombsExplodedBatchMessage*)message;
-    if (bombs_exploded_batch_message.kind != MessageKind.BOMB_EXPLODED) return MessageFault.INVALID?;
-    return bombs_exploded_batch_message;
-}
+def BombsExplodedBatchMessage = BatchMessage(<BombExploded, MessageKind.BOMB_EXPLODED>);
+def verify_bombs_exploded_batch_message = msg::verify(<BombExploded, MessageKind.BOMB_EXPLODED>);
+def alloc_bombs_exploded_batch_message = msg::alloc(<BombExploded, MessageKind.BOMB_EXPLODED>);
 
 /// Player //////////////////////////////
 
@@ -383,47 +340,17 @@ struct PlayerStruct @packed {
     char moving;
 }
 
-struct PlayersJoinedBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    PlayerStruct[*] players;
-}
+def PlayersJoinedBatchMessage = BatchMessage(<PlayerStruct, MessageKind.PLAYER_JOINED>);
+def verify_players_joined_batch_message = msg::verify(<PlayerStruct, MessageKind.PLAYER_JOINED>);
+def alloc_players_joined_batch_message = msg::alloc(<PlayerStruct, MessageKind.PLAYER_JOINED>);
 
-fn PlayersJoinedBatchMessage*! verify_players_joined_batch_message(Message *message) {
-    if (message.byte_length < PlayersJoinedBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - PlayersJoinedBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
-    PlayersJoinedBatchMessage* players_joined_batch_message = (PlayersJoinedBatchMessage*)message;
-    if (players_joined_batch_message.kind != PLAYER_JOINED) return MessageFault.INVALID?;
-    return players_joined_batch_message;
-}
+def PlayersLeftBatchMessage = BatchMessage(<uint, MessageKind.PLAYER_LEFT>);
+def verify_players_left_batch_message = msg::verify(<uint, MessageKind.PLAYER_LEFT>);
+def alloc_players_left_batch_message = msg::alloc(<uint, MessageKind.PLAYER_LEFT>);
 
-struct PlayersLeftBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    uint[*] ids;
-}
-
-fn PlayersLeftBatchMessage*! verify_players_left_batch_message(Message *message) {
-    if (message.byte_length < PlayersLeftBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - PlayersLeftBatchMessage.sizeof)%uint.sizeof != 0) return MessageFault.INVALID?;
-    PlayersLeftBatchMessage* players_left_batch_message = (PlayersLeftBatchMessage*)message;
-    if (players_left_batch_message.kind != PLAYER_LEFT) return MessageFault.INVALID?;
-    return players_left_batch_message;
-}
-
-struct PlayersMovingBatchMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    PlayerStruct[*] players;
-}
-
-fn PlayersMovingBatchMessage*! verify_players_moving_batch_message(Message *message) {
-    if (message.byte_length < PlayersMovingBatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - PlayersMovingBatchMessage.sizeof)%PlayerStruct.sizeof != 0) return MessageFault.INVALID?;
-    PlayersMovingBatchMessage* players_moving_batch_message = (PlayersMovingBatchMessage*)message;
-    if (players_moving_batch_message.kind != PLAYER_MOVING) return MessageFault.INVALID?;
-    return players_moving_batch_message;
-}
+def PlayersMovingBatchMessage = BatchMessage(<PlayerStruct, MessageKind.PLAYER_MOVING>);
+def verify_players_moving_batch_message = msg::verify(<PlayerStruct, MessageKind.PLAYER_MOVING>);
+def alloc_players_moving_batch_message = msg::alloc(<PlayerStruct, MessageKind.PLAYER_MOVING>);
 
 struct HelloMessage @packed {
     uint byte_length;
@@ -530,4 +457,30 @@ fn void reset_temp_mark() {
 
 fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer") @wasm {
     return mem::tcalloc(size);
+}
+
+module common::msg(<Payload, KIND>);
+
+struct BatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    Payload[*] payload;
+}
+
+macro uint BatchMessage.count(self) => (self.byte_length - BatchMessage.sizeof)/Payload.sizeof;
+
+fn BatchMessage *alloc(usz count = 1, Allocator allocator = allocator::temp(), usz alignment = 0) {
+    usz byte_length = BatchMessage.sizeof + Payload.sizeof*count;
+    BatchMessage *message = allocator.acquire(byte_length, ZERO, alignment)!!;
+    message.byte_length = (int)byte_length;
+    message.kind = KIND;
+    return message;
+}
+
+fn BatchMessage*! verify(Message *message) {
+    if (message.byte_length < BatchMessage.sizeof) return MessageFault.INVALID?;
+    if ((message.byte_length - BatchMessage.sizeof)%Payload.sizeof != 0) return MessageFault.INVALID?;
+    BatchMessage* batch_message = (BatchMessage*)message;
+    if (batch_message.kind != (MessageKind)KIND) return MessageFault.INVALID?;
+    return batch_message;
 }

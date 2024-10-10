@@ -45,12 +45,9 @@ fn void collect_items_by_player(Player player, Item[] *items) {
 
 fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
     if (collected_items.size == 0) return null;
-    int byte_length = ItemsCollectedBatchMessage.sizeof + int.sizeof*collected_items.size;
-    ItemsCollectedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
-    message.kind = MessageKind.ITEM_COLLECTED;
+    ItemsCollectedBatchMessage *message = alloc_items_collected_batch_message(collected_items.size);
     for (int i = 0; i < collected_items.size; ++i) {
-        message.ids[i] = collected_items[i];
+        message.payload[i] = collected_items[i];
     }
     collected_items.size = 0;
     return message;
@@ -69,21 +66,17 @@ fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
 
 fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
     if (thrown_bombs.size == 0) return null;
-    int byte_length = BombsSpawnedBatchMessage.sizeof + BombSpawned.sizeof*thrown_bombs.size;
-    BombsSpawnedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
-    message.kind = MessageKind.BOMB_SPAWNED;
-
+    BombsSpawnedBatchMessage *message = alloc_bombs_spawned_batch_message(thrown_bombs.size);
     foreach (index, bombIndex: thrown_bombs) {
         Bomb *bomb = &(*bombs)[bombIndex];
-        message.bombs[index].bombIndex = bombIndex;
-        message.bombs[index].x = bomb.position.x;
-        message.bombs[index].y = bomb.position.y;
-        message.bombs[index].z = bomb.position_z;
-        message.bombs[index].dx = bomb.velocity.x;
-        message.bombs[index].dy = bomb.velocity.y;
-        message.bombs[index].dz = bomb.velocity_z;
-        message.bombs[index].lifetime = bomb.lifetime;
+        message.payload[index].bombIndex = bombIndex;
+        message.payload[index].x = bomb.position.x;
+        message.payload[index].y = bomb.position.y;
+        message.payload[index].z = bomb.position_z;
+        message.payload[index].dx = bomb.velocity.x;
+        message.payload[index].dy = bomb.velocity.y;
+        message.payload[index].dz = bomb.velocity_z;
+        message.payload[index].lifetime = bomb.lifetime;
     }
     thrown_bombs.size = 0;
     return message;
@@ -104,19 +97,14 @@ fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs
 
 fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
     if (exploded_bombs.size == 0) return null;
-    int byte_length = BombsExplodedBatchMessage.sizeof + BombExploded.sizeof*exploded_bombs.size;
-    BombsExplodedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
-    message.kind = MessageKind.BOMB_EXPLODED;
-
+    BombsExplodedBatchMessage *message = alloc_bombs_exploded_batch_message(exploded_bombs.size);
     foreach (index, bombIndex: exploded_bombs) {
         Bomb bomb = (*bombs)[bombIndex];
-        message.bombs[index].bombIndex = bombIndex;
-        message.bombs[index].x         = bomb.position.x;
-        message.bombs[index].y         = bomb.position.y;
-        message.bombs[index].z         = bomb.position_z;
+        message.payload[index].bombIndex = bombIndex;
+        message.payload[index].x         = bomb.position.x;
+        message.payload[index].y         = bomb.position.y;
+        message.payload[index].z         = bomb.position_z;
     }
-
     exploded_bombs.size = 0;
     return message;
 }
@@ -199,19 +187,15 @@ fn void unregister_player(uint id) @extern("unregister_player") @wasm {
 
 fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
     if (players.is_empty()) return null;
-    int byte_length = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*players.len();
-    PlayersJoinedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
-    message.kind = MessageKind.PLAYER_JOINED;
-    
+    PlayersJoinedBatchMessage *message = common::alloc_players_joined_batch_message(players.len());
     int index = 0;
     players.@each_entry(; PlayerOnServerEntry* entry) {
-        message.players[index].id        = entry.value.player.id;
-        message.players[index].x         = entry.value.player.position.x;
-        message.players[index].y         = entry.value.player.position.y;
-        message.players[index].direction = entry.value.player.direction;
-        message.players[index].hue       = entry.value.player.hue;
-        message.players[index].moving    = entry.value.player.moving;
+        message.payload[index].id        = entry.value.player.id;
+        message.payload[index].x         = entry.value.player.position.x;
+        message.payload[index].y         = entry.value.player.position.y;
+        message.payload[index].direction = entry.value.player.direction;
+        message.payload[index].hue       = entry.value.player.hue;
+        message.payload[index].moving    = entry.value.player.moving;
         index += 1;
     };
 
@@ -229,12 +213,12 @@ fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
     joined_ids.@each_entry(; PlayerIdsEntry *entry) {
         uint joined_id = entry.key;
         if (try joined_player = players.get(joined_id)) { // This should never happen, but we're handling none existing ids for more robustness
-            message.players[index].id        = joined_player.player.id;
-            message.players[index].x         = joined_player.player.position.x;
-            message.players[index].y         = joined_player.player.position.y;
-            message.players[index].direction = joined_player.player.direction;
-            message.players[index].hue       = joined_player.player.hue;
-            message.players[index].moving    = joined_player.player.moving;
+            message.payload[index].id        = joined_player.player.id;
+            message.payload[index].x         = joined_player.player.position.x;
+            message.payload[index].y         = joined_player.player.position.y;
+            message.payload[index].direction = joined_player.player.direction;
+            message.payload[index].hue       = joined_player.player.hue;
+            message.payload[index].moving    = joined_player.player.moving;
             index += 1;
         }
     };
@@ -244,19 +228,13 @@ fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
 
 fn PlayersLeftBatchMessage *left_players_as_batch_message() {
     if (left_ids.is_empty()) return null;
-
-    int byte_length = PlayersLeftBatchMessage.sizeof + uint.sizeof*left_ids.len();
-    PlayersLeftBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
-    message.kind = MessageKind.PLAYER_LEFT;
-
+    PlayersLeftBatchMessage *message = alloc_players_left_batch_message(left_ids.len());
     int index = 0;
     left_ids.@each_entry(; PlayerIdsEntry *entry) {
         uint left_id = entry.key;
-        message.ids[index] = left_id;
+        message.payload[index] = left_id;
         index += 1;
     };
-
     return message;
 }
 
@@ -338,11 +316,11 @@ fn void process_moving_players() {
     players.@each_entry(; PlayerOnServerEntry* entry) {
         if (entry.value.new_moving != entry.value.player.moving) {
             entry.value.player.moving = entry.value.new_moving;
-            message.players[index].id = entry.value.player.id;
-            message.players[index].x = entry.value.player.position.x;
-            message.players[index].y = entry.value.player.position.y;
-            message.players[index].direction = entry.value.player.direction;
-            message.players[index].moving = entry.value.player.moving;
+            message.payload[index].id = entry.value.player.id;
+            message.payload[index].x = entry.value.player.position.x;
+            message.payload[index].y = entry.value.player.position.y;
+            message.payload[index].direction = entry.value.player.direction;
+            message.payload[index].moving = entry.value.player.moving;
             index += 1;
         }
     };
@@ -420,7 +398,7 @@ fn void clear_intermediate_ids() {
     ping_ids.clear();
 }
 
-fn bool process_message_on_server(uint id, Message *unknown_message) @extern("process_message_on_server") @wasm {
+fn bool process_message_on_server(uint id, Message* unknown_message) @extern("process_message_on_server") @wasm {
     stats::inc_counter(MESSAGES_RECEIVED, 1);
     stats::messages_recieved_within_tick += 1;
     stats::inc_counter(BYTES_RECEIVED, unknown_message.byte_length);
