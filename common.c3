@@ -233,10 +233,6 @@ struct Bomb {
 def Bombs = Bomb[20];
 Bombs bombs;
 
-fn Bombs* allocate_bombs() @extern("allocate_bombs") @wasm {
-    return mem::new(Bombs);
-}
-
 fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     foreach (index, &bomb: *bombs) {
         if (bomb.lifetime <= 0) {
