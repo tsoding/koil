@@ -4,9 +4,6 @@ const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
 let game;
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
 function renderDebugInfo(ctx, deltaTime, game) {
     const fontSize = 28;
     ctx.font = `${fontSize}px bold`;
@@ -93,6 +90,9 @@ async function instantiateWasmClient(url) {
             },
             "platform_is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
             "platform_play_sound": (sound, player_position_x, player_position_y, object_position_x, object_position_y) => {
+                function clamp(value, min, max) {
+                    return Math.min(Math.max(value, min), max);
+                }
                 const maxVolume = 1;
                 const dx = player_position_x - object_position_x;
                 const dy = player_position_y - object_position_y;

@@ -7,10 +7,6 @@ const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
 
 let game: Game;
 
-function clamp(value: number, min: number, max: number) {
-    return Math.min(Math.max(value, min), max);
-}
-
 function renderDebugInfo(ctx: CanvasRenderingContext2D, deltaTime: number, game: Game) {
     const fontSize = 28;
     ctx.font = `${fontSize}px bold`
@@ -96,6 +92,7 @@ function displaySwapBackImageData(display: Display, wasmClient: WasmClient) {
     display.ctx.drawImage(display.backCtx.canvas, 0, 0, display.ctx.canvas.width, display.ctx.canvas.height);
 }
 
+// TODO: bake sounds into client.wasm same way we do with pictures
 interface Assets {
     bombRicochetSound: HTMLAudioElement,
     itemPickupSound: HTMLAudioElement,
@@ -133,6 +130,10 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
             },
             "platform_is_offline_mode": () => game.ws.readyState != WebSocket.OPEN,
             "platform_play_sound": (sound: number, player_position_x: number, player_position_y: number, object_position_x: number, object_position_y: number) => {
+                function clamp(value: number, min: number, max: number) {
+                    return Math.min(Math.max(value, min), max);
+                }
+
                 const maxVolume = 1;
                 const dx = player_position_x - object_position_x;
                 const dy = player_position_y - object_position_y;
@@ -269,15 +270,8 @@ async function createGame(): Promise<Game> {
 // TODO: bring hotreloading back
 //   - hot reloading should not break if the game crashes
 //   - hot reload assets as well
-// TODO: Load assets asynchronously
-//   While a texture is loading, replace it with a color tile.
 // TODO: Mobile controls
-// TODO: "magnet" items into the player
-// TODO: Blast particles should fade out as they age
-// TODO: Bomb collision should take into account the bomb's size
-// TODO: Try lighting with normal maps that come with some of the assets
-// TODO: Try cel shading the walls (using normals and stuff)
-// TODO: sound don't mix properly
+// TODO: Sound don't mix properly
 //   Right now same sounds are just stopped and replaced instantly. Which generally does not sound good.
 //   We need to fix them properly.
 //   Consider looking into Web Audio API https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API

@@ -33,20 +33,6 @@ $exec("./packer");
 
 def Color = char[<4>];
 
-// WARNING! Must be synchronized with AssetSound in client.mts
-enum AssetSound {
-    BOMB_BLAST,
-    BOMB_RICOCHET,
-    ITEM_PICKUP,
-}
-
-// TODO: Use std::math::random instead (when you finally figure out how to use it)
-extern fn float platform_random();
-extern fn void platform_play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
-extern fn bool platform_is_offline_mode();
-extern fn bool platform_send_message(void *message);
-extern fn uint platform_now_msecs();
-
 struct Image {
     usz width;
     usz height;
@@ -397,12 +383,12 @@ fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
             particle.position = source.xy;
             particle.position_z = source.z;
 
-            float angle = platform_random()*2.0f*(float)math::PI;
+            float angle = platform::random()*2.0f*(float)math::PI;
             particle.velocity.x = math::cos(angle);
             particle.velocity.y = math::sin(angle);
-            particle.velocity_z = platform_random()*0.5f + 0.5f;
+            particle.velocity_z = platform::random()*0.5f + 0.5f;
 
-            float velocity_mag = PARTICLE_MAX_SPEED*platform_random();
+            float velocity_mag = PARTICLE_MAX_SPEED*platform::random();
             particle.velocity *= velocity_mag;
             particle.velocity_z *= velocity_mag;
             break;
@@ -468,7 +454,7 @@ fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message,
 
         if (item.alive) {
             item.alive = false;
-            platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
+            platform::play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
         }
     }
 
@@ -510,7 +496,7 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
 fn void update_items_offline(Item[]* items) {
     foreach (item_index, &item: *items) {
         if (common::collect_item(me, item)) {
-            platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
+            platform::play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
         }
     }
 }
@@ -520,14 +506,14 @@ fn void update_items(SpritePool *sprite_pool, float time, Item[] *items, Image *
     render_items(sprite_pool, items, time, key_image, bomb_image);
 
     // Offline mode. Updating items state without asking the server.
-    if (platform_is_offline_mode()) {
+    if (platform::is_offline_mode()) {
         update_items_offline(items);
     }
 }
 
 
 fn void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePool *particle_pool) {
-    platform_play_sound(BOMB_BLAST, player_position.x, player_position.y, bomb_position.x, bomb_position.y);
+    platform::play_sound(BOMB_BLAST, player_position.x, player_position.y, bomb_position.x, bomb_position.y);
     for (int i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
         emit_particle(bomb_position, particle_pool);
     }
@@ -539,10 +525,10 @@ fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *parti
             push_sprite(sprite_pool, bomb_image, {bomb.position, bomb.position_z}, common::BOMB_SCALE, {0, 0}, {bomb_image.width, bomb_image.height});
 
             if (common::update_bomb(bomb, scene, delta_time)) {
-                platform_play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
+                platform::play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
             }
 
-            if (platform_is_offline_mode() && bomb.lifetime <= 0) {
+            if (platform::is_offline_mode() && bomb.lifetime <= 0) {
                 explode_bomb({bomb.position, bomb.position_z}, me.position, particle_pool);
             }
         }
@@ -713,8 +699,8 @@ fn void key_down(uint key_code) @extern("key_down") @wasm {
             io::printn(string::tformat("key_down %f %f", me.position.x, me.position.y));
             Moving direction = control.moving;
 
-            if (!platform_is_offline_mode()) {
-                platform_send_message(&&AmmaMovingMessage {
+            if (!platform::is_offline_mode()) {
+                platform::send_message(&&AmmaMovingMessage {
                     .byte_length = AmmaMovingMessage.sizeof,
                     .kind = AMMA_MOVING,
                     .payload = {
@@ -731,11 +717,11 @@ fn void key_down(uint key_code) @extern("key_down") @wasm {
 
     const uint KEY_SPACE = 32;
     if (key_code == KEY_SPACE) {
-        if (!platform_is_offline_mode()) {
+        if (!platform::is_offline_mode()) {
             AmmaThrowingMessage *message = mem::tcalloc(AmmaThrowingMessage.sizeof);
             message.byte_length = AmmaThrowingMessage.sizeof;
             message.kind = AMMA_THROWING;
-            platform_send_message(message);
+            platform::send_message(message);
         } else {
             common::throw_bomb(me.position, me.direction, &common::bombs);
         }
@@ -747,8 +733,8 @@ fn void key_up(uint key_code) @extern("key_up") @wasm {
         if (control.key_code == key_code) {
             Moving direction = control.moving;
 
-            if (!platform_is_offline_mode()) {
-                platform_send_message(&&AmmaMovingMessage {
+            if (!platform::is_offline_mode()) {
+                platform::send_message(&&AmmaMovingMessage {
                     .byte_length = AmmaMovingMessage.sizeof,
                     .kind = AMMA_MOVING,
                     .payload = {
@@ -815,13 +801,13 @@ fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
 
 uint ping_cooldown = PING_COOLDOWN;
 fn void ping_server_if_needed() {
-    if (!platform_is_offline_mode()) {
+    if (!platform::is_offline_mode()) {
         ping_cooldown -= 1;
         if (ping_cooldown == 0) {
-            platform_send_message(&&PingMessage {
+            platform::send_message(&&PingMessage {
                 .byte_length = PingMessage.sizeof,
                 .kind = PING,
-                .payload = platform_now_msecs(),
+                .payload = platform::now_msecs(),
             });
             ping_cooldown = PING_COOLDOWN;
         }
@@ -830,7 +816,7 @@ fn void ping_server_if_needed() {
 
 uint ping = 0;
 fn void process_pong_message(PongMessage *message) {
-    ping = platform_now_msecs() - message.payload;
+    ping = platform::now_msecs() - message.payload;
 }
 
 fn uint ping_msecs() @extern("ping_msecs") @wasm {
@@ -913,3 +899,25 @@ fn void entry() @init(2048) @private {
     common::temp_mark = allocator::temp().used;
     common::scene = common::allocate_default_scene();
 }
+
+module client::platform;
+
+// WARNING! Must be synchronized with AssetSound in client.mts
+enum AssetSound {
+    BOMB_BLAST,
+    BOMB_RICOCHET,
+    ITEM_PICKUP,
+}
+
+// TODO: Use std::math::random instead (when you finally figure out how to use it)
+extern fn float random() @extern("platform_random");
+extern fn void play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y) @extern("platform_play_sound");
+extern fn bool is_offline_mode() @extern("platform_is_offline_mode");
+extern fn bool send_message(void *message) @extern("platform_send_message");
+extern fn uint now_msecs() @extern("platform_now_msecs");
+
+// TODO: "magnet" items into the player
+// TODO: Blast particles should fade out as they age
+// TODO: Bomb collision should take into account the bomb's size
+// TODO: Try lighting with normal maps that come with some of the assets
+// TODO: Try cel shading the walls (using normals and stuff)

@@ -8,16 +8,10 @@ import std::hash::fnv32a;
 
 const usz SERVER_TOTAL_LIMIT = 2000;
 const usz SERVER_SINGLE_IP_LIMIT = 10;
-
-// TODO: we can probably replace platform_now_secs() with the platform_now_msecs()
-extern fn int platform_now_secs();
-extern fn uint platform_send_message(uint player_id, void *message);
-extern fn uint platform_now_msecs();
-
 const int SERVER_FPS = 60;          // IMPORTANT! Must be in sync with SERVER_FPS in server.mts
 
 fn void send_message_and_update_stats(uint player_id, void* message) {
-    uint sent = platform_send_message(player_id, message);
+    uint sent = platform::send_message(player_id, message);
     if (sent > 0) {
         stats::bytes_sent_within_tick += sent;
         stats::message_sent_within_tick += 1;
@@ -426,7 +420,7 @@ fn bool process_message_on_server(uint id, Message* unknown_message) @extern("pr
 
 uint previous_timestamp = 0;
 fn uint tick() @extern("tick") @wasm {
-    uint timestamp = platform_now_msecs();
+    uint timestamp = platform::now_msecs();
     float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
     previous_timestamp = timestamp;
 
@@ -437,7 +431,7 @@ fn uint tick() @extern("tick") @wasm {
     process_world_simulation(&common::items, common::scene, &common::bombs, delta_time);
     process_pings();
 
-    uint tickTime = platform_now_msecs() - timestamp;
+    uint tickTime = platform::now_msecs() - timestamp;
     stats::inc_counter(TICKS_COUNT, 1);
     stats::push_sample(TICK_TIMES, tickTime/1000.0f);
     stats::inc_counter(MESSAGES_SENT, stats::message_sent_within_tick);
@@ -472,10 +466,10 @@ fn void entry() @init(2048) @private {
         common::platform_write(&buffer[0], buffer.len);
         return buffer.len;
     };
-    stats::stats[StatEntry.UPTIME].timer.started_at = platform_now_secs();
+    stats::stats[StatEntry.UPTIME].timer.started_at = platform::now_secs();
     common::temp_mark = allocator::temp().used;
     common::scene = common::allocate_default_scene();
-    previous_timestamp = platform_now_msecs();
+    previous_timestamp = platform::now_msecs();
 }
 
 /// Stats //////////////////////////////
@@ -483,6 +477,7 @@ fn void entry() @init(2048) @private {
 module server::stats;
 import std::collections::ringbuffer;
 import std::io;
+import server::platform;
 
 const usz AVERAGE_CAPACITY = 30;
 def StatSamples = RingBuffer(<float, AVERAGE_CAPACITY>);
@@ -620,7 +615,7 @@ fn String Stat.display(&stat) {
     switch (stat.kind) {
         case COUNTER: return string::tformat("%d", stat.counter.value);
         case AVERAGE: return string::tformat("%f", stat.average.samples.average());
-        case TIMER:   return display_time_interval(server::platform_now_secs() - stat.timer.started_at);
+        case TIMER:   return display_time_interval(server::platform::now_secs() - stat.timer.started_at);
     }
 }
 
@@ -665,3 +660,10 @@ fn void print_per_n_ticks(int n) {
         }
     }
 }
+
+module server::platform;
+
+// TODO: we can probably replace platform::now_secs() with the platform::now_msecs()
+extern fn int now_secs() @extern("platform_now_secs");
+extern fn uint send_message(uint player_id, void *message) @extern("platform_send_message");
+extern fn uint now_msecs() @extern("platform_now_msecs");
