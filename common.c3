@@ -23,15 +23,12 @@ const float PLAYER_SIZE = 0.5;
 const float PLAYER_RADIUS = 0.5;
 const float PLAYER_SPEED = 2;
 
-extern fn void platform_write(void *buffer, usz buffer_sz);
-extern fn float platform_atan2f(float y, float x);
-
 def Vector2 = float[<2>];
 def IVector2 = int[<2>];
 def Vector3 = float[<3>];
 def Vector4 = float[<4>];
 
-macro Vector2.angle(self) => platform_atan2f(self.y, self.x);
+macro Vector2.angle(self) => platform::atan2f(self.y, self.x);
 // // TODO: math::atan2 is broken. Does not work with sprite_angle_index() properly.
 // // Investigate what's up and potentially report to C3.
 // macro Vector2.angle(self) => math::atan2(self.y, self.x);
@@ -470,3 +467,7 @@ fn BatchMessage*! verify(Message *message) {
     if (batch_message.kind != (MessageKind)KIND) return MessageFault.INVALID?;
     return batch_message;
 }
+
+module common::platform;
+extern fn void write(void *buffer, usz buffer_sz) @extern("platform_write");
+extern fn float atan2f(float y, float x) @extern("platform_atan2f");

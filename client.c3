@@ -893,7 +893,7 @@ fn void entry() @init(2048) @private {
     // message. But since js_write() in server.mts is implemented as a
     // single console.log(), that newline is added implicitly anyway.
     os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
-        common::platform_write(&buffer[0], buffer.len);
+        common::platform::write(&buffer[0], buffer.len);
         return buffer.len;
     };
     common::temp_mark = allocator::temp().used;
