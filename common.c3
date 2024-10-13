@@ -2,6 +2,8 @@ module common;
 import std::math;
 import std::io;
 import std::collections::list;
+import std::collections::map;
+import std::hash::fnv32a;
 
 def ShortString = char[64];
 
@@ -25,6 +27,7 @@ const float PLAYER_SPEED = 2;
 
 def Vector2 = float[<2>];
 def IVector2 = int[<2>];
+fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
 def Vector3 = float[<3>];
 def Vector4 = float[<4>];
 
@@ -66,50 +69,39 @@ struct Message @packed {
     char[*] bytes;
 }
 
-/// Scene //////////////////////////////
+/// Scenea //////////////////////////////
 
 struct Scene {
-    usz width;
-    usz height;
-    bool[*] walls;
+    HashMap(<IVector2, bool>) walls;
 }
 
-fn Scene *allocate_scene(usz width, usz height) {
-    Scene *scene = mem::calloc(Scene.sizeof + bool.sizeof*width*height);
-    scene.width = width;
-    scene.height = height;
-    for (usz i = 0; i < width*height; ++i) scene.walls[i] = false;
-    return scene;
-}
-
-Scene *scene = null;
-
-fn Scene *allocate_default_scene() {
+Scene scene;
+fn void load_default_scene() {
     bool[*][*] default_walls = {
         { false, false, true, true, true, false, false},
         { false, false, false, false, false, true, false},
         { true, false, false, false, false, true, false},
         { true,  false, false, false, false, true, false},
         { true, false, false, false, false, false, false},
-        {  false,  true, true, true, false, false, false},
-        {  false,  false, false, false, false, false, false},
+        { false,  true, true, true, false, false, false},
+        { false,  false, false, false, false, false, false},
     };
     usz width = default_walls[0].len;
     usz height = default_walls.len;
-    Scene *scene = allocate_scene(width, height);
-    for (usz y = 0; y < height; ++y) {
-        for (usz x = 0; x < width; ++x) {
-            scene.walls[y*width + x] = default_walls[y][x];
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            if (default_walls[y][x]) {
+                scene.walls.set({x, y}, default_walls[y][x]);
+            }
         }
     }
-    return scene;
 }
 
 fn bool Scene.get_tile(&scene, Vector2 p) {
-    int x = (int)math::floor(p.x);
-    int y = (int)math::floor(p.y);
-    if (!(0 <= x && x < scene.width && 0 <= y && y < scene.height)) return false;
-    return scene.walls[y*scene.width + x];
+    if (try tile = scene.walls.get((IVector2)math::floor(p))) {
+        return tile;
+    }
+    return false;
 }
 
 fn bool Scene.can_rectangle_fit_here(&scene, float px, float py, float sx, float sy) {

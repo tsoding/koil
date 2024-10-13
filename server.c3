@@ -428,7 +428,7 @@ fn uint tick() @extern("tick") @wasm {
     process_left_players();
     process_moving_players();
     process_thrown_bombs(&common::bombs);
-    process_world_simulation(&common::items, common::scene, &common::bombs, delta_time);
+    process_world_simulation(&common::items, &common::scene, &common::bombs, delta_time);
     process_pings();
 
     uint tickTime = platform::now_msecs() - timestamp;
@@ -468,7 +468,7 @@ fn void entry() @init(2048) @private {
     };
     stats::stats[StatEntry.UPTIME].timer.started_at = platform::now_secs();
     common::temp_mark = allocator::temp().used;
-    common::scene = common::allocate_default_scene();
+    common::load_default_scene();
     previous_timestamp = platform::now_msecs();
 }
 

@@ -696,7 +696,6 @@ fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
 fn void key_down(uint key_code) @extern("key_down") @wasm {
     foreach (control: CONTROL_KEYS) {
         if (control.key_code == key_code) {
-            io::printn(string::tformat("key_down %f %f", me.position.x, me.position.y));
             Moving direction = control.moving;
 
             if (!platform::is_offline_mode()) {
@@ -782,15 +781,15 @@ fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
     assert(asset);
     Image player_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
 
-    update_all_players(common::scene, delta_time);
+    update_all_players(&common::scene, delta_time);
     update_items(&sprite_pool, time, &common::items, &key_image, &bomb_image);
-    update_bombs_on_client_side(&sprite_pool, &particle_pool, &bomb_image, common::scene, delta_time, &common::bombs);
-    update_particles(&particle_image, &sprite_pool, delta_time, common::scene, &particle_pool);
+    update_bombs_on_client_side(&sprite_pool, &particle_pool, &bomb_image, &common::scene, delta_time, &common::bombs);
+    update_particles(&particle_image, &sprite_pool, delta_time, &common::scene, &particle_pool);
 
     render_other_players(&sprite_pool, &player_image);
 
     render_floor_and_ceiling(&display.image);
-    render_walls(&display.image, display.zbuffer, &wall_image, common::scene);
+    render_walls(&display.image, display.zbuffer, &wall_image, &common::scene);
     cull_and_sort_sprites(&sprite_pool);
     render_sprites(&display.image, display.zbuffer, &sprite_pool);
 
@@ -897,7 +896,7 @@ fn void entry() @init(2048) @private {
         return buffer.len;
     };
     common::temp_mark = allocator::temp().used;
-    common::scene = common::allocate_default_scene();
+    common::load_default_scene();
 }
 
 module client::platform;
