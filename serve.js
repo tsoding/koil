@@ -1,6 +1,6 @@
 // @ts-check
 // Do not run this file directly. Run it via `npm run watch`. See package.json for more info.
-const { spawn } = require('child_process');
+import { spawn } from 'child_process';
 
 /**
  * 
