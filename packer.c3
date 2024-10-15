@@ -1,3 +1,4 @@
+module packer;
 import common;
 import std::io;
 import std::io::file;
