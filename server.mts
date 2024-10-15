@@ -48,10 +48,6 @@ interface WasmServer extends common.WasmCommon {
     tick: () => number,
 }
 
-function platform_now_secs(): number {
-    return Math.floor(Date.now()/1000);
-}
-
 // NOTE: This implicitly adds newline, but given how we using this
 // function in server.c3 it's actually fine. This function is called
 // once per io::printn() anyway.
@@ -64,7 +60,7 @@ function platform_send_message(player_id: number, message: number): number {
     const connection = connections.get(player_id);
     if (connection === undefined) return 0; // connection does not exist
     const size = new Uint32Array(wasmServer.memory.buffer, message, 1)[0];
-    if (size === 0) return 0;     // empty emssage
+    if (size === 0) return 0;     // empty message
     connection.send(new Uint8Array(wasmServer.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE));
     return size;
 }
@@ -72,7 +68,6 @@ function platform_send_message(player_id: number, message: number): number {
 async function instantiateWasmServer(path: string): Promise<WasmServer> {
     const wasm = await WebAssembly.instantiate(readFileSync(path), {
         "env": {
-            platform_now_secs,
             platform_write,
             platform_send_message,
             platform_now_msecs: () => performance.now(),

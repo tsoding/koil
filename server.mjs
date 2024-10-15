@@ -34,9 +34,6 @@ function tick() {
     const tickTime = wasmServer.tick();
     setTimeout(tick, Math.max(0, 1000 / SERVER_FPS - tickTime));
 }
-function platform_now_secs() {
-    return Math.floor(Date.now() / 1000);
-}
 function platform_write(buffer, buffer_len) {
     console.log(new TextDecoder().decode(new Uint8ClampedArray(wasmServer.memory.buffer, buffer, buffer_len)));
 }
@@ -55,7 +52,6 @@ function platform_send_message(player_id, message) {
 async function instantiateWasmServer(path) {
     const wasm = await WebAssembly.instantiate(readFileSync(path), {
         "env": {
-            platform_now_secs,
             platform_write,
             platform_send_message,
             platform_now_msecs: () => performance.now(),

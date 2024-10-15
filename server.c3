@@ -466,7 +466,7 @@ fn void entry() @init(2048) @private {
         common::platform::write(&buffer[0], buffer.len);
         return buffer.len;
     };
-    stats::stats[StatEntry.UPTIME].timer.started_at = platform::now_secs();
+    stats::stats[StatEntry.UPTIME].timer.started_at = platform::now_msecs();
     common::temp_mark = allocator::temp().used;
     common::load_default_scene();
     previous_timestamp = platform::now_msecs();
@@ -615,7 +615,7 @@ fn String Stat.display(&stat) {
     switch (stat.kind) {
         case COUNTER: return string::tformat("%d", stat.counter.value);
         case AVERAGE: return string::tformat("%f", stat.average.samples.average());
-        case TIMER:   return display_time_interval(server::platform::now_secs() - stat.timer.started_at);
+        case TIMER:   return display_time_interval(server::platform::now_msecs() - stat.timer.started_at);
     }
 }
 
@@ -623,17 +623,17 @@ fn String plural_number(int num, String singular, String plural) {
     return num == 1 ? singular : plural;
 }
 
-fn String display_time_interval(uint diffSecs) {
+fn String display_time_interval(uint diff_msecs) {
     String[4] result;
     usz result_count = 0;
 
-    uint days = diffSecs/60/60/24;
+    uint days = diff_msecs/1000/60/60/24;
     if (days > 0) result[result_count++] = string::tformat("%d %s", days, plural_number(days, "day", "days"));
-    uint hours = diffSecs/60/60%24;
+    uint hours = diff_msecs/1000/60/60%24;
     if (hours > 0) result[result_count++] = string::tformat("%d %s", hours, plural_number(hours, "hour", "hours"));
-    uint mins = diffSecs/60%60;
+    uint mins = diff_msecs/1000/60%60;
     if (mins > 0) result[result_count++] = string::tformat("%d %s", mins, plural_number(mins, "min", "mins"));
-    uint secs = diffSecs%60;
+    uint secs = diff_msecs/1000%60;
     if (secs > 0) result[result_count++] = string::tformat("%d %s", secs, plural_number(secs, "sec", "secs"));
     return result_count == 0 ? "0 secs" : string::join_new(&result, " ", allocator::temp());
 }
@@ -663,7 +663,5 @@ fn void print_per_n_ticks(int n) {
 
 module server::platform;
 
-// TODO: we can probably replace platform::now_secs() with the platform::now_msecs()
-extern fn int now_secs() @extern("platform_now_secs");
 extern fn uint send_message(uint player_id, void *message) @extern("platform_send_message");
 extern fn uint now_msecs() @extern("platform_now_msecs");
