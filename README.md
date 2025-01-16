@@ -27,6 +27,7 @@ This script starts up http-server at http://localhost:6969/ to serve the content
 Dependencies
 - Latest commit of [C3 compiler](https://github.com/c3lang/c3c) (you need to build it from scratch)
 - Node (v20.9.0+)
+- [wabt](https://github.com/WebAssembly/wabt) (Ensure that `wasm2wat` & `wat2wasm` are in PATH)
 
 ```console
 $ node install
