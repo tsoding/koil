@@ -2,6 +2,8 @@
 // Do not run this file directly. Run it via `npm run watch`. See package.json for more info.
 const { spawn } = require('child_process');
 
+const WASM_SIZE_OPT = true;
+
 /**
  * 
  * @param {string} program 
@@ -41,9 +43,11 @@ if (!0) {
                 "-z", "--export-table",
                 "-z", "--allow-undefined",
                 "client.c3", "common.c3",
-            ])
-        });
-    })
+            ]);
+
+	});
+    });
+    
     cmd("c3c", [
         "compile",
         "-D", "PLATFORM_WEB",
@@ -54,5 +58,24 @@ if (!0) {
         "-z", "--export-table",
         "-z", "--allow-undefined",
         "server.c3", "common.c3",
-    ])
+    ]);
+}
+
+if (WASM_SIZE_OPT) {
+    // Optimize client.wasm by converting it to WAT then back to WASM
+    cmd("wasm2wat", ["client.wasm", ">", "client.wat"])
+        .on('close', (data) => {
+	    if (data != 0) return;
+
+            cmd("wat2wasm", ["client.wat", "-o", "client.wasm"]);
+        });
+
+
+    // Optimize server.wasm by converting it to WAT then back to WASM
+    cmd("wasm2wat", ["server.wasm", ">", "server.wat"])
+        .on('close', (data) => {
+            if (data != 0) return;
+
+            cmd("wat2wasm", ["server.wat", "-o", "server.wasm"]);
+        });
 }
