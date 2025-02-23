@@ -113,7 +113,7 @@ async function main () {
         buildJs(),
         // Running all the C3 related builds sequentually because c3c is completely unparallelizable
         (async () => {
-            // await buildClient();
+            await buildClient();
             await buildServer();
         })()
     ])
