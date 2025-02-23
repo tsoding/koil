@@ -57,6 +57,7 @@ async function buildClient() {
         "-z", "--allow-undefined",
         SRC_FOLDER+"client.c3",
         SRC_FOLDER+"common.c3",
+        SRC_FOLDER+"common_wasm.c3",
     ])
 }
 
@@ -94,7 +95,9 @@ async function buildWasmServer() {
         "-z", "--export-table",
         "-z", "--allow-undefined",
         SRC_FOLDER+"server.c3",
+        SRC_FOLDER+"server_wasm.c3",
         SRC_FOLDER+"common.c3",
+        SRC_FOLDER+"common_wasm.c3",
     ])
 }
 
@@ -104,7 +107,12 @@ async function buildNativeServer() {
         "compile",
         "-l", BUILD_FOLDER+"libcws.a",
         "-o", BUILD_FOLDER+"server_native",
-        SRC_FOLDER+"server_native.c3"
+        SRC_FOLDER+"server.c3",
+        SRC_FOLDER+"server_native.c3",
+        SRC_FOLDER+"common.c3",
+        SRC_FOLDER+"common_native.c3",
+        SRC_FOLDER+"cws/cws.c3",
+        SRC_FOLDER+"cws/coroutine.c3",
     ]);
 }
 

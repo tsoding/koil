@@ -41,7 +41,7 @@ fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
     if (collected_items.size == 0) return null;
     ItemsCollectedBatchMessage *message = common::alloc_items_collected_batch_message(collected_items.size);
     for (int i = 0; i < collected_items.size; ++i) {
-        message.payload[i] = collected_items[i];
+        message.payload[i] = (uint)collected_items[i];
     }
     collected_items.size = 0;
     return message;
@@ -63,7 +63,7 @@ fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
     BombsSpawnedBatchMessage *message = common::alloc_bombs_spawned_batch_message(thrown_bombs.size);
     foreach (index, bombIndex: thrown_bombs) {
         Bomb *bomb = &(*bombs)[bombIndex];
-        message.payload[index].bombIndex = bombIndex;
+        message.payload[index].bombIndex = (uint)bombIndex;
         message.payload[index].x = bomb.position.x;
         message.payload[index].y = bomb.position.y;
         message.payload[index].z = bomb.position_z;
@@ -94,7 +94,7 @@ fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
     BombsExplodedBatchMessage *message = common::alloc_bombs_exploded_batch_message(exploded_bombs.size);
     foreach (index, bombIndex: exploded_bombs) {
         Bomb bomb = (*bombs)[bombIndex];
-        message.payload[index].bombIndex = bombIndex;
+        message.payload[index].bombIndex = (uint)bombIndex;
         message.payload[index].x         = bomb.position.x;
         message.payload[index].y         = bomb.position.y;
         message.payload[index].z         = bomb.position_z;
@@ -125,33 +125,43 @@ fn bool register_new_player(uint id, ShortString* remote_address) @extern("regis
         stats::inc_counter(PLAYERS_REJECTED, 1);
         return false;
     }
-    
-    assert(remote_address != null);
-    usz remote_address_len = ((ZString)&(*remote_address)[0]).char_len(); // WutFace
-    if (remote_address_len == 0) {
-        stats::inc_counter(PLAYERS_REJECTED, 1);
-        return false;
-    }
 
-    if (try count = connection_limits.get(*remote_address)) {
-        // TODO: we need to let the player know somehow that they were rejected due to the limit
-        if (count >= SERVER_SINGLE_IP_LIMIT) {
+    if (remote_address != null) {
+        usz remote_address_len = ((ZString)&(*remote_address)[0]).char_len(); // WutFace
+        if (remote_address_len == 0) {
             stats::inc_counter(PLAYERS_REJECTED, 1);
             return false;
         }
-        connection_limits.set(*remote_address, count + 1);
-    } else {
-        connection_limits.set(*remote_address, 1);
+
+        if (try count = connection_limits.get(*remote_address)) {
+            // TODO: we need to let the player know somehow that they were rejected due to the limit
+            if (count >= SERVER_SINGLE_IP_LIMIT) {
+                stats::inc_counter(PLAYERS_REJECTED, 1);
+                return false;
+            }
+            connection_limits.set(*remote_address, count + 1);
+        } else {
+            connection_limits.set(*remote_address, 1);
+        }
     }
 
     assert(!players.has_key(id));
     joined_ids.set(id, true);
-    players.set(id, {
-        .player = {
-            .id = id,
-        },
-        .remote_address = *remote_address,
-    });
+
+    if (remote_address != null) {
+        players.set(id, {
+            .player = {
+                .id = id,
+            },
+            .remote_address = *remote_address,
+        });
+    } else {
+        players.set(id, {
+            .player = {
+                .id = id,
+            },
+        });
+    }
 
     stats::inc_counter(PLAYERS_JOINED, 1);
     stats::inc_counter(PLAYERS_CURRENTLY, 1);
@@ -198,9 +208,9 @@ fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
 
 fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
     if (joined_ids.is_empty()) return null;
-    int byte_length = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*joined_ids.len();
+    usz byte_length = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*joined_ids.len();
     PlayersJoinedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
+    message.byte_length = (uint)byte_length;
     message.kind = MessageKind.PLAYER_JOINED;
 
     int index = 0;
@@ -455,23 +465,6 @@ fn uint tick() @extern("tick") @wasm {
     return tickTime;
 }
 
-/// Entry point //////////////////////////////
-
-fn void entry() @init(2048) @private {
-    // NOTE: ideally we need to override os::native_fputc_fn as well
-    // because io::printn uses it to print newline at the end of the
-    // message. But since js_write() in server.mts is implemented as a
-    // single console.log(), that newline is added implicitly anyway.
-    os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
-        common::platform::write(&buffer[0], buffer.len);
-        return buffer.len;
-    };
-    stats::stats[StatEntry.UPTIME].timer.started_at = platform::now_msecs();
-    common::temp_mark = allocator::temp().used;
-    common::load_default_scene();
-    previous_timestamp = platform::now_msecs();
-}
-
 /// Stats //////////////////////////////
 
 module server::stats;
@@ -482,7 +475,7 @@ import server::platform;
 const usz AVERAGE_CAPACITY = 30;
 def StatSamples = RingBuffer(<float, AVERAGE_CAPACITY>);
 
-enum StatKind {
+enum StatKind: inline int {
     COUNTER,
     AVERAGE,
     TIMER,
@@ -532,7 +525,7 @@ enum StatEntry: inline usz {
 }
 
 // TODO: Why do I have to cast to usz in here? Is there cleaner way to do this?
-Stat[StatEntry.COUNT] stats = {
+Stat[(usz)StatEntry.COUNT] stats = {
     [StatEntry.UPTIME] = {
         .kind = TIMER,
         .description = "Uptime"
@@ -648,7 +641,7 @@ fn void push_sample(StatEntry entry, float sample) {
 fn void inc_counter(StatEntry entry, int delta) {
     assert(entry < StatEntry.COUNT);
     Stat *stat = &stats[entry];
-    assert(stat.kind == StatKind.AVERAGE);
+    assert(stat.kind == StatKind.COUNTER);
     stat.counter.value += delta;
 }
 
@@ -660,8 +653,3 @@ fn void print_per_n_ticks(int n) {
         }
     }
 }
-
-module server::platform;
-
-extern fn uint send_message(uint player_id, void *message) @extern("platform_send_message");
-extern fn uint now_msecs() @extern("platform_now_msecs");

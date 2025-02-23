@@ -24,6 +24,7 @@ function cmd(program, args = []) {
     return p;
 }
 
-cmd('node', ['server.mjs'])
+cmd('./build/server_native');
+// cmd('node', ['server.mjs'])
 // TODO: prod mode where we are listening to address 0.0.0.0
 cmd('http-server', ['-p', '6969', '-a', '127.0.0.1', '-g', '-s', '-c-1', '-d', 'false'])

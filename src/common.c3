@@ -17,6 +17,7 @@ struct Asset {
 
 def Assets = List(<Asset>);
 
+const ushort SERVER_PORT = 6970;
 const float BOMB_GRAVITY = 10;
 const float BOMB_LIFETIME = 2;
 const float BOMB_THROW_VELOCITY = 5;
@@ -46,7 +47,7 @@ macro proper_mod(a, b) => (a%b + b)%b;
 
 /// Messages //////////////////////////////
 
-enum MessageKind: char {
+enum MessageKind: inline char {
     HELLO,
     PLAYER_JOINED,
     PLAYER_LEFT,
@@ -122,7 +123,7 @@ fn bool Scene.can_rectangle_fit_here(&scene, float px, float py, float sx, float
 
 /// Items //////////////////////////////
 
-enum ItemKind: char {
+enum ItemKind: inline char {
     KEY,
     BOMB,
 }
@@ -460,7 +461,3 @@ fn BatchMessage*! verify(Message *message) {
     if (batch_message.kind != (MessageKind)KIND) return MessageFault.INVALID?;
     return batch_message;
 }
-
-module common::platform;
-extern fn void write(void *buffer, usz buffer_sz) @extern("platform_write");
-extern fn float atan2f(float y, float x) @extern("platform_atan2f");
