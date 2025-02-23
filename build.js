@@ -38,19 +38,13 @@ function buildJs() {
 
 async function buildClient() {
     await cmdAsync("clang", [
-        "-DSTB_IMAGE_IMPLEMENTATION",
-        "-o", BUILD_FOLDER+"stb_image.o",
-        "-x", "c",
-        "-c",
-        SRC_FOLDER+"stb_image.h"
-    ]);
-    await cmdAsync("c3c", [
-        "compile",
+        "-Wall", "-Wextra", "-ggdb",
+        "-I"+SRC_FOLDER,
+        "-I"+SRC_FOLDER+"cws/",
         "-o", BUILD_FOLDER+"packer",
-        SRC_FOLDER+"packer.c3",
-        SRC_FOLDER+"common.c3",
-        BUILD_FOLDER+"stb_image.o"
-    ]);
+        SRC_FOLDER+"packer.c",
+        "-lm",
+    ])
     return cmdAsync("c3c", [
         "compile",
         "-D", "PLATFORM_WEB",
