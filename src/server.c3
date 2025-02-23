@@ -19,7 +19,7 @@ import common;
 
 const usz SERVER_TOTAL_LIMIT = 2000;
 const usz SERVER_SINGLE_IP_LIMIT = 10;
-const int SERVER_FPS = 60;          // IMPORTANT! Must be in sync with SERVER_FPS in server.mts
+const int SERVER_FPS = 60;
 
 fn void send_message_and_update_stats(uint player_id, void* message) {
     uint sent = send_message(player_id, message);
@@ -829,7 +829,7 @@ fn void print_per_n_ticks(int n) {
     if (stats[StatEntry.TICKS_COUNT].counter.value%n == 0) {
         io::printn("Stats:");
         foreach (&stat: stats) {
-            io::printn(string::tformat("  %s %s", stat.description, stat.display()));
+            io::printfn("  %s %s", stat.description, stat.display());
         }
     }
 }
