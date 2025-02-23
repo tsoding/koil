@@ -37,7 +37,7 @@ function buildJs() {
 }
 
 async function buildClient() {
-    await cmdAsync("clang", [
+    await cmdAsync("gcc", [
         "-Wall", "-Wextra", "-ggdb",
         "-I"+SRC_FOLDER,
         "-I"+SRC_FOLDER+"cws/",
@@ -84,33 +84,14 @@ async function buildCWS() {
     ])
 }
 
-async function buildWasmServer() {
-    await cmdAsync("c3c", [
-        "compile",
-        "-D", "PLATFORM_WEB",
-        "--reloc=none",
-        "--target", "wasm32",
-        "-O5", "-g0", "--link-libc=no", "--no-entry",
-        "-o", "server",
-        "-z", "--export-table",
-        "-z", "--allow-undefined",
-        SRC_FOLDER+"server.c3",
-        SRC_FOLDER+"server_wasm.c3",
-        SRC_FOLDER+"common.c3",
-        SRC_FOLDER+"common_wasm.c3",
-    ])
-}
-
-async function buildNativeServer() {
+async function buildServer() {
     await buildCWS();
     await cmdAsync("c3c", [
         "compile",
         "-l", BUILD_FOLDER+"libcws.a",
-        "-o", BUILD_FOLDER+"server_native",
+        "-o", BUILD_FOLDER+"server",
         SRC_FOLDER+"server.c3",
-        SRC_FOLDER+"server_native.c3",
         SRC_FOLDER+"common.c3",
-        SRC_FOLDER+"common_native.c3",
         SRC_FOLDER+"cws/cws.c3",
         SRC_FOLDER+"cws/coroutine.c3",
     ]);
@@ -132,9 +113,8 @@ async function main () {
         buildJs(),
         // Running all the C3 related builds sequentually because c3c is completely unparallelizable
         (async () => {
-            await buildClient();
-            await buildWasmServer();
-            await buildNativeServer();
+            // await buildClient();
+            await buildServer();
         })()
     ])
 }

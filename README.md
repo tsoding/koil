@@ -14,24 +14,19 @@ Offline version available on GitHub Pages: https://tsoding.github.io/koil/
 
 ## Quick Start
 
+Dependencies
+- Build from scratch commit [855be928](https://github.com/c3lang/c3c/tree/855be9288121d0f7a67d277f7bbbbf57fbfa2597) of [C3 compiler](https://github.com/c3lang/c3c). This commit is pinned and will not be updated.
+- GCC (13.2.0+)
+- Node (v20.9.0+)
+
 ```console
 $ npm install
+$ node run build
 $ npm run serve
 $ <browser> https://localhost:6969/
 ```
 
-This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and the server of the game ([server.mts](./server.mts)). See [serve.js](./serve.js) for more details.
-
-## Rebuilding Artifacts
-
-Dependencies
-- Build from scratch commit [855be928](https://github.com/c3lang/c3c/tree/855be9288121d0f7a67d277f7bbbbf57fbfa2597) of [C3 compiler](https://github.com/c3lang/c3c). This commit is pinned and will not be updated.
-- Node (v20.9.0+)
-
-```console
-$ node install
-$ node run build
-```
+This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and the server of the game. See [serve.js](./serve.js) for more details.
 
 ## References
 
