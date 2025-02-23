@@ -7,6 +7,7 @@ import std::hash::fnv32a;
 
 def ShortString = char[64];
 
+// WARNING! struct Asset definition must be in sync with the one in common.h
 struct Asset {
     String filename;
     usz offset;
