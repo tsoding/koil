@@ -1,7 +1,10 @@
 // @ts-check
 const { spawn } = require('child_process');
 const { promisify } = require('util');
-const { mkdir } = require('fs/promises');
+const { mkdir, mkdtemp } = require('fs/promises');
+
+const BUILD_FOLDER = 'build/';
+const SRC_FOLDER = 'src/';
 
 /**
  * TODO: this signature is outdated
@@ -25,8 +28,6 @@ function cmd(program, args, callback) {
 
 const cmdAsync = promisify(cmd);
 
-const BUILD_FOLDER = 'build/';
-
 function TODO(message) {
     throw new Error(`TODO: ${message}`)
 }
@@ -41,12 +42,13 @@ async function buildClient() {
         "-o", BUILD_FOLDER+"stb_image.o",
         "-x", "c",
         "-c",
-        "stb_image.h"
+        SRC_FOLDER+"stb_image.h"
     ]);
     await cmdAsync("c3c", [
         "compile",
         "-o", BUILD_FOLDER+"packer",
-        "packer.c3", "common.c3",
+        SRC_FOLDER+"packer.c3",
+        SRC_FOLDER+"common.c3",
         BUILD_FOLDER+"stb_image.o"
     ]);
     return cmdAsync("c3c", [
@@ -59,7 +61,8 @@ async function buildClient() {
         "-o", "client",
         "-z", "--export-table",
         "-z", "--allow-undefined",
-        "client.c3", "common.c3",
+        SRC_FOLDER+"client.c3",
+        SRC_FOLDER+"common.c3",
     ])
 }
 
@@ -69,13 +72,13 @@ async function buildCWS() {
             "-Wall", "-Wextra", "-ggdb",
             "-o", BUILD_FOLDER+"coroutine.o",
             "-c",
-            "cws/coroutine.c"
+            SRC_FOLDER+"cws/coroutine.c"
         ]),
         cmdAsync("gcc", [
             "-Wall", "-Wextra", "-ggdb",
             "-o", BUILD_FOLDER+"cws.o",
             "-c",
-            "cws/cws.c"
+            SRC_FOLDER+"cws/cws.c"
         ]),
     ])
     await cmdAsync("ar", [
@@ -96,7 +99,8 @@ async function buildWasmServer() {
         "-o", "server",
         "-z", "--export-table",
         "-z", "--allow-undefined",
-        "server.c3", "common.c3",
+        SRC_FOLDER+"server.c3",
+        SRC_FOLDER+"common.c3",
     ])
 }
 
@@ -104,8 +108,9 @@ async function buildNativeServer() {
     await buildCWS();
     await cmdAsync("c3c", [
         "compile",
+        "-l", BUILD_FOLDER+"libcws.a",
         "-o", BUILD_FOLDER+"server_native",
-        "server_native.c3"
+        SRC_FOLDER+"server_native.c3"
     ]);
 }
 
@@ -120,16 +125,15 @@ function mkdirp(path) {
 async function main () {
     const args = process.argv.slice(2);
 
-    await Promise.all([
-        mkdirp(BUILD_FOLDER+"wasm_objects/"),
-        mkdirp(BUILD_FOLDER+"native_objects/"),
-    ])
-
+    await mkdirp(BUILD_FOLDER)
     await Promise.all([
         buildJs(),
-        buildClient(),
-        buildWasmServer(),
-        //buildNativeServer(),
+        // Running all the C3 related builds sequentually because c3c is completely unparallelizable
+        (async () => {
+            await buildClient();
+            await buildWasmServer();
+            await buildNativeServer();
+        })()
     ])
 }
 
