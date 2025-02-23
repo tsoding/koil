@@ -25,7 +25,7 @@ This script starts up http-server at http://localhost:6969/ to serve the content
 ## Rebuilding Artifacts
 
 Dependencies
-- Latest commit of [C3 compiler](https://github.com/c3lang/c3c) (you need to build it from scratch)
+- Build from scratch commit [855be928](https://github.com/c3lang/c3c/tree/855be9288121d0f7a67d277f7bbbbf57fbfa2597) of [C3 compiler](https://github.com/c3lang/c3c). This commit is pinned and will not be updated.
 - Node (v20.9.0+)
 
 ```console
