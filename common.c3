@@ -31,7 +31,7 @@ fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
 def Vector3 = float[<3>];
 def Vector4 = float[<4>];
 
-macro Vector2.angle(self) => platform::atan2f(self.y, self.x);
+macro Vector2.angle_fixed(self) => platform::atan2f(self.y, self.x);
 // // TODO: math::atan2 is broken. Does not work with sprite_angle_index() properly.
 // // Investigate what's up and potentially report to C3.
 // macro Vector2.angle(self) => math::atan2(self.y, self.x);
@@ -298,7 +298,7 @@ def alloc_bombs_exploded_batch_message = msg::batch::alloc(<BombExploded, Messag
 
 /// Player //////////////////////////////
 
-enum Moving: char {
+enum Moving: inline char {
     MOVING_FORWARD,
     MOVING_BACKWARD,
     TURNING_LEFT,

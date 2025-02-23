@@ -676,7 +676,7 @@ fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
 fn uint sprite_angle_index(Vector2 camera_position, Player entity) {
     const float PI =  math::PI;
     const float TAU = 2*math::PI;
-    return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod((entity.position - camera_position).angle(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
+    return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod((entity.position - camera_position).angle_(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
 }
 
 fn void update_all_players(Scene *scene, float delta_time) {

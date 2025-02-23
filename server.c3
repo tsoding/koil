@@ -39,7 +39,7 @@ fn void collect_items_by_player(Player player, Item[] *items) {
 
 fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
     if (collected_items.size == 0) return null;
-    ItemsCollectedBatchMessage *message = alloc_items_collected_batch_message(collected_items.size);
+    ItemsCollectedBatchMessage *message = common::alloc_items_collected_batch_message(collected_items.size);
     for (int i = 0; i < collected_items.size; ++i) {
         message.payload[i] = collected_items[i];
     }
@@ -60,7 +60,7 @@ fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
 
 fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
     if (thrown_bombs.size == 0) return null;
-    BombsSpawnedBatchMessage *message = alloc_bombs_spawned_batch_message(thrown_bombs.size);
+    BombsSpawnedBatchMessage *message = common::alloc_bombs_spawned_batch_message(thrown_bombs.size);
     foreach (index, bombIndex: thrown_bombs) {
         Bomb *bomb = &(*bombs)[bombIndex];
         message.payload[index].bombIndex = bombIndex;
@@ -91,7 +91,7 @@ fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs
 
 fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
     if (exploded_bombs.size == 0) return null;
-    BombsExplodedBatchMessage *message = alloc_bombs_exploded_batch_message(exploded_bombs.size);
+    BombsExplodedBatchMessage *message = common::alloc_bombs_exploded_batch_message(exploded_bombs.size);
     foreach (index, bombIndex: exploded_bombs) {
         Bomb bomb = (*bombs)[bombIndex];
         message.payload[index].bombIndex = bombIndex;
@@ -222,7 +222,7 @@ fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
 
 fn PlayersLeftBatchMessage *left_players_as_batch_message() {
     if (left_ids.is_empty()) return null;
-    PlayersLeftBatchMessage *message = alloc_players_left_batch_message(left_ids.len());
+    PlayersLeftBatchMessage *message = common::alloc_players_left_batch_message(left_ids.len());
     int index = 0;
     left_ids.@each_entry(; PlayerIdsEntry *entry) {
         uint left_id = entry.key;
@@ -511,7 +511,7 @@ struct Stat {
     }
 }
 
-enum StatEntry: usz {
+enum StatEntry: inline usz {
     UPTIME,
     TICKS_COUNT,
     TICK_TIMES,
@@ -532,7 +532,7 @@ enum StatEntry: usz {
 }
 
 // TODO: Why do I have to cast to usz in here? Is there cleaner way to do this?
-Stat[(usz)StatEntry.COUNT] stats = {
+Stat[StatEntry.COUNT] stats = {
     [StatEntry.UPTIME] = {
         .kind = TIMER,
         .description = "Uptime"
