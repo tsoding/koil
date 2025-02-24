@@ -1,30 +1,6 @@
 export const SERVER_PORT = 6970; // WARNING! Has to be in sync with SERVER_PORT in common.c3
 export const UINT32_SIZE = 4;
 
-export interface WasmCommon {
-    wasm: WebAssembly.WebAssemblyInstantiatedSource,
-    memory: WebAssembly.Memory,
-    _initialize: () => void,
-    allocate_temporary_buffer: (size: number) => number,
-}
-
-export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
-    return {
-        wasm,
-        memory: wasm.instance.exports.memory  as WebAssembly.Memory,
-        _initialize: wasm.instance.exports._initialize as () => void,
-        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
-    }
-}
-
-export function arrayBufferAsMessageInWasm(wasmCommon: WasmCommon, buffer: ArrayBuffer): number {
-    const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
-    const wasmBufferPtr = wasmCommon.allocate_temporary_buffer(wasmBufferSize);
-    new DataView(wasmCommon.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
-    new Uint8ClampedArray(wasmCommon.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
-    return wasmBufferPtr;
-}
-
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
@@ -72,7 +48,11 @@ interface Display {
     backCtx: OffscreenCanvasRenderingContext2D;
 }
 
-interface WasmClient extends WasmCommon {
+interface WasmClient {
+    wasm: WebAssembly.WebAssemblyInstantiatedSource,
+    memory: WebAssembly.Memory,
+    _initialize: () => void,
+    allocate_temporary_buffer: (size: number) => number,
     players_count: () => number,
     unregister_all_other_players: () => void,
     key_down: (key_code: number) => void,
@@ -83,6 +63,14 @@ interface WasmClient extends WasmCommon {
     process_message: (message: number) => boolean,
     resize_display: (width: number, height: number) => void,
     pixels_of_display: () => number,
+}
+
+export function arrayBufferAsMessageInWasm(wasmClient: WasmClient, buffer: ArrayBuffer): number {
+    const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
+    const wasmBufferPtr = wasmClient.allocate_temporary_buffer(wasmBufferSize);
+    new DataView(wasmClient.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
+    new Uint8ClampedArray(wasmClient.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
+    return wasmBufferPtr;
 }
 
 function createDisplay(wasmClient: WasmClient, backImageWidth: number, backImageHeight: number): Display {
@@ -191,11 +179,11 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         }
     })
 
-    const wasmCommon = makeWasmCommon(wasm);
-    wasmCommon._initialize();
-
-    return {
-        ...wasmCommon,
+    const wasmClient = {
+        wasm,
+        memory: wasm.instance.exports.memory  as WebAssembly.Memory,
+        _initialize: wasm.instance.exports._initialize as () => void,
+        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
         players_count: wasm.instance.exports.players_count as () => number,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players as () => void,
         key_down: wasm.instance.exports.key_down as (key_code: number) => void,
@@ -206,6 +194,9 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
         resize_display: wasm.instance.exports.resize_display as (width: number, height: number) => void,
         pixels_of_display: wasm.instance.exports.pixels_of_display as () => number,
     };
+    wasmClient._initialize();
+
+    return wasmClient;
 }
 
 async function createGame(): Promise<Game> {

@@ -1,20 +1,5 @@
 export const SERVER_PORT = 6970;
 export const UINT32_SIZE = 4;
-export function makeWasmCommon(wasm) {
-    return {
-        wasm,
-        memory: wasm.instance.exports.memory,
-        _initialize: wasm.instance.exports._initialize,
-        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
-    };
-}
-export function arrayBufferAsMessageInWasm(wasmCommon, buffer) {
-    const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
-    const wasmBufferPtr = wasmCommon.allocate_temporary_buffer(wasmBufferSize);
-    new DataView(wasmCommon.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
-    new Uint8ClampedArray(wasmCommon.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
-    return wasmBufferPtr;
-}
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
@@ -55,6 +40,13 @@ function renderDebugInfo(ctx, deltaTime, game) {
         ctx.fillStyle = "white";
         ctx.fillText(labels[i], padding + shadowOffset, padding - shadowOffset + fontSize * i);
     }
+}
+export function arrayBufferAsMessageInWasm(wasmClient, buffer) {
+    const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
+    const wasmBufferPtr = wasmClient.allocate_temporary_buffer(wasmBufferSize);
+    new DataView(wasmClient.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
+    new Uint8ClampedArray(wasmClient.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
+    return wasmBufferPtr;
 }
 function createDisplay(wasmClient, backImageWidth, backImageHeight) {
     wasmClient.resize_display(backImageWidth, backImageHeight);
@@ -143,10 +135,11 @@ async function instantiateWasmClient(url) {
             platform_now_msecs: () => performance.now(),
         }
     });
-    const wasmCommon = makeWasmCommon(wasm);
-    wasmCommon._initialize();
-    return {
-        ...wasmCommon,
+    const wasmClient = {
+        wasm,
+        memory: wasm.instance.exports.memory,
+        _initialize: wasm.instance.exports._initialize,
+        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
         players_count: wasm.instance.exports.players_count,
         unregister_all_other_players: wasm.instance.exports.unregister_all_other_players,
         key_down: wasm.instance.exports.key_down,
@@ -157,6 +150,8 @@ async function instantiateWasmClient(url) {
         resize_display: wasm.instance.exports.resize_display,
         pixels_of_display: wasm.instance.exports.pixels_of_display,
     };
+    wasmClient._initialize();
+    return wasmClient;
 }
 async function createGame() {
     const wasmClient = await instantiateWasmClient("client.wasm");
