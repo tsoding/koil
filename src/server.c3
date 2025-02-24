@@ -478,70 +478,10 @@ fn uint tick() @extern("tick") @wasm {
 
 // Entry ///////////////////////////////
 
-fn int cws_socket_read(void* data, void* buffer, usz len)
-{
-    while (true) {
-        isz n = libc::read((int)(iptr)data, buffer, len);
-        if (n > 0) return (int)n;
-        if (n < 0 && os::socket_error() != IoError.WOULD_BLOCK) return (int)cws::ERROR_ERRNO;
-        if (n == 0) return (int)cws::ERROR_CONNECTION_CLOSED;
-        coroutine::yield();
-    }
-}
-
-// peek: like read, but does not remove data from the buffer
-// Usually implemented via MSG_PEEK flag of recv
-fn int cws_socket_peek(void* data, void* buffer, usz len)
-{
-    const int MSG_PEEK = 2;
-    while (true) {
-        isz n = libc::recv((int)(iptr)data, buffer, len, MSG_PEEK);
-        if (n > 0) return (int)n;
-        if (n < 0 && os::socket_error() != IoError.WOULD_BLOCK) return (int)cws::ERROR_ERRNO;
-        if (n == 0) return (int)cws::ERROR_CONNECTION_CLOSED;
-        coroutine::yield();
-    }
-}
-
-fn int cws_socket_write(void* data, void* buffer, usz len)
-{
-    while (true) {
-        isz n = libc::write((int)(iptr)data, buffer, len);
-        if (n > 0) return (int)n;
-        if (n < 0 && os::socket_error() != IoError.WOULD_BLOCK) return (int)cws::ERROR_ERRNO;
-        if (n == 0) return (int)cws::ERROR_CONNECTION_CLOSED;
-        coroutine::yield();
-    }
-}
-
-extern fn int shutdown(int sockfd, int how) @extern("shutdown");
-
-fn int cws_socket_shutdown(void* data, CwsShutdownHow how)
-{
-    if (shutdown((int)(iptr)data, (int)how) < 0) return (int)cws::ERROR_ERRNO;
-    return 0;
-}
-
-fn int cws_socket_close(void *data)
-{
-    if (libc::close((int)(iptr)data) < 0) return (int)cws::ERROR_ERRNO;
-    return 0;
-}
-
-fn CwsSocket cws_socket_from_fd(int fd)
-{
-    return CwsSocket {
-        .data     = (void*)(iptr)fd,
-        .read     = &cws_socket_read,
-        .peek     = &cws_socket_write,
-        .write    = &cws_socket_peek,
-        .shutdown = &cws_socket_shutdown,
-        .close    = &cws_socket_close,
-    };
-}
-
 HashMap(<uint, Cws>) connections;
 uint idCounter = 0;
+
+extern fn CwsSocket cws_socket_from_fd(int fd) @extern("cws_socket_from_fd");
 
 fn void client_connection(void *data)
 {

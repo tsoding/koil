@@ -1,13 +1,81 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <errno.h>
+
+#include <sys/socket.h>
 
 #include "arena.h"
 #define NOB_STRIP_PREFIX
 #include "nob.h"
-
-#define AVERAGE_CAPACITY 30
+#include "cws.h"
+#include "coroutine.h"
 
 static Arena temp = {0};
+
+// Cws_Socket //////////////////////////////
+
+int cws_socket_read(void *data, void *buffer, size_t len)
+{
+    while (true) {
+        int n = read((int)(uintptr_t)data, buffer, len);
+        if (n > 0) return (int)n;
+        if (n < 0 && errno != EWOULDBLOCK) return (int)CWS_ERROR_ERRNO;
+        if (n == 0) return (int)CWS_ERROR_CONNECTION_CLOSED;
+        coroutine_yield();
+    }
+}
+
+// peek: like read, but does not remove data from the buffer
+// Usually implemented via MSG_PEEK flag of recv
+int cws_socket_peek(void *data, void *buffer, size_t len)
+{
+    while (true) {
+        int n = recv((int)(uintptr_t)data, buffer, len, MSG_PEEK);
+        if (n > 0) return (int)n;
+        if (n < 0 && errno != EWOULDBLOCK) return (int)CWS_ERROR_ERRNO;
+        if (n == 0) return (int)CWS_ERROR_CONNECTION_CLOSED;
+        coroutine_yield();
+    }
+}
+
+int cws_socket_write(void *data, const void *buffer, size_t len)
+{
+    while (true) {
+        int n = write((int)(uintptr_t)data, buffer, len);
+        if (n > 0) return (int)n;
+        if (n < 0 && errno != EWOULDBLOCK) return (int)CWS_ERROR_ERRNO;
+        if (n == 0) return (int)CWS_ERROR_CONNECTION_CLOSED;
+        coroutine_yield();
+    }
+}
+
+int cws_socket_shutdown(void *data, Cws_Shutdown_How how)
+{
+    if (shutdown((int)(uintptr_t)data, (int)how) < 0) return (int)CWS_ERROR_ERRNO;
+    return 0;
+}
+
+int cws_socket_close(void *data)
+{
+    if (close((int)(uintptr_t)data) < 0) return (int)CWS_ERROR_ERRNO;
+    return 0;
+}
+
+Cws_Socket cws_socket_from_fd(int fd)
+{
+    return (Cws_Socket) {
+        .data     = (void*)(uintptr_t)fd,
+        .read     = cws_socket_read,
+        .peek     = cws_socket_peek,
+        .write    = cws_socket_write,
+        .shutdown = cws_socket_shutdown,
+        .close    = cws_socket_close,
+    };
+}
+
+// Stats //////////////////////////////
+
+#define AVERAGE_CAPACITY 30
 
 typedef struct {
     float items[AVERAGE_CAPACITY];
