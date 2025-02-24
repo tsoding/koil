@@ -596,7 +596,6 @@ fn int main() {
 
             Cws cws = {
                 .socket = cws_socket_from_fd(client.sock),
-                .debug = true,
             };
 
             int err = cws::server_handshake(&cws);
