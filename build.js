@@ -84,11 +84,20 @@ async function buildCWS() {
 }
 
 async function buildServer() {
-    await buildCWS();
+    await Promise.all([
+        buildCWS(),
+        cmdAsync("gcc", [
+            "-Wall", "-Wextra", "-ggdb",
+            "-I", SRC_FOLDER+"cws/",
+            "-c", SRC_FOLDER+"server.c",
+            "-o", BUILD_FOLDER+"server.o",
+        ]),
+    ])
     await cmdAsync("c3c", [
         "compile",
         "-l", BUILD_FOLDER+"libcws.a",
         "-o", BUILD_FOLDER+"server",
+        BUILD_FOLDER+"server.o",
         SRC_FOLDER+"server.c3",
         SRC_FOLDER+"common.c3",
         SRC_FOLDER+"cws/cws.c3",

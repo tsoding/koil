@@ -1,6 +1,5 @@
-export const SERVER_PORT = 6970; // WARNING! Has to be in sync with SERVER_PORT in common.c3
-export const UINT32_SIZE = 4;
-
+const SERVER_PORT = 6970; // WARNING! Has to be in sync with SERVER_PORT in common.c3
+const UINT32_SIZE = 4;
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9*SCREEN_FACTOR);
@@ -65,7 +64,7 @@ interface WasmClient {
     pixels_of_display: () => number,
 }
 
-export function arrayBufferAsMessageInWasm(wasmClient: WasmClient, buffer: ArrayBuffer): number {
+function arrayBufferAsMessageInWasm(wasmClient: WasmClient, buffer: ArrayBuffer): number {
     const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
     const wasmBufferPtr = wasmClient.allocate_temporary_buffer(wasmBufferSize);
     new DataView(wasmClient.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);

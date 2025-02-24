@@ -1,5 +1,5 @@
-export const SERVER_PORT = 6970;
-export const UINT32_SIZE = 4;
+const SERVER_PORT = 6970;
+const UINT32_SIZE = 4;
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
@@ -41,7 +41,7 @@ function renderDebugInfo(ctx, deltaTime, game) {
         ctx.fillText(labels[i], padding + shadowOffset, padding - shadowOffset + fontSize * i);
     }
 }
-export function arrayBufferAsMessageInWasm(wasmClient, buffer) {
+function arrayBufferAsMessageInWasm(wasmClient, buffer) {
     const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
     const wasmBufferPtr = wasmClient.allocate_temporary_buffer(wasmBufferSize);
     new DataView(wasmClient.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
@@ -219,4 +219,5 @@ async function createGame() {
         window.requestAnimationFrame(frame);
     });
 })();
+export {};
 //# sourceMappingURL=client.mjs.map

@@ -470,7 +470,7 @@ fn uint tick() @extern("tick") @wasm {
     stats::bytes_sent_within_tick = 0;
 
     // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
-    stats::print_per_n_ticks(SERVER_FPS);
+    stats::print_per_n_ticks(SERVER_FPS, now_msecs());
 
     common::reset_temp_mark();
     return tickTime;
@@ -580,7 +580,7 @@ fn void client_connection(void *data)
 fn int main() {
     coroutine::init();
 
-    stats::stats[StatEntry.UPTIME].timer.started_at = now_msecs();
+    stats::start_timer_at(StatEntry.UPTIME, now_msecs());
     common::temp_mark = allocator::temp().used;
     common::load_default_scene();
     server::previous_timestamp = now_msecs();
@@ -648,42 +648,8 @@ fn uint now_msecs()
 /// Stats //////////////////////////////
 
 module server::stats;
-import std::collections::ringbuffer;
-import std::io;
 
-const usz AVERAGE_CAPACITY = 30;
-def StatSamples = RingBuffer(<float, AVERAGE_CAPACITY>);
-
-enum StatKind: inline int {
-    COUNTER,
-    AVERAGE,
-    TIMER,
-}
-
-struct StatCounter {
-    int value;
-}
-
-struct StatAverage {
-    StatSamples samples;
-}
-
-struct StatTimer {
-    uint started_at;
-}
-
-struct Stat {
-    StatKind kind;
-    String description;
-
-    union {
-        StatCounter counter;
-        StatAverage average;
-        StatTimer timer;
-    }
-}
-
-enum StatEntry: inline usz {
+enum StatEntry: inline usz {    // WARNING! Must be synced with Stat_Entry in server.c
     UPTIME,
     TICKS_COUNT,
     TICK_TIMES,
@@ -703,132 +669,12 @@ enum StatEntry: inline usz {
     COUNT,
 }
 
-// TODO: Why do I have to cast to usz in here? Is there cleaner way to do this?
-Stat[(usz)StatEntry.COUNT] stats = {
-    [StatEntry.UPTIME] = {
-        .kind = TIMER,
-        .description = "Uptime"
-    },
-    [StatEntry.TICKS_COUNT] = {
-        .kind = COUNTER,
-        .description = "Ticks count"
-    },
-    [StatEntry.TICK_TIMES] = {
-        .kind = AVERAGE,
-        .description = "Average time to process a tick"
-    },
-    [StatEntry.MESSAGES_SENT] = {
-        .kind = COUNTER,
-        .description = "Total messages sent"
-    },
-    [StatEntry.MESSAGES_RECEIVED] = {
-        .kind = COUNTER,
-        .description = "Total messages received"
-    },
-    [StatEntry.TICK_MESSAGES_SENT] = {
-        .kind = AVERAGE,
-        .description = "Average messages sent per tick"
-    },
-    [StatEntry.TICK_MESSAGES_RECEIVED] = {
-        .kind = AVERAGE,
-        .description = "Average messages received per tick"
-    },
-    [StatEntry.BYTES_SENT] = {
-        .kind = COUNTER,
-        .description = "Total bytes sent"
-    },
-    [StatEntry.BYTES_RECEIVED] = {
-        .kind = COUNTER,
-        .description = "Total bytes received"
-    },
-    [StatEntry.TICK_BYTE_SENT] = {
-        .kind = AVERAGE,
-        .description = "Average bytes sent per tick"
-    },
-    [StatEntry.TICK_BYTE_RECEIVED] = {
-        .kind = AVERAGE,
-        .description = "Average bytes received per tick"
-    },
-    [StatEntry.PLAYERS_CURRENTLY] = {
-        .kind = COUNTER,
-        .description = "Currently players"
-    },
-    [StatEntry.PLAYERS_JOINED] = {
-        .kind = COUNTER,
-        .description = "Total players joined"
-    },
-    [StatEntry.PLAYERS_LEFT] = {
-        .kind = COUNTER,
-        .description = "Total players left"
-    },
-    [StatEntry.BOGUS_AMOGUS_MESSAGES] = {
-        .kind = COUNTER,
-        .description = "Total bogus-amogus messages"
-    },
-    [StatEntry.PLAYERS_REJECTED] = {
-        .kind = COUNTER,
-        .description = "Total players rejected"
-    },
-};
 int messages_recieved_within_tick = 0;
 int bytes_received_within_tick = 0;
 int message_sent_within_tick = 0;
 int bytes_sent_within_tick = 0;
 
-fn float StatSamples.average(&self) {
-    float sum = 0;
-    for (usz i = 0; i < self.written; ++i) {
-        sum += self.get(i);
-    }
-    return sum/self.written;
-}
-
-fn String Stat.display(&stat) {
-    switch (stat.kind) {
-        case COUNTER: return string::tformat("%d", stat.counter.value);
-        case AVERAGE: return string::tformat("%f", stat.average.samples.average());
-        case TIMER:   return display_time_interval(server::now_msecs() - stat.timer.started_at);
-    }
-}
-
-fn String plural_number(int num, String singular, String plural) {
-    return num == 1 ? singular : plural;
-}
-
-fn String display_time_interval(uint diff_msecs) {
-    String[4] result;
-    usz result_count = 0;
-
-    uint days = diff_msecs/1000/60/60/24;
-    if (days > 0) result[result_count++] = string::tformat("%d %s", days, plural_number(days, "day", "days"));
-    uint hours = diff_msecs/1000/60/60%24;
-    if (hours > 0) result[result_count++] = string::tformat("%d %s", hours, plural_number(hours, "hour", "hours"));
-    uint mins = diff_msecs/1000/60%60;
-    if (mins > 0) result[result_count++] = string::tformat("%d %s", mins, plural_number(mins, "min", "mins"));
-    uint secs = diff_msecs/1000%60;
-    if (secs > 0) result[result_count++] = string::tformat("%d %s", secs, plural_number(secs, "sec", "secs"));
-    return result_count == 0 ? "0 secs" : string::join_new(&result, " ", allocator::temp());
-}
-
-fn void push_sample(StatEntry entry, float sample) {
-    assert(entry < StatEntry.COUNT);
-    Stat *stat = &stats[entry];
-    assert(stat.kind == StatKind.AVERAGE);
-    stat.average.samples.push(sample);
-}
-
-fn void inc_counter(StatEntry entry, int delta) {
-    assert(entry < StatEntry.COUNT);
-    Stat *stat = &stats[entry];
-    assert(stat.kind == StatKind.COUNTER);
-    stat.counter.value += delta;
-}
-
-fn void print_per_n_ticks(int n) {
-    if (stats[StatEntry.TICKS_COUNT].counter.value%n == 0) {
-        io::printn("Stats:");
-        foreach (&stat: stats) {
-            io::printfn("  %s %s", stat.description, stat.display());
-        }
-    }
-}
+extern fn void push_sample(StatEntry entry, float sample) @extern("stat_push_sample");
+extern fn void inc_counter(StatEntry entry, int delta) @extern("stat_inc_counter");
+extern fn void start_timer_at(StatEntry entry, uint msecs) @extern("stat_start_timer_at");
+extern fn void print_per_n_ticks(int n, uint now_msecs) @extern("stat_print_per_n_ticks");
