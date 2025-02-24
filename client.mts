@@ -1,5 +1,29 @@
-import * as common from './common.mjs';
-import {SERVER_PORT} from './common.mjs';
+export const SERVER_PORT = 6970; // WARNING! Has to be in sync with SERVER_PORT in common.c3
+export const UINT32_SIZE = 4;
+
+export interface WasmCommon {
+    wasm: WebAssembly.WebAssemblyInstantiatedSource,
+    memory: WebAssembly.Memory,
+    _initialize: () => void,
+    allocate_temporary_buffer: (size: number) => number,
+}
+
+export function makeWasmCommon(wasm: WebAssembly.WebAssemblyInstantiatedSource): WasmCommon {
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory  as WebAssembly.Memory,
+        _initialize: wasm.instance.exports._initialize as () => void,
+        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer as (size: number) => number,
+    }
+}
+
+export function arrayBufferAsMessageInWasm(wasmCommon: WasmCommon, buffer: ArrayBuffer): number {
+    const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
+    const wasmBufferPtr = wasmCommon.allocate_temporary_buffer(wasmBufferSize);
+    new DataView(wasmCommon.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
+    new Uint8ClampedArray(wasmCommon.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
+    return wasmBufferPtr;
+}
 
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16*SCREEN_FACTOR);
@@ -48,7 +72,7 @@ interface Display {
     backCtx: OffscreenCanvasRenderingContext2D;
 }
 
-interface WasmClient extends common.WasmCommon {
+interface WasmClient extends WasmCommon {
     players_count: () => number,
     unregister_all_other_players: () => void,
     key_down: (key_code: number) => void,
@@ -161,13 +185,13 @@ async function instantiateWasmClient(url: string): Promise<WasmClient> {
                 if (game.ws.readyState !== WebSocket.OPEN) return; // offline
                 const size = new Uint32Array(game.wasmClient.memory.buffer, message, 1)[0];
                 if (size === 0) return;     // empty emssage
-                game.ws.send(new Uint8Array(game.wasmClient.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE));
+                game.ws.send(new Uint8Array(game.wasmClient.memory.buffer, message + UINT32_SIZE, size - UINT32_SIZE));
             },
             platform_now_msecs: () => performance.now(),
         }
     })
 
-    const wasmCommon = common.makeWasmCommon(wasm);
+    const wasmCommon = makeWasmCommon(wasm);
     wasmCommon._initialize();
 
     return {
@@ -225,7 +249,7 @@ async function createGame(): Promise<Game> {
             ws?.close();
             return;
         }
-        const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmClient, event.data);
+        const eventDataPtr = arrayBufferAsMessageInWasm(wasmClient, event.data);
         // console.log(`Received message from server`, new Uint8ClampedArray(event.data));
         if (!game.wasmClient.process_message(eventDataPtr)) {
             ws?.close();

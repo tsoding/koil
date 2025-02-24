@@ -17,7 +17,7 @@ struct Asset {
 
 def Assets = List(<Asset>);
 
-const ushort SERVER_PORT = 6970;
+const ushort SERVER_PORT = 6970;  // WARNING! Has to be in sync with SERVER_PORT in common.c3
 const float BOMB_GRAVITY = 10;
 const float BOMB_LIFETIME = 2;
 const float BOMB_THROW_VELOCITY = 5;

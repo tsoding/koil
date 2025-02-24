@@ -31,7 +31,7 @@ fn void send_message_and_update_stats(uint player_id, void* message) {
 
 /// Connection Limits //////////////////////////////
 
-def ShortString = char[64];   // IMPORTANT! The capacity must be in sync with the SHORT_STRING_SIZE in common.mts
+def ShortString = char[64];
 macro uint ShortString.hash(self) => fnv32a::encode(&self);
 def ConnectionLimitEntry = Entry(<ShortString, uint>);
 HashMap(<ShortString, uint>) connection_limits;

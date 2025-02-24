@@ -1,5 +1,20 @@
-import * as common from './common.mjs';
-import { SERVER_PORT } from './common.mjs';
+export const SERVER_PORT = 6970;
+export const UINT32_SIZE = 4;
+export function makeWasmCommon(wasm) {
+    return {
+        wasm,
+        memory: wasm.instance.exports.memory,
+        _initialize: wasm.instance.exports._initialize,
+        allocate_temporary_buffer: wasm.instance.exports.allocate_temporary_buffer,
+    };
+}
+export function arrayBufferAsMessageInWasm(wasmCommon, buffer) {
+    const wasmBufferSize = buffer.byteLength + UINT32_SIZE;
+    const wasmBufferPtr = wasmCommon.allocate_temporary_buffer(wasmBufferSize);
+    new DataView(wasmCommon.memory.buffer, wasmBufferPtr, UINT32_SIZE).setUint32(0, wasmBufferSize, true);
+    new Uint8ClampedArray(wasmCommon.memory.buffer, wasmBufferPtr + UINT32_SIZE, wasmBufferSize - UINT32_SIZE).set(new Uint8ClampedArray(buffer));
+    return wasmBufferPtr;
+}
 const SCREEN_FACTOR = 30;
 const SCREEN_WIDTH = Math.floor(16 * SCREEN_FACTOR);
 const SCREEN_HEIGHT = Math.floor(9 * SCREEN_FACTOR);
@@ -123,12 +138,12 @@ async function instantiateWasmClient(url) {
                 const size = new Uint32Array(game.wasmClient.memory.buffer, message, 1)[0];
                 if (size === 0)
                     return;
-                game.ws.send(new Uint8Array(game.wasmClient.memory.buffer, message + common.UINT32_SIZE, size - common.UINT32_SIZE));
+                game.ws.send(new Uint8Array(game.wasmClient.memory.buffer, message + UINT32_SIZE, size - UINT32_SIZE));
             },
             platform_now_msecs: () => performance.now(),
         }
     });
-    const wasmCommon = common.makeWasmCommon(wasm);
+    const wasmCommon = makeWasmCommon(wasm);
     wasmCommon._initialize();
     return {
         ...wasmCommon,
@@ -173,7 +188,7 @@ async function createGame() {
             ws?.close();
             return;
         }
-        const eventDataPtr = common.arrayBufferAsMessageInWasm(wasmClient, event.data);
+        const eventDataPtr = arrayBufferAsMessageInWasm(wasmClient, event.data);
         if (!game.wasmClient.process_message(eventDataPtr)) {
             ws?.close();
             return;
