@@ -230,7 +230,6 @@ void stat_start_timer_at(Stat_Entry entry, uint32_t msecs)
 
 void stat_print_per_n_ticks(int n, uint32_t now_msecs)
 {
-    // printf("Ticks count: %d\n", stats[SE_TICKS_COUNT].counter.value);
     if (stats[SE_TICKS_COUNT].counter.value%n == 0) {
         printf("Stats:\n");
         for (size_t i = 0; i < ARRAY_LEN(stats); ++i) {
