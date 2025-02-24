@@ -33,6 +33,11 @@ $exec("build/packer");
 
 def Color = char[<4>];
 
+macro Vector2.angle_fixed(self) => platform::atan2f(self.y, self.x);
+// // TODO: math::atan2 is broken. Does not work with sprite_angle_index() properly.
+// // Investigate what's up and potentially report to C3.
+// macro Vector2.angle(self) => math::atan2(self.y, self.x);
+
 struct Image {
     usz width;
     usz height;
@@ -915,6 +920,7 @@ extern fn bool is_offline_mode() @extern("platform_is_offline_mode");
 extern fn bool send_message(void *message) @extern("platform_send_message");
 extern fn uint now_msecs() @extern("platform_now_msecs");
 extern fn void write(void *buffer, usz buffer_sz) @extern("platform_write");
+extern fn float atan2f(float y, float x) @extern("platform_atan2f");
 
 // TODO: "magnet" items into the player
 // TODO: Blast particles should fade out as they age

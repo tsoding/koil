@@ -57,7 +57,6 @@ async function buildClient() {
         "-z", "--allow-undefined",
         SRC_FOLDER+"client.c3",
         SRC_FOLDER+"common.c3",
-        SRC_FOLDER+"common_wasm.c3",
     ])
 }
 
