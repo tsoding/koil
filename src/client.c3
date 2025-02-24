@@ -892,7 +892,7 @@ fn void entry() @init(2048) @private {
     // message. But since js_write() in server.mts is implemented as a
     // single console.log(), that newline is added implicitly anyway.
     os::native_fwrite_fn = fn usz!(void* f, char[] buffer) {
-        common::platform::write(&buffer[0], buffer.len);
+        client::platform::write(&buffer[0], buffer.len);
         return buffer.len;
     };
     common::temp_mark = allocator::temp().used;
@@ -914,6 +914,7 @@ extern fn void play_sound(AssetSound sound, float player_position_x, float playe
 extern fn bool is_offline_mode() @extern("platform_is_offline_mode");
 extern fn bool send_message(void *message) @extern("platform_send_message");
 extern fn uint now_msecs() @extern("platform_now_msecs");
+extern fn void write(void *buffer, usz buffer_sz) @extern("platform_write");
 
 // TODO: "magnet" items into the player
 // TODO: Blast particles should fade out as they age
