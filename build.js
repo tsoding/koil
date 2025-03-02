@@ -55,6 +55,7 @@ async function buildClient() {
         "-o", "client",
         "-z", "--export-table",
         "-z", "--allow-undefined",
+        "--build-dir", BUILD_FOLDER,
         SRC_FOLDER+"client.c3",
         SRC_FOLDER+"common.c3",
     ])
@@ -97,6 +98,7 @@ async function buildServer() {
         "compile",
         "-l", BUILD_FOLDER+"libcws.a",
         "-o", BUILD_FOLDER+"server",
+        "--build-dir", BUILD_FOLDER,
         BUILD_FOLDER+"server.o",
         SRC_FOLDER+"server.c3",
         SRC_FOLDER+"common.c3",
