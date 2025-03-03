@@ -880,8 +880,8 @@ fn bool process_message(Message *unknown_message) @extern("process_message") @wa
 }
 
 Player me;
-def OtherPlayersEntry = Entry(<uint, Player>);
-HashMap(<uint, Player>) other_players;
+def OtherPlayersEntry = Entry {uint, Player};
+HashMap {uint, Player} other_players = map::ONHEAP {uint, Player};
 
 fn uint players_count() @extern("players_count") @wasm {
     return other_players.len() + 1; // +1 including `me`

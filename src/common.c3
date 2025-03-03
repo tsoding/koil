@@ -15,7 +15,7 @@ struct Asset {
     usz height;
 }
 
-def Assets = List(<Asset>);
+def Assets = List {Asset};
 
 const ushort SERVER_PORT = 6970;  // WARNING! Has to be in sync with SERVER_PORT in client.mts
 const float BOMB_GRAVITY = 10;
@@ -69,7 +69,7 @@ struct Message @packed {
 /// Scenea //////////////////////////////
 
 struct Scene {
-    HashMap(<IVector2, bool>) walls;
+    HashMap {IVector2, bool} walls;
 }
 
 Scene scene;
@@ -85,6 +85,7 @@ fn void load_default_scene() {
     };
     usz width = default_walls[0].len;
     usz height = default_walls.len;
+    scene.walls.init(mem);
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
             if (default_walls[y][x]) {
@@ -95,10 +96,7 @@ fn void load_default_scene() {
 }
 
 fn bool Scene.get_tile(&scene, Vector2 p) {
-    if (try tile = scene.walls.get((IVector2)math::floor(p))) {
-        return tile;
-    }
-    return false;
+    return scene.walls.get((IVector2)math::floor(p))) ?? false;
 }
 
 fn bool Scene.can_rectangle_fit_here(&scene, float px, float py, float sx, float sy) {
@@ -176,9 +174,9 @@ struct ItemSpawned @packed {
     float y;
 }
 
-def ItemsSpawnedBatchMessage = BatchMessage(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
-def verify_items_spawned_batch_message = msg::batch::verify(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
-def alloc_items_spawned_batch_message = msg::batch::alloc(<ItemSpawned, MessageKind.ITEM_SPAWNED>);
+def ItemsSpawnedBatchMessage = BatchMessage {ItemSpawned, MessageKind.ITEM_SPAWNED};
+def verify_items_spawned_batch_message = msg::batch::verify {ItemSpawned, MessageKind.ITEM_SPAWNED};
+def alloc_items_spawned_batch_message = msg::batch::alloc {ItemSpawned, MessageKind.ITEM_SPAWNED};
 
 fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
@@ -202,9 +200,9 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     return message;
 }
 
-def ItemsCollectedBatchMessage = BatchMessage(<int, MessageKind.ITEM_COLLECTED>);
-def verify_items_collected_batch_message = msg::batch::verify(<int, MessageKind.ITEM_COLLECTED>);
-def alloc_items_collected_batch_message = msg::batch::alloc(<int, MessageKind.ITEM_COLLECTED>);
+def ItemsCollectedBatchMessage = BatchMessage {int, MessageKind.ITEM_COLLECTED};
+def verify_items_collected_batch_message = msg::batch::verify {int, MessageKind.ITEM_COLLECTED};
+def alloc_items_collected_batch_message = msg::batch::alloc {int, MessageKind.ITEM_COLLECTED};
 
 /// Bombs //////////////////////////////
 
@@ -278,9 +276,9 @@ struct BombSpawned @packed {
     float lifetime;
 }
 
-def BombsSpawnedBatchMessage = BatchMessage(<BombSpawned, MessageKind.BOMB_SPAWNED>);
-def verify_bombs_spawned_batch_message = msg::batch::verify(<BombSpawned, MessageKind.BOMB_SPAWNED>);
-def alloc_bombs_spawned_batch_message = msg::batch::alloc(<BombSpawned, MessageKind.BOMB_SPAWNED>);
+def BombsSpawnedBatchMessage = BatchMessage {BombSpawned, MessageKind.BOMB_SPAWNED};
+def verify_bombs_spawned_batch_message = msg::batch::verify {BombSpawned, MessageKind.BOMB_SPAWNED};
+def alloc_bombs_spawned_batch_message = msg::batch::alloc {BombSpawned, MessageKind.BOMB_SPAWNED};
 
 struct BombExploded @packed {
     uint bombIndex;
@@ -289,9 +287,9 @@ struct BombExploded @packed {
     float z;
 }
 
-def BombsExplodedBatchMessage = BatchMessage(<BombExploded, MessageKind.BOMB_EXPLODED>);
-def verify_bombs_exploded_batch_message = msg::batch::verify(<BombExploded, MessageKind.BOMB_EXPLODED>);
-def alloc_bombs_exploded_batch_message = msg::batch::alloc(<BombExploded, MessageKind.BOMB_EXPLODED>);
+def BombsExplodedBatchMessage = BatchMessage {BombExploded, MessageKind.BOMB_EXPLODED};
+def verify_bombs_exploded_batch_message = msg::batch::verify {BombExploded, MessageKind.BOMB_EXPLODED};
+def alloc_bombs_exploded_batch_message = msg::batch::alloc {BombExploded, MessageKind.BOMB_EXPLODED};
 
 /// Player //////////////////////////////
 
@@ -322,17 +320,17 @@ struct PlayerStruct @packed {
     char moving;
 }
 
-def PlayersJoinedBatchMessage = BatchMessage(<PlayerStruct, MessageKind.PLAYER_JOINED>);
-def verify_players_joined_batch_message = msg::batch::verify(<PlayerStruct, MessageKind.PLAYER_JOINED>);
-def alloc_players_joined_batch_message = msg::batch::alloc(<PlayerStruct, MessageKind.PLAYER_JOINED>);
+def PlayersJoinedBatchMessage = BatchMessage {PlayerStruct, MessageKind.PLAYER_JOINED};
+def verify_players_joined_batch_message = msg::batch::verify {PlayerStruct, MessageKind.PLAYER_JOINED};
+def alloc_players_joined_batch_message = msg::batch::alloc {PlayerStruct, MessageKind.PLAYER_JOINED};
 
-def PlayersLeftBatchMessage = BatchMessage(<uint, MessageKind.PLAYER_LEFT>);
-def verify_players_left_batch_message = msg::batch::verify(<uint, MessageKind.PLAYER_LEFT>);
-def alloc_players_left_batch_message = msg::batch::alloc(<uint, MessageKind.PLAYER_LEFT>);
+def PlayersLeftBatchMessage = BatchMessage {uint, MessageKind.PLAYER_LEFT};
+def verify_players_left_batch_message = msg::batch::verify {uint, MessageKind.PLAYER_LEFT};
+def alloc_players_left_batch_message = msg::batch::alloc {uint, MessageKind.PLAYER_LEFT};
 
-def PlayersMovingBatchMessage = BatchMessage(<PlayerStruct, MessageKind.PLAYER_MOVING>);
-def verify_players_moving_batch_message = msg::batch::verify(<PlayerStruct, MessageKind.PLAYER_MOVING>);
-def alloc_players_moving_batch_message = msg::batch::alloc(<PlayerStruct, MessageKind.PLAYER_MOVING>);
+def PlayersMovingBatchMessage = BatchMessage {PlayerStruct, MessageKind.PLAYER_MOVING};
+def verify_players_moving_batch_message = msg::batch::verify {PlayerStruct, MessageKind.PLAYER_MOVING};
+def alloc_players_moving_batch_message = msg::batch::alloc {PlayerStruct, MessageKind.PLAYER_MOVING};
 
 struct HelloPlayer @packed {
     uint id;
@@ -342,27 +340,27 @@ struct HelloPlayer @packed {
     char hue;
 }
 
-def HelloMessage = SingleMessage(<HelloPlayer, MessageKind.HELLO>);
-def verify_hello_message = msg::single::verify(<HelloPlayer, MessageKind.HELLO>);
+def HelloMessage = SingleMessage {HelloPlayer, MessageKind.HELLO};
+def verify_hello_message = msg::single::verify {HelloPlayer, MessageKind.HELLO};
 
-def PongMessage = SingleMessage(<uint, MessageKind.PONG>);
-def verify_pong_message = msg::single::verify(<uint, MessageKind.PONG>);
+def PongMessage = SingleMessage {uint, MessageKind.PONG};
+def verify_pong_message = msg::single::verify {uint, MessageKind.PONG};
 
 struct AmmaMoving @packed {
     Moving direction;
     char start;
 }
 
-def AmmaMovingMessage = SingleMessage(<AmmaMoving, MessageKind.AMMA_MOVING>);
-def verify_amma_moving_message = msg::single::verify(<AmmaMoving, MessageKind.AMMA_MOVING>);
+def AmmaMovingMessage = SingleMessage {AmmaMoving, MessageKind.AMMA_MOVING};
+def verify_amma_moving_message = msg::single::verify {AmmaMoving, MessageKind.AMMA_MOVING};
 
 // TODO: EmptyMessage does not need Payload type, but since passing void is forbidden in C3, we must provide something.
 // Providing uint in here is a completely arbitrary decision. Investigate how such things should be made properly.
-def AmmaThrowingMessage = EmptyMessage(<MessageKind.AMMA_THROWING>);
-def verify_amma_throwing_message = msg::empty::verify(<MessageKind.AMMA_THROWING>);
+def AmmaThrowingMessage = EmptyMessage {MessageKind.AMMA_THROWING};
+def verify_amma_throwing_message = msg::empty::verify {MessageKind.AMMA_THROWING};
 
-def PingMessage = SingleMessage(<uint, MessageKind.PING>);
-def verify_ping_message = msg::single::verify(<uint, MessageKind.PING>);
+def PingMessage = SingleMessage {uint, MessageKind.PING};
+def verify_ping_message = msg::single::verify {uint, MessageKind.PING};
 
 fn void update_player(Player *player, Scene *scene, float delta_time) {
     Vector2 control_velocity = {0, 0};
@@ -402,7 +400,7 @@ fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer"
     return mem::tcalloc(size);
 }
 
-module common::msg::empty(<KIND>);
+module common::msg::empty {KIND};
 
 struct EmptyMessage @packed {
     uint byte_length;
@@ -416,7 +414,7 @@ fn EmptyMessage*! verify(Message *message) {
     return empty_message;
 }
 
-module common::msg::single(<Payload, KIND>);
+module common::msg::single {Payload, KIND};
 
 struct SingleMessage @packed {
     uint byte_length;
@@ -431,7 +429,7 @@ fn SingleMessage*! verify(Message *message) {
     return single_message;
 }
 
-module common::msg::batch(<Payload, KIND>);
+module common::msg::batch {Payload, KIND};
 
 struct BatchMessage @packed {
     uint byte_length;
