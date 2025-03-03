@@ -33,12 +33,12 @@ fn void send_message_and_update_stats(uint player_id, void* message) {
 
 def ShortString = char[64];
 macro uint ShortString.hash(self) => fnv32a::encode(&self);
-def ConnectionLimitEntry = Entry(<ShortString, uint>);
-HashMap(<ShortString, uint>) connection_limits;
+def ConnectionLimitEntry = Entry {ShortString, uint};
+HashMap {ShortString, uint} connection_limits = map::ONHEAP {ShortString, uint};
 
 /// Items //////////////////////////////
 
-List(<usz>) collected_items;
+List {usz} collected_items = list::ONHEAP {usz};
 
 fn void collect_items_by_player(Player player, Item[] *items) {
     foreach (index, &item: *items) {
@@ -60,7 +60,7 @@ fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
 
 /// Bombs //////////////////////////////
 
-List(<usz>) thrown_bombs;
+List {usz} thrown_bombs = list::ONHEAP {usz};
 
 fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
     if (try player = players.get(player_id)) {
@@ -87,7 +87,7 @@ fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
     return message;
 }
 
-List(<usz>) exploded_bombs;
+List {usz} exploded_bombs = list::ONHEAP {usz};
 
 fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) {
     foreach (bombIndex, &bomb: *bombs) {
@@ -122,14 +122,14 @@ struct PlayerOnServer {
     ShortString remote_address;
 }
 
-def PlayerOnServerEntry = Entry(<uint, PlayerOnServer>);
-HashMap(<uint, PlayerOnServer>) players;
+def PlayerOnServerEntry = Entry {uint, PlayerOnServer};
+HashMap {uint, PlayerOnServer} players;
 
-def PlayerIdsEntry = Entry(<uint, bool>);
-HashMap(<uint, bool>) joined_ids;
-HashMap(<uint, bool>) left_ids;
-def PingEntry = Entry(<uint, uint>);
-HashMap(<uint, uint>) ping_ids;
+def PlayerIdsEntry = Entry {uint, bool};
+HashMap {uint, bool} joined_ids;
+HashMap {uint, bool} left_ids;
+def PingEntry = Entry {uint, uint};
+HashMap {uint, uint>) ping_ids;
 
 fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player") @wasm {
     if (players.len() >= SERVER_TOTAL_LIMIT) {
@@ -478,7 +478,7 @@ fn uint tick() @extern("tick") @wasm {
 
 // Entry ///////////////////////////////
 
-HashMap(<uint, Cws>) connections;
+HashMap {uint, Cws>) connections = map::ONHEAP {uint, Cws};;
 uint idCounter = 0;
 
 extern fn CwsSocket cws_socket_from_fd(int fd) @extern("cws_socket_from_fd");
