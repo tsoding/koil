@@ -9,10 +9,38 @@
 #include "nob.h"
 #include "cws.h"
 #include "coroutine.h"
+#define STB_DS_IMPLEMENTATION
+#include "stb_ds.h"
 
 static Arena temp = {0};
 
 // Cws_Socket //////////////////////////////
+
+typedef struct {
+    uint32_t key;
+    Cws value;
+} Connection;
+
+Connection *connections = NULL;
+uint32_t idCounter = 0;
+
+void connections_remove(uint32_t player_id)
+{
+    int deleted = hmdel(connections, player_id);
+    UNUSED(deleted);
+}
+
+Cws *connections_get_ref(uint32_t player_id)
+{
+    ptrdiff_t i = hmgeti(connections, player_id);
+    if (i < 0) return NULL;
+    return &connections[i].value;
+}
+
+void connections_set(uint32_t player_id, Cws cws)
+{
+    hmput(connections, player_id, cws);
+}
 
 int cws_socket_read(void *data, void *buffer, size_t len)
 {

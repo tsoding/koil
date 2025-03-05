@@ -478,8 +478,11 @@ fn uint tick() @extern("tick") @wasm {
 
 // Entry ///////////////////////////////
 
-HashMap(<uint, Cws>) connections;
-uint idCounter = 0;
+extern uint idCounter;
+
+extern fn void connections_remove(uint player_id) @extern("connections_remove");
+extern fn Cws *connections_get_ref(uint player_id) @extern("connections_get_ref");
+extern fn void connections_set(uint player_id, Cws cws) @extern("connections_set");
 
 extern fn CwsSocket cws_socket_from_fd(int fd) @extern("cws_socket_from_fd");
 
@@ -488,10 +491,10 @@ fn void client_connection(void *data)
     uint id = (uint)(uptr)data;
     defer {
         server::unregister_player(id);
-        connections.remove(id);
+        connections_remove(id);
     }
 
-    Cws*! cws = connections.get_ref(id);
+    Cws*! cws = connections_get_ref(id);
     if (catch cws) {
         io::eprintfn("ERROR: could not find websocket for player %d", id);
         return;
@@ -553,7 +556,7 @@ fn int main() {
                 continue;
             }
 
-            connections.set(id, cws);
+            connections_set(id, cws);
             coroutine::go(&client_connection, (void*)(uptr)id);
         } else {
             anyfault nani = os::socket_error();
@@ -570,7 +573,11 @@ fn int main() {
 
 fn uint send_message(uint player_id, void *message_row)
 {
-    Cws* cws = connections.get_ref(player_id)!!;
+    Cws* cws = connections_get_ref(player_id);
+    if (cws == null) {
+        io::eprintf("ERROR: unknown player id %d", player_id);
+        thread::exit(69);
+    }
     Message* message = message_row;
     int err = cws::send_message(cws, cws::MESSAGE_BIN, &message.bytes[0], message.byte_length - $sizeof(message.byte_length));
     if (err < 0) {
