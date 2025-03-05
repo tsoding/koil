@@ -306,3 +306,8 @@ void stat_print_per_n_ticks(int n, uint32_t now_msecs)
         fflush(stdout);
     }
 }
+
+int messages_recieved_within_tick = 0;
+int bytes_received_within_tick = 0;
+int message_sent_within_tick = 0;
+int bytes_sent_within_tick = 0;

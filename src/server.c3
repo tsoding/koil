@@ -609,10 +609,10 @@ enum StatEntry: inline usz {    // WARNING! Must be synced with Stat_Entry in se
     COUNT,
 }
 
-int messages_recieved_within_tick = 0;
-int bytes_received_within_tick = 0;
-int message_sent_within_tick = 0;
-int bytes_sent_within_tick = 0;
+extern int messages_recieved_within_tick;
+extern int bytes_received_within_tick;
+extern int message_sent_within_tick;
+extern int bytes_sent_within_tick;
 
 extern fn void push_sample(StatEntry entry, float sample) @extern("stat_push_sample");
 extern fn void inc_counter(StatEntry entry, int delta) @extern("stat_inc_counter");
