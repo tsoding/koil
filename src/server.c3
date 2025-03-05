@@ -494,10 +494,10 @@ fn void client_connection(void *data)
         connections_remove(id);
     }
 
-    Cws*! cws = connections_get_ref(id);
-    if (catch cws) {
-        io::eprintfn("ERROR: could not find websocket for player %d", id);
-        return;
+    Cws* cws = connections_get_ref(id);
+    if (cws == null) {
+        io::eprintfn("ERROR: unknown player id %d", id);
+        thread::exit(69);
     }
     defer {
         cws::close(cws);
@@ -575,7 +575,7 @@ fn uint send_message(uint player_id, void *message_row)
 {
     Cws* cws = connections_get_ref(player_id);
     if (cws == null) {
-        io::eprintf("ERROR: unknown player id %d", player_id);
+        io::eprintfn("ERROR: unknown player id %d", player_id);
         thread::exit(69);
     }
     Message* message = message_row;
