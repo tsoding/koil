@@ -114,15 +114,27 @@ function mkdirp(path) {
 }
 
 async function main () {
-    const args = process.argv.slice(2);
-
     await mkdirp(BUILD_FOLDER)
     await Promise.all([
         buildJs(),
         // Running all the C3 related builds sequentually because c3c is completely unparallelizable
         (async () => {
-            await buildClient();
-            await buildServer();
+            const args = process.argv.slice(2);
+            const target = args.shift()
+            switch (target) {
+            case undefined:
+                await buildClient();
+                await buildServer();
+                break;
+            case 'client':
+                await buildClient();
+                break;
+            case 'server':
+                await buildServer();
+                break;
+            default:
+                throw new Error(`unknown target \`${target}\``)
+            }
         })()
     ])
 }
