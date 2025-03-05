@@ -21,13 +21,7 @@ const usz SERVER_TOTAL_LIMIT = 2000;
 const usz SERVER_SINGLE_IP_LIMIT = 10;
 const int SERVER_FPS = 60;
 
-fn void send_message_and_update_stats(uint player_id, void* message) {
-    uint sent = send_message(player_id, message);
-    if (sent > 0) {
-        stats::bytes_sent_within_tick += sent;
-        stats::message_sent_within_tick += 1;
-    }
-}
+extern fn void send_message_and_update_stats(uint player_id, void* message) @extern("send_message_and_update_stats");
 
 /// Connection Limits //////////////////////////////
 
@@ -569,22 +563,6 @@ fn int main() {
         thread::sleep_ms(math::max(0, (1000 - tick_time*server::SERVER_FPS)/server::SERVER_FPS));
         coroutine::yield();
     }
-}
-
-fn uint send_message(uint player_id, void *message_row)
-{
-    Cws* cws = connections_get_ref(player_id);
-    if (cws == null) {
-        io::eprintfn("ERROR: unknown player id %d", player_id);
-        thread::exit(69);
-    }
-    Message* message = message_row;
-    int err = cws::send_message(cws, cws::MESSAGE_BIN, &message.bytes[0], message.byte_length - $sizeof(message.byte_length));
-    if (err < 0) {
-        io::eprintf("ERROR: Could not send message to player %d: %s\n", player_id, cws::error_message(cws, (CwsError)err));
-        thread::exit(69);
-    }
-    return message.byte_length;
 }
 
 fn uint now_msecs()

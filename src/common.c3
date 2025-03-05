@@ -66,7 +66,7 @@ struct Message @packed {
     char[*] bytes;
 }
 
-/// Scenea //////////////////////////////
+/// Scene //////////////////////////////
 
 struct Scene {
     HashMap(<IVector2, bool>) walls;

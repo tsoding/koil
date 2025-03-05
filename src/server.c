@@ -4,6 +4,8 @@
 
 #include <sys/socket.h>
 
+#include "common.h"
+
 #include "arena.h"
 #define NOB_STRIP_PREFIX
 #include "nob.h"
@@ -14,7 +16,14 @@
 
 static Arena temp = {0};
 
-// Cws_Socket //////////////////////////////
+// Forward declarations //////////////////////////////
+
+extern int messages_recieved_within_tick;
+extern int bytes_received_within_tick;
+extern int message_sent_within_tick;
+extern int bytes_sent_within_tick;
+
+// Connections //////////////////////////////
 
 typedef struct {
     uint32_t key;
@@ -41,6 +50,35 @@ void connections_set(uint32_t player_id, Cws cws)
 {
     hmput(connections, player_id, cws);
 }
+
+// Messages //////////////////////////////
+
+uint32_t send_message(uint32_t player_id, void *message_raw)
+{
+    Cws* cws = connections_get_ref(player_id);
+    if (cws == NULL) {
+        fprintf(stderr, "ERROR: unknown player id %d\n", player_id);
+        exit(69);
+    }
+    Message* message = message_raw;
+    int err = cws_send_message(cws, CWS_MESSAGE_BIN, message->bytes, message->byte_length - sizeof(message->byte_length));
+    if (err < 0) {
+        fprintf(stderr, "ERROR: Could not send message to player %d: %s\n", player_id, cws_error_message(cws, (Cws_Error)err));
+        exit(69);
+    }
+    return message->byte_length;
+}
+
+void send_message_and_update_stats(uint32_t player_id, void* message)
+{
+    uint32_t sent = send_message(player_id, message);
+    if (sent > 0) {
+        bytes_sent_within_tick += sent;
+        message_sent_within_tick += 1;
+    }
+}
+
+// Cws_Socket //////////////////////////////
 
 int cws_socket_read(void *data, void *buffer, size_t len)
 {
