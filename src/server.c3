@@ -25,9 +25,6 @@ extern fn void send_message_and_update_stats(uint player_id, void* message) @ext
 
 /// Connection Limits //////////////////////////////
 
-def ShortString = char[64];
-macro uint ShortString.hash(self) => fnv32a::encode(&self);
-def ConnectionLimitEntry = Entry(<ShortString, uint>);
 HashMap(<ShortString, uint>) connection_limits;
 
 /// Items //////////////////////////////

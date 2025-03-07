@@ -6,6 +6,7 @@ import std::collections::map;
 import std::hash::fnv32a;
 
 def ShortString = char[64];
+macro uint ShortString.hash(self) => fnv32a::encode(&self);
 
 // WARNING! struct Asset definition must be in sync with the one in common.h
 struct Asset {
