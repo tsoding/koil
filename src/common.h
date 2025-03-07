@@ -5,6 +5,12 @@
 
 // WARNING! This header must be in sync with common.c3
 
+// Short String //////////////////////////////
+
+typedef struct {
+    char data[64];
+} Short_String;
+
 // Assets //////////////////////////////
 
 typedef struct {

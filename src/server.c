@@ -23,6 +23,33 @@ extern int bytes_received_within_tick;
 extern int message_sent_within_tick;
 extern int bytes_sent_within_tick;
 
+// Connection Limits //////////////////////////////
+
+typedef struct {
+    Short_String key;           // remote address
+    uint32_t value;             // count
+} Connection_Limit;
+
+Connection_Limit *connection_limits = NULL;
+
+uint32_t *connection_limits_get(Short_String remote_address)
+{
+    ptrdiff_t i = hmgeti(connection_limits, remote_address);
+    if (i < 0) return NULL;
+    return &connection_limits[i].value;
+}
+
+void connection_limits_set(Short_String remote_address, uint count)
+{
+    hmput(connection_limits, remote_address, count);
+}
+
+void connection_limits_remove(Short_String remote_address)
+{
+    int deleted = hmdel(connection_limits, remote_address);
+    UNUSED(deleted);
+}
+
 // Connections //////////////////////////////
 
 typedef struct {

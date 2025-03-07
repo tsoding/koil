@@ -25,7 +25,9 @@ extern fn void send_message_and_update_stats(uint player_id, void* message) @ext
 
 /// Connection Limits //////////////////////////////
 
-HashMap(<ShortString, uint>) connection_limits;
+extern fn uint *connection_limits_get(ShortString remote_address)            @extern("connection_limits_get");
+extern fn void connection_limits_set(ShortString remote_address, uint count) @extern("connection_limits_set");
+extern fn void connection_limits_remove(ShortString remote_address)          @extern("connection_limits_remove");
 
 /// Items //////////////////////////////
 
@@ -135,15 +137,16 @@ fn bool register_new_player(uint id, ShortString* remote_address) @extern("regis
             return false;
         }
 
-        if (try count = connection_limits.get(*remote_address)) {
+        uint *count = connection_limits_get(*remote_address);
+        if (count) {
             // TODO: we need to let the player know somehow that they were rejected due to the limit
-            if (count >= SERVER_SINGLE_IP_LIMIT) {
+            if (*count >= SERVER_SINGLE_IP_LIMIT) {
                 stats::inc_counter(PLAYERS_REJECTED, 1);
                 return false;
             }
-            connection_limits.set(*remote_address, count + 1);
+            connection_limits_set(*remote_address, *count + 1);
         } else {
-            connection_limits.set(*remote_address, 1);
+            connection_limits_set(*remote_address, 1);
         }
     }
 
@@ -174,11 +177,12 @@ fn bool register_new_player(uint id, ShortString* remote_address) @extern("regis
 fn void unregister_player(uint id) @extern("unregister_player") @wasm {
     // console.log(`Player ${id} disconnected`);
     if (try player = players.get(id)) {
-        if (try count = connection_limits.get(player.remote_address)) {
-            if (count <= 1) {
-                connection_limits.remove(player.remote_address);
+        uint *count = connection_limits_get(player.remote_address);
+        if (count) {
+            if (*count <= 1) {
+                connection_limits_remove(player.remote_address);
             } else {
-                connection_limits.set(player.remote_address, count - 1);
+                connection_limits_set(player.remote_address, *count - 1);
             }
         }
 
