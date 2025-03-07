@@ -499,7 +499,9 @@ fn void client_connection(void *data)
         CwsMessage cws_message;
         int err = cws::read_message(cws, &cws_message);
         if (err < 0) {
-            io::eprintfn("ERROR: could not read message from player %d", id);
+            if ((CwsError)err != cws::ERROR_FRAME_CLOSE_SENT) {
+                io::eprintfn("ERROR: could not read message from player %d", id);
+            }
             return;
         }
         usz byte_length = Message.sizeof + cws_message.payload_len;
