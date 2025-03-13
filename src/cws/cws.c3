@@ -24,11 +24,11 @@ const CwsError ERROR_CLIENT_HANDSHAKE_DUPLICATE_ACCEPT  =  -12;
 const CwsError ERROR_CLIENT_HANDSHAKE_NO_ACCEPT         =  -13;
 const CwsError ERROR_CUSTOM                             = -100;
 
-def CwsSocketReadFn = fn int(void* data, void* buffer, usz len);
-def CwsSocketWriteFn = fn int(void* data, void* buffer, usz len);
-def CwsSocketPeekFn = fn int(void* data, void* buffer, usz len);
-def CwsSocketShutdownFn = fn int(void* data, CwsShutdownHow how);
-def CwsSocketCloseFn = fn int(void *data);
+alias CwsSocketReadFn = fn int(void* data, void* buffer, usz len);
+alias CwsSocketWriteFn = fn int(void* data, void* buffer, usz len);
+alias CwsSocketPeekFn = fn int(void* data, void* buffer, usz len);
+alias CwsSocketShutdownFn = fn int(void* data, CwsShutdownHow how);
+alias CwsSocketCloseFn = fn int(void *data);
 
 struct CwsSocket {
     void* data;

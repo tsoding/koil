@@ -5,7 +5,7 @@ import std::collections::list;
 import std::collections::map;
 import std::hash::fnv32a;
 
-def ShortString = char[64];
+alias ShortString = char[64];
 
 // WARNING! struct Asset definition must be in sync with the one in common.h
 struct Asset {
@@ -15,7 +15,7 @@ struct Asset {
     usz height;
 }
 
-def Assets = List {Asset};
+alias Assets = List {Asset};
 
 const ushort SERVER_PORT = 6970;  // WARNING! Has to be in sync with SERVER_PORT in client.mts
 const float BOMB_GRAVITY = 10;
@@ -27,11 +27,11 @@ const float PLAYER_SIZE = 0.5;
 const float PLAYER_RADIUS = 0.5;
 const float PLAYER_SPEED = 2;
 
-def Vector2 = float[<2>];
-def IVector2 = int[<2>];
+alias Vector2 = float[<2>];
+alias IVector2 = int[<2>];
 fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
-def Vector3 = float[<3>];
-def Vector4 = float[<4>];
+alias Vector3 = float[<3>];
+alias Vector4 = float[<4>];
 
 fn Vector2 from_polar(float angle, float len) {
     return {math::cos(angle)*len, math::sin(angle)*len};
@@ -174,9 +174,9 @@ struct ItemSpawned @packed {
     float y;
 }
 
-def ItemsSpawnedBatchMessage = BatchMessage {ItemSpawned, MessageKind.ITEM_SPAWNED};
-def verify_items_spawned_batch_message = msg::batch::verify {ItemSpawned, MessageKind.ITEM_SPAWNED};
-def alloc_items_spawned_batch_message = msg::batch::alloc {ItemSpawned, MessageKind.ITEM_SPAWNED};
+alias ItemsSpawnedBatchMessage = BatchMessage {ItemSpawned, MessageKind.ITEM_SPAWNED};
+alias verify_items_spawned_batch_message = msg::batch::verify {ItemSpawned, MessageKind.ITEM_SPAWNED};
+alias alloc_items_spawned_batch_message = msg::batch::alloc {ItemSpawned, MessageKind.ITEM_SPAWNED};
 
 fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
@@ -200,9 +200,9 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     return message;
 }
 
-def ItemsCollectedBatchMessage = BatchMessage {int, MessageKind.ITEM_COLLECTED};
-def verify_items_collected_batch_message = msg::batch::verify {int, MessageKind.ITEM_COLLECTED};
-def alloc_items_collected_batch_message = msg::batch::alloc {int, MessageKind.ITEM_COLLECTED};
+alias ItemsCollectedBatchMessage = BatchMessage {int, MessageKind.ITEM_COLLECTED};
+alias verify_items_collected_batch_message = msg::batch::verify {int, MessageKind.ITEM_COLLECTED};
+alias alloc_items_collected_batch_message = msg::batch::alloc {int, MessageKind.ITEM_COLLECTED};
 
 /// Bombs //////////////////////////////
 
@@ -214,7 +214,7 @@ struct Bomb {
     float lifetime;
 }
 
-def Bombs = Bomb[20];
+alias Bombs = Bomb[20];
 Bombs bombs;
 
 fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
@@ -276,9 +276,9 @@ struct BombSpawned @packed {
     float lifetime;
 }
 
-def BombsSpawnedBatchMessage = BatchMessage {BombSpawned, MessageKind.BOMB_SPAWNED};
-def verify_bombs_spawned_batch_message = msg::batch::verify {BombSpawned, MessageKind.BOMB_SPAWNED};
-def alloc_bombs_spawned_batch_message = msg::batch::alloc {BombSpawned, MessageKind.BOMB_SPAWNED};
+alias BombsSpawnedBatchMessage = BatchMessage {BombSpawned, MessageKind.BOMB_SPAWNED};
+alias verify_bombs_spawned_batch_message = msg::batch::verify {BombSpawned, MessageKind.BOMB_SPAWNED};
+alias alloc_bombs_spawned_batch_message = msg::batch::alloc {BombSpawned, MessageKind.BOMB_SPAWNED};
 
 struct BombExploded @packed {
     uint bombIndex;
@@ -287,9 +287,9 @@ struct BombExploded @packed {
     float z;
 }
 
-def BombsExplodedBatchMessage = BatchMessage {BombExploded, MessageKind.BOMB_EXPLODED};
-def verify_bombs_exploded_batch_message = msg::batch::verify {BombExploded, MessageKind.BOMB_EXPLODED};
-def alloc_bombs_exploded_batch_message = msg::batch::alloc {BombExploded, MessageKind.BOMB_EXPLODED};
+alias BombsExplodedBatchMessage = BatchMessage {BombExploded, MessageKind.BOMB_EXPLODED};
+alias verify_bombs_exploded_batch_message = msg::batch::verify {BombExploded, MessageKind.BOMB_EXPLODED};
+alias alloc_bombs_exploded_batch_message = msg::batch::alloc {BombExploded, MessageKind.BOMB_EXPLODED};
 
 /// Player //////////////////////////////
 
@@ -320,17 +320,17 @@ struct PlayerStruct @packed {
     char moving;
 }
 
-def PlayersJoinedBatchMessage = BatchMessage {PlayerStruct, MessageKind.PLAYER_JOINED};
-def verify_players_joined_batch_message = msg::batch::verify {PlayerStruct, MessageKind.PLAYER_JOINED};
-def alloc_players_joined_batch_message = msg::batch::alloc {PlayerStruct, MessageKind.PLAYER_JOINED};
+alias PlayersJoinedBatchMessage = BatchMessage {PlayerStruct, MessageKind.PLAYER_JOINED};
+alias verify_players_joined_batch_message = msg::batch::verify {PlayerStruct, MessageKind.PLAYER_JOINED};
+alias alloc_players_joined_batch_message = msg::batch::alloc {PlayerStruct, MessageKind.PLAYER_JOINED};
 
-def PlayersLeftBatchMessage = BatchMessage {uint, MessageKind.PLAYER_LEFT};
-def verify_players_left_batch_message = msg::batch::verify {uint, MessageKind.PLAYER_LEFT};
-def alloc_players_left_batch_message = msg::batch::alloc {uint, MessageKind.PLAYER_LEFT};
+alias PlayersLeftBatchMessage = BatchMessage {uint, MessageKind.PLAYER_LEFT};
+alias verify_players_left_batch_message = msg::batch::verify {uint, MessageKind.PLAYER_LEFT};
+alias alloc_players_left_batch_message = msg::batch::alloc {uint, MessageKind.PLAYER_LEFT};
 
-def PlayersMovingBatchMessage = BatchMessage {PlayerStruct, MessageKind.PLAYER_MOVING};
-def verify_players_moving_batch_message = msg::batch::verify {PlayerStruct, MessageKind.PLAYER_MOVING};
-def alloc_players_moving_batch_message = msg::batch::alloc {PlayerStruct, MessageKind.PLAYER_MOVING};
+alias PlayersMovingBatchMessage = BatchMessage {PlayerStruct, MessageKind.PLAYER_MOVING};
+alias verify_players_moving_batch_message = msg::batch::verify {PlayerStruct, MessageKind.PLAYER_MOVING};
+alias alloc_players_moving_batch_message = msg::batch::alloc {PlayerStruct, MessageKind.PLAYER_MOVING};
 
 struct HelloPlayer @packed {
     uint id;
@@ -340,27 +340,27 @@ struct HelloPlayer @packed {
     char hue;
 }
 
-def HelloMessage = SingleMessage {HelloPlayer, MessageKind.HELLO};
-def verify_hello_message = msg::single::verify {HelloPlayer, MessageKind.HELLO};
+alias HelloMessage = SingleMessage {HelloPlayer, MessageKind.HELLO};
+alias verify_hello_message = msg::single::verify {HelloPlayer, MessageKind.HELLO};
 
-def PongMessage = SingleMessage {uint, MessageKind.PONG};
-def verify_pong_message = msg::single::verify {uint, MessageKind.PONG};
+alias PongMessage = SingleMessage {uint, MessageKind.PONG};
+alias verify_pong_message = msg::single::verify {uint, MessageKind.PONG};
 
 struct AmmaMoving @packed {
     Moving direction;
     char start;
 }
 
-def AmmaMovingMessage = SingleMessage {AmmaMoving, MessageKind.AMMA_MOVING};
-def verify_amma_moving_message = msg::single::verify {AmmaMoving, MessageKind.AMMA_MOVING};
+alias AmmaMovingMessage = SingleMessage {AmmaMoving, MessageKind.AMMA_MOVING};
+alias verify_amma_moving_message = msg::single::verify {AmmaMoving, MessageKind.AMMA_MOVING};
 
 // TODO: EmptyMessage does not need Payload type, but since passing void is forbidden in C3, we must provide something.
 // Providing uint in here is a completely arbitrary decision. Investigate how such things should be made properly.
-def AmmaThrowingMessage = EmptyMessage {MessageKind.AMMA_THROWING};
-def verify_amma_throwing_message = msg::empty::verify {MessageKind.AMMA_THROWING};
+alias AmmaThrowingMessage = EmptyMessage {MessageKind.AMMA_THROWING};
+alias verify_amma_throwing_message = msg::empty::verify {MessageKind.AMMA_THROWING};
 
-def PingMessage = SingleMessage {uint, MessageKind.PING};
-def verify_ping_message = msg::single::verify {uint, MessageKind.PING};
+alias PingMessage = SingleMessage {uint, MessageKind.PING};
+alias verify_ping_message = msg::single::verify {uint, MessageKind.PING};
 
 fn void update_player(Player *player, Scene *scene, float delta_time) {
     Vector2 control_velocity = {0, 0};

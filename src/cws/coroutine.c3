@@ -2,7 +2,7 @@
 module coroutine;
 import std::net;
 
-def CoroutineFn = fn void(void*);
+alias CoroutineFn = fn void(void*);
 
 extern fn void sleep_read(int fd) @extern("coroutine_sleep_read");
 extern fn void sleep_write(int fd) @extern("coroutine_sleep_write");

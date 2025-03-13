@@ -31,9 +31,9 @@ fn void send_message_and_update_stats(uint player_id, void* message) {
 
 /// Connection Limits //////////////////////////////
 
-def ShortString = char[64];
+alias ShortString = char[64];
 macro uint ShortString.hash(self) => fnv32a::encode(&self);
-def ConnectionLimitEntry = Entry {ShortString, uint};
+alias ConnectionLimitEntry = Entry {ShortString, uint};
 HashMap {ShortString, uint} connection_limits = map::ONHEAP {ShortString, uint};
 
 /// Items //////////////////////////////
@@ -122,13 +122,13 @@ struct PlayerOnServer {
     ShortString remote_address;
 }
 
-def PlayerOnServerEntry = Entry {uint, PlayerOnServer};
+alias PlayerOnServerEntry = Entry {uint, PlayerOnServer};
 HashMap {uint, PlayerOnServer} players;
 
-def PlayerIdsEntry = Entry {uint, bool};
+alias PlayerIdsEntry = Entry {uint, bool};
 HashMap {uint, bool} joined_ids;
 HashMap {uint, bool} left_ids;
-def PingEntry = Entry {uint, uint};
+alias PingEntry = Entry {uint, uint};
 HashMap {uint, uint>) ping_ids;
 
 fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player") @wasm {

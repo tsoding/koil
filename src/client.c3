@@ -31,7 +31,7 @@ const uint SPRITE_ANGLES_COUNT = 8;
 
 $exec("build/packer");
 
-def Color = char[<4>];
+alias Color = char[<4>];
 
 macro Vector2.angle_fixed(self) => platform::atan2f(self.y, self.x);
 // // TODO: math::atan2 is broken. Does not work with sprite_angle_index() properly.
@@ -880,7 +880,7 @@ fn bool process_message(Message *unknown_message) @extern("process_message") @wa
 }
 
 Player me;
-def OtherPlayersEntry = Entry {uint, Player};
+alias OtherPlayersEntry = Entry {uint, Player};
 HashMap {uint, Player} other_players = map::ONHEAP {uint, Player};
 
 fn uint players_count() @extern("players_count") @wasm {
