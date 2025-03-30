@@ -58,10 +58,6 @@ enum MessageKind: inline char {
     BOMB_EXPLODED,
 }
 
-fault MessageFault {
-    INVALID
-}
-
 struct Message @packed {
     uint byte_length;
     char[*] bytes;
@@ -410,11 +406,11 @@ struct EmptyMessage @packed {
     MessageKind kind;
 }
 
-fn EmptyMessage*! verify(MessageKind kind, Message *message) {
-    if (message.byte_length != EmptyMessage.sizeof) return MessageFault.INVALID?;
+fn bool verify(MessageKind kind, Message *message) {
+    if (message.byte_length != EmptyMessage.sizeof) return false;
     EmptyMessage *empty_message = (EmptyMessage*)message;
-    if (empty_message.kind != kind) return MessageFault.INVALID?;
-    return empty_message;
+    if (empty_message.kind != kind) return false;
+    return true;
 }
 
 module common::msg::single(<Payload>);
@@ -425,11 +421,11 @@ struct SingleMessage @packed {
     Payload payload;
 }
 
-fn SingleMessage*! verify(MessageKind kind, Message *message) {
-    if (message.byte_length != SingleMessage.sizeof) return MessageFault.INVALID?;
+fn bool verify(MessageKind kind, Message *message) {
+    if (message.byte_length != SingleMessage.sizeof) return false;
     SingleMessage* single_message = (SingleMessage*)message;
-    if (single_message.kind != kind) return MessageFault.INVALID?;
-    return single_message;
+    if (single_message.kind != kind) return false;
+    return true;
 }
 
 module common::msg::batch(<Payload>);
@@ -450,10 +446,10 @@ fn BatchMessage *alloc(MessageKind kind, usz count = 1, Allocator allocator = al
     return message;
 }
 
-fn BatchMessage*! verify(MessageKind kind, Message *message) {
-    if (message.byte_length < BatchMessage.sizeof) return MessageFault.INVALID?;
-    if ((message.byte_length - BatchMessage.sizeof)%Payload.sizeof != 0) return MessageFault.INVALID?;
+fn bool verify(MessageKind kind, Message *message) {
+    if (message.byte_length < BatchMessage.sizeof) return false;
+    if ((message.byte_length - BatchMessage.sizeof)%Payload.sizeof != 0) return false;
     BatchMessage* batch_message = (BatchMessage*)message;
-    if (batch_message.kind != kind) return MessageFault.INVALID?;
-    return batch_message;
+    if (batch_message.kind != kind) return false;
+    return true;
 }

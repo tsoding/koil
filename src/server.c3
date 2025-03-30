@@ -410,22 +410,22 @@ fn void clear_intermediate_ids() {
     ping_ids.clear();
 }
 
-fn bool process_message_on_server(uint id, Message* unknown_message) @extern("process_message_on_server") @wasm {
+fn bool process_message_on_server(uint id, Message* message) @extern("process_message_on_server") @wasm {
     stats::inc_counter(MESSAGES_RECEIVED, 1);
     stats::messages_recieved_within_tick += 1;
-    stats::inc_counter(BYTES_RECEIVED, unknown_message.byte_length);
-    stats::bytes_received_within_tick += unknown_message.byte_length;
+    stats::inc_counter(BYTES_RECEIVED, message.byte_length);
+    stats::bytes_received_within_tick += message.byte_length;
 
-    if (try message = common::verify_amma_moving_message(unknown_message)) {
-        player_update_moving(id, message);
+    if (common::verify_amma_moving_message(message)) {
+        player_update_moving(id, (AmmaMovingMessage*)message);
         return true;
     }
-    if (try common::verify_amma_throwing_message(unknown_message)) {
+    if (common::verify_amma_throwing_message(message)) {
         throw_bomb_on_server_side(id, &common::bombs);
         return true;
     }
-    if (try message = common::verify_ping_message(unknown_message)) {
-        schedule_ping_for_player(id, message);
+    if (common::verify_ping_message(message)) {
+        schedule_ping_for_player(id, (PingMessage*)message);
         return true;
     }
 

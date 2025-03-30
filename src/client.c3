@@ -827,55 +827,45 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
     return ping;
 }
 
-fn bool process_message(Message *unknown_message) @extern("process_message") @wasm {
-    if (try message = common::verify_hello_message(unknown_message)) {
-        apply_hello_message_to_me(message.payload, &common::items);
+fn bool process_message(Message *message) @extern("process_message") @wasm {
+    if (common::verify_hello_message(message)) {
+        apply_hello_message_to_me(((HelloMessage*)message).payload, &common::items);
         return true;
     }
-    if (try message = common::verify_players_joined_batch_message(unknown_message)) {
-        apply_players_joined_batch_message(message);
+    if (common::verify_players_joined_batch_message(message)) {
+        apply_players_joined_batch_message((PlayersJoinedBatchMessage*)message);
         return true;
     }
-    if (try message = common::verify_players_left_batch_message(unknown_message)) {
-        apply_players_left_batch_message(message);
+    if (common::verify_players_left_batch_message(message)) {
+        apply_players_left_batch_message((PlayersLeftBatchMessage*)message);
         return true;
     }
-    if (try message = common::verify_players_moving_batch_message(unknown_message)) {
-        if (!apply_players_moving_batch_message(message)) {
-            return false;
-        }
+    if (common::verify_players_moving_batch_message(message)) {
+        if (!apply_players_moving_batch_message((PlayersMovingBatchMessage*)message)) return false;
         return true;
     }
-    if (try message = common::verify_pong_message(unknown_message)) {
-        process_pong_message(message);
+    if (common::verify_pong_message(message)) {
+        process_pong_message((PongMessage*)message);
         return true;
     }
-    if (try message = common::verify_items_collected_batch_message(unknown_message)) {
-        if (!apply_items_collected_batch_message(message, &common::items)) {
-            return false;
-        }
+    if (common::verify_items_collected_batch_message(message)) {
+        if (!apply_items_collected_batch_message((ItemsCollectedBatchMessage*)message, &common::items)) return false;
         return true;
     }
-    if (try message = common::verify_items_spawned_batch_message(unknown_message)) {
-        if (!apply_items_spawned_batch_message(message, &common::items)) {
-            return false;
-        }
+    if (common::verify_items_spawned_batch_message(message)) {
+        if (!apply_items_spawned_batch_message((ItemsSpawnedBatchMessage*)message, &common::items)) return false;
         return true;
     }
-    if (try message = common::verify_bombs_spawned_batch_message(unknown_message)) {
-        if (!apply_bombs_spawned_batch_message(message, &common::bombs)) {
-            return false;
-        }
+    if (common::verify_bombs_spawned_batch_message(message)) {
+        if (!apply_bombs_spawned_batch_message((BombsSpawnedBatchMessage*)message, &common::bombs)) return false;
         return true;
     }
-    if (try message = common::verify_bombs_exploded_batch_message(unknown_message)) {
-        if (!apply_bombs_exploded_batch_message(message, &common::bombs, &particle_pool)) {
-            return false;
-        }
+    if (common::verify_bombs_exploded_batch_message(message)) {
+        if (!apply_bombs_exploded_batch_message((BombsExplodedBatchMessage*)message, &common::bombs, &particle_pool)) return false;
         return true;
     }
     // TODO: print the bytes of the bogus amogus message
-    io::printn(string::tformat("Received bogus-amogus message from server. %s", unknown_message));
+    io::printn(string::tformat("Received bogus-amogus message from server. %s", message));
     return false;
 }
 
