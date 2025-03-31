@@ -101,9 +101,8 @@ void __attribute__((naked)) coroutine_yield(void)
     "    jmp coroutine_switch_context\n");
 }
 
-void __attribute__((naked)) coroutine_sleep_read(int fd)
+void __attribute__((naked)) coroutine_sleep_read(int fd __attribute__((unused)))
 {
-    (void) fd;
     // @arch
     asm(
     "    pushq %rdi\n"
@@ -119,9 +118,8 @@ void __attribute__((naked)) coroutine_sleep_read(int fd)
     "    jmp coroutine_switch_context\n");
 }
 
-void __attribute__((naked)) coroutine_sleep_write(int fd)
+void __attribute__((naked)) coroutine_sleep_write(int fd __attribute__((unused)))
 {
-    (void) fd;
     // @arch
     asm(
     "    pushq %rdi\n"
@@ -137,10 +135,9 @@ void __attribute__((naked)) coroutine_sleep_write(int fd)
     "    jmp coroutine_switch_context\n");
 }
 
-void __attribute__((naked)) coroutine_restore_context(void *rsp)
+void __attribute__((naked)) coroutine_restore_context(void *rsp __attribute__((unused)))
 {
     // @arch
-    (void)rsp;
     asm(
     "    movq %rdi, %rsp\n"
     "    popq %r15\n"
