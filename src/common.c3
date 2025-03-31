@@ -173,9 +173,13 @@ struct ItemSpawned @packed {
     float y;
 }
 
-def ItemsSpawnedBatchMessage = BatchMessage(<ItemSpawned>);
-macro verify_items_spawned_batch_message(message) => msg::batch::verify(<ItemSpawned>)(MessageKind.ITEM_SPAWNED, message);
-macro alloc_items_spawned_batch_message(count) => msg::batch::alloc(<ItemSpawned>)(MessageKind.ITEM_SPAWNED, count);
+struct ItemsSpawnedBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    ItemSpawned[*] payload;
+}
+macro verify_items_spawned_batch_message(message) => msg::batch::verify(MessageKind.ITEM_SPAWNED, message, ItemSpawned.sizeof);
+macro alloc_items_spawned_batch_message(count) => (ItemsSpawnedBatchMessage*)msg::batch::alloc(MessageKind.ITEM_SPAWNED, count, ItemSpawned.sizeof);
 
 fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     usz itemsCount = 0;
@@ -199,9 +203,13 @@ fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item[] *items) {
     return message;
 }
 
-def ItemsCollectedBatchMessage = BatchMessage(<int>);
-macro verify_items_collected_batch_message(message) => msg::batch::verify(<int>)(MessageKind.ITEM_COLLECTED, message);
-macro alloc_items_collected_batch_message(count) => msg::batch::alloc(<int>)(MessageKind.ITEM_COLLECTED, count);
+struct ItemsCollectedBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    int[*] payload;
+}
+macro verify_items_collected_batch_message(message) => msg::batch::verify(MessageKind.ITEM_COLLECTED, message, int.sizeof);
+macro alloc_items_collected_batch_message(count) => (ItemsCollectedBatchMessage*)msg::batch::alloc(MessageKind.ITEM_COLLECTED, count, int.sizeof);
 
 /// Bombs //////////////////////////////
 
@@ -275,9 +283,13 @@ struct BombSpawned @packed {
     float lifetime;
 }
 
-def BombsSpawnedBatchMessage = BatchMessage(<BombSpawned>);
-macro verify_bombs_spawned_batch_message(message) => msg::batch::verify(<BombSpawned>)(MessageKind.BOMB_SPAWNED, message);
-macro alloc_bombs_spawned_batch_message(count) => msg::batch::alloc(<BombSpawned>)(MessageKind.BOMB_SPAWNED, count);
+struct BombsSpawnedBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    BombSpawned[*] payload;
+}
+macro verify_bombs_spawned_batch_message(message) => msg::batch::verify(MessageKind.BOMB_SPAWNED, message, BombSpawned.sizeof);
+macro alloc_bombs_spawned_batch_message(count) => (BombsSpawnedBatchMessage*)msg::batch::alloc(MessageKind.BOMB_SPAWNED, count, BombSpawned.sizeof);
 
 struct BombExploded @packed {
     uint bombIndex;
@@ -286,9 +298,13 @@ struct BombExploded @packed {
     float z;
 }
 
-def BombsExplodedBatchMessage = BatchMessage(<BombExploded>);
-macro verify_bombs_exploded_batch_message(message) => msg::batch::verify(<BombExploded>)(MessageKind.BOMB_EXPLODED, message);
-macro alloc_bombs_exploded_batch_message(count) => msg::batch::alloc(<BombExploded>)(MessageKind.BOMB_EXPLODED, count);
+struct BombsExplodedBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    BombExploded[*] payload;
+}
+macro verify_bombs_exploded_batch_message(message) => msg::batch::verify(MessageKind.BOMB_EXPLODED, message, BombExploded.sizeof);
+macro alloc_bombs_exploded_batch_message(count) => (BombsExplodedBatchMessage*)msg::batch::alloc(MessageKind.BOMB_EXPLODED, count, BombExploded.sizeof);
 
 /// Player //////////////////////////////
 
@@ -319,17 +335,31 @@ struct PlayerStruct @packed {
     char moving;
 }
 
-def PlayersJoinedBatchMessage = BatchMessage(<PlayerStruct>);
-macro verify_players_joined_batch_message(message) => msg::batch::verify(<PlayerStruct>)(MessageKind.PLAYER_JOINED, message);
-macro alloc_players_joined_batch_message(count) => msg::batch::alloc(<PlayerStruct>)(MessageKind.PLAYER_JOINED, count);
+struct PlayersJoinedBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    PlayerStruct[*] payload;
+}
+macro verify_players_joined_batch_message(message) => msg::batch::verify(MessageKind.PLAYER_JOINED, message, PlayerStruct.sizeof);
+macro alloc_players_joined_batch_message(count) => (PlayersJoinedBatchMessage*)msg::batch::alloc(MessageKind.PLAYER_JOINED, count, PlayerStruct.sizeof);
 
-def PlayersLeftBatchMessage = BatchMessage(<uint>);
-macro verify_players_left_batch_message(message) => msg::batch::verify(<uint>)(MessageKind.PLAYER_LEFT, message);
-macro alloc_players_left_batch_message(count) => msg::batch::alloc(<uint>)(MessageKind.PLAYER_LEFT, count);
+struct PlayersLeftBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    uint[*] payload;
+}
+macro PlayersLeftBatchMessage.count(&self) => ((BatchMessage*)self).count(uint.sizeof);
+macro verify_players_left_batch_message(message) => msg::batch::verify(MessageKind.PLAYER_LEFT, message, uint.sizeof);
+macro alloc_players_left_batch_message(count) => (PlayersLeftBatchMessage*)msg::batch::alloc(MessageKind.PLAYER_LEFT, count, uint.sizeof);
 
-def PlayersMovingBatchMessage = BatchMessage(<PlayerStruct>);
-macro verify_players_moving_batch_message(message) => msg::batch::verify(<PlayerStruct>)(MessageKind.PLAYER_MOVING, message);
-macro alloc_players_moving_batch_message(count) => msg::batch::alloc(<PlayerStruct>)(MessageKind.PLAYER_MOVING, count);
+struct PlayersMovingBatchMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    PlayerStruct[*] payload;
+}
+macro PlayersMovingBatchMessage.count(&self) => ((BatchMessage*)self).count(PlayerStruct.sizeof);
+macro verify_players_moving_batch_message(message) => msg::batch::verify(MessageKind.PLAYER_MOVING, message, PlayerStruct.sizeof);
+macro alloc_players_moving_batch_message(count) => (PlayersMovingBatchMessage*)msg::batch::alloc(MessageKind.PLAYER_MOVING, count, PlayerStruct.sizeof);
 
 struct HelloPlayer @packed {
     uint id;
@@ -339,27 +369,44 @@ struct HelloPlayer @packed {
     char hue;
 }
 
-def HelloMessage = SingleMessage(<HelloPlayer>);
-macro verify_hello_message(message) => msg::single::verify(<HelloPlayer>)(MessageKind.HELLO, message);
+struct HelloMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    HelloPlayer payload;
+}
+macro verify_hello_message(message) => msg::batch::verify(MessageKind.HELLO, message, HelloPlayer.sizeof);
 
-def PongMessage = SingleMessage(<uint>);
-macro verify_pong_message(message) => msg::single::verify(<uint>)(MessageKind.PONG, message);
+struct PongMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    uint payload;
+}
+macro verify_pong_message(message) => msg::batch::verify(MessageKind.PONG, message, uint.sizeof);
 
 struct AmmaMoving @packed {
     Moving direction;
     char start;
 }
 
-def AmmaMovingMessage = SingleMessage(<AmmaMoving>);
-macro verify_amma_moving_message(message) => msg::single::verify(<AmmaMoving>)(MessageKind.AMMA_MOVING, message);
+struct AmmaMovingMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    AmmaMoving payload;
+}
+macro verify_amma_moving_message(message) => msg::batch::verify(MessageKind.AMMA_MOVING, message, AmmaMoving.sizeof);
 
-// TODO: EmptyMessage does not need Payload type, but since passing void is forbidden in C3, we must provide something.
-// Providing uint in here is a completely arbitrary decision. Investigate how such things should be made properly.
-def AmmaThrowingMessage = EmptyMessage;
-macro verify_amma_throwing_message(message) => msg::empty::verify(MessageKind.AMMA_THROWING, message);
+struct AmmaThrowingMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+}
+macro verify_amma_throwing_message(message) => msg::batch::verify_empty(MessageKind.AMMA_THROWING, message);
 
-def PingMessage = SingleMessage(<uint>);
-macro verify_ping_message(message) => msg::single::verify(<uint>)(MessageKind.PING, message);
+struct PingMessage @packed {
+    uint byte_length;
+    MessageKind kind;
+    uint payload;
+}
+macro verify_ping_message(message) => msg::batch::verify(MessageKind.PING, message, uint.sizeof);
 
 fn void update_player(Player *player, Scene *scene, float delta_time) {
     Vector2 control_velocity = {0, 0};
@@ -399,56 +446,37 @@ fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer"
     return mem::tcalloc(size);
 }
 
-module common::msg::empty;
-
-struct EmptyMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-}
-
-fn bool verify(MessageKind kind, Message *message) {
-    if (message.byte_length != EmptyMessage.sizeof) return false;
-    EmptyMessage *empty_message = (EmptyMessage*)message;
-    if (empty_message.kind != kind) return false;
-    return true;
-}
-
-module common::msg::single(<Payload>);
-
-struct SingleMessage @packed {
-    uint byte_length;
-    MessageKind kind;
-    Payload payload;
-}
-
-fn bool verify(MessageKind kind, Message *message) {
-    if (message.byte_length != SingleMessage.sizeof) return false;
-    SingleMessage* single_message = (SingleMessage*)message;
-    if (single_message.kind != kind) return false;
-    return true;
-}
-
-module common::msg::batch(<Payload>);
+module common::msg::batch;
 
 struct BatchMessage @packed {
     uint byte_length;
     MessageKind kind;
-    Payload[*] payload;
+    char[*] payload;
 }
 
-macro uint BatchMessage.count(self) => (self.byte_length - BatchMessage.sizeof)/Payload.sizeof;
+macro uint BatchMessage.count(self, payload_size) => (self.byte_length - BatchMessage.sizeof)/payload_size;
 
-fn BatchMessage *alloc(MessageKind kind, usz count = 1, Allocator allocator = allocator::temp(), usz alignment = 0) {
-    usz byte_length = BatchMessage.sizeof + Payload.sizeof*count;
+fn BatchMessage *alloc(MessageKind kind, usz count, usz payload_size) {
+    Allocator allocator = allocator::temp();
+    usz alignment = 0;
+    usz byte_length = BatchMessage.sizeof + payload_size*count;
     BatchMessage *message = allocator.acquire(byte_length, ZERO, alignment)!!;
     message.byte_length = (int)byte_length;
     message.kind = kind;
     return message;
 }
 
-fn bool verify(MessageKind kind, Message *message) {
+fn bool verify_empty(MessageKind kind, Message *message) {
+    // If message is empty it's byte_length must be equal to the size of BatchMessage exactly
+    if (message.byte_length != BatchMessage.sizeof) return false;
+    BatchMessage* batch_message = (BatchMessage*)message;
+    if (batch_message.kind != kind) return false;
+    return true;
+}
+
+fn bool verify(MessageKind kind, Message *message, usz payload_size) {
     if (message.byte_length < BatchMessage.sizeof) return false;
-    if ((message.byte_length - BatchMessage.sizeof)%Payload.sizeof != 0) return false;
+    if ((message.byte_length - BatchMessage.sizeof)%payload_size != 0) return false;
     BatchMessage* batch_message = (BatchMessage*)message;
     if (batch_message.kind != kind) return false;
     return true;
