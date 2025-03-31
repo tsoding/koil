@@ -37,14 +37,24 @@ function buildJs() {
 }
 
 async function buildClient() {
-    await cmdAsync("gcc", [
-        "-Wall", "-Wextra", "-ggdb",
-        "-I"+SRC_FOLDER,
-        "-I"+SRC_FOLDER+"cws/",
-        "-o", BUILD_FOLDER+"packer",
-        SRC_FOLDER+"packer.c",
-        "-lm",
+    await Promise.all([
+        cmdAsync("clang", [
+            "-Wall", "-Wextra", "-ggdb",
+            "-I"+SRC_FOLDER,
+            "-I"+SRC_FOLDER+"cws/",
+            "-o", BUILD_FOLDER+"packer",
+            SRC_FOLDER+"packer.c",
+            "-lm",
+        ]),
+        cmdAsync("clang", [
+            "-Wall", "-Wextra",
+            "--target=wasm32",
+            "-I", SRC_FOLDER+"cws/",
+            "-c", SRC_FOLDER+"common.c",
+            "-o", BUILD_FOLDER+"common.wasm.o",
+        ])
     ])
+
     return cmdAsync("c3c", [
         "compile",
         "-D", "PLATFORM_WEB",
@@ -55,6 +65,7 @@ async function buildClient() {
         "-o", "client",
         "-z", "--export-table",
         "-z", "--allow-undefined",
+        BUILD_FOLDER+"common.wasm.o",
         SRC_FOLDER+"client.c3",
         SRC_FOLDER+"common.c3",
     ])
@@ -62,13 +73,13 @@ async function buildClient() {
 
 async function buildCWS() {
     await Promise.all([
-        cmdAsync("gcc", [
+        cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-o", BUILD_FOLDER+"coroutine.o",
             "-c",
             SRC_FOLDER+"cws/coroutine.c"
         ]),
-        cmdAsync("gcc", [
+        cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-o", BUILD_FOLDER+"cws.o",
             "-c",
@@ -86,11 +97,17 @@ async function buildCWS() {
 async function buildServer() {
     await Promise.all([
         buildCWS(),
-        cmdAsync("gcc", [
+        cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-I", SRC_FOLDER+"cws/",
             "-c", SRC_FOLDER+"server.c",
             "-o", BUILD_FOLDER+"server.o",
+        ]),
+        cmdAsync("clang", [
+            "-Wall", "-Wextra", "-ggdb",
+            "-I", SRC_FOLDER+"cws/",
+            "-c", SRC_FOLDER+"common.c",
+            "-o", BUILD_FOLDER+"common.o",
         ]),
     ])
     await cmdAsync("c3c", [
@@ -98,6 +115,7 @@ async function buildServer() {
         "-l", BUILD_FOLDER+"libcws.a",
         "-o", BUILD_FOLDER+"server",
         BUILD_FOLDER+"server.o",
+        BUILD_FOLDER+"common.o",
         SRC_FOLDER+"server.c3",
         SRC_FOLDER+"common.c3",
         SRC_FOLDER+"cws/cws.c3",

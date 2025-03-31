@@ -16,8 +16,10 @@ Offline version available on GitHub Pages: https://tsoding.github.io/koil/
 
 Dependencies
 - Build from scratch commit [855be928](https://github.com/c3lang/c3c/tree/855be9288121d0f7a67d277f7bbbbf57fbfa2597) of [C3 compiler](https://github.com/c3lang/c3c). This commit is pinned and will not be updated.
-- GCC (13.2.0+)
+- Clang (18.1.8+)
 - Node (v20.9.0+)
+
+*We are working on reducing the amount of dependencies, please, bear with us.*
 
 ```console
 $ npm install

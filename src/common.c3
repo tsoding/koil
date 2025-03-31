@@ -474,10 +474,4 @@ fn bool verify_empty(MessageKind kind, Message *message) {
     return true;
 }
 
-fn bool verify(MessageKind kind, Message *message, usz payload_size) {
-    if (message.byte_length < BatchMessage.sizeof) return false;
-    if ((message.byte_length - BatchMessage.sizeof)%payload_size != 0) return false;
-    BatchMessage* batch_message = (BatchMessage*)message;
-    if (batch_message.kind != kind) return false;
-    return true;
-}
+extern fn bool verify(MessageKind kind, Message *message, usz payload_size) @extern("batch_message_verify");
