@@ -466,12 +466,5 @@ fn BatchMessage *alloc(MessageKind kind, usz count, usz payload_size) {
     return message;
 }
 
-fn bool verify_empty(MessageKind kind, Message *message) {
-    // If message is empty it's byte_length must be equal to the size of BatchMessage exactly
-    if (message.byte_length != BatchMessage.sizeof) return false;
-    BatchMessage* batch_message = (BatchMessage*)message;
-    if (batch_message.kind != kind) return false;
-    return true;
-}
-
+extern fn bool verify_empty(MessageKind kind, Message *message) @extern("batch_message_verify_empty");
 extern fn bool verify(MessageKind kind, Message *message, usz payload_size) @extern("batch_message_verify");
