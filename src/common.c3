@@ -455,16 +455,6 @@ struct BatchMessage @packed {
 }
 
 macro uint BatchMessage.count(self, payload_size) => (self.byte_length - BatchMessage.sizeof)/payload_size;
-
-fn BatchMessage *alloc(MessageKind kind, usz count, usz payload_size) {
-    Allocator allocator = allocator::temp();
-    usz alignment = 0;
-    usz byte_length = BatchMessage.sizeof + payload_size*count;
-    BatchMessage *message = allocator.acquire(byte_length, ZERO, alignment)!!;
-    message.byte_length = (int)byte_length;
-    message.kind = kind;
-    return message;
-}
-
+extern fn BatchMessage *alloc(MessageKind kind, usz count, usz payload_size) @extern("batch_message_alloc");
 extern fn bool verify_empty(MessageKind kind, Message *message) @extern("batch_message_verify_empty");
 extern fn bool verify(MessageKind kind, Message *message, usz payload_size) @extern("batch_message_verify");
