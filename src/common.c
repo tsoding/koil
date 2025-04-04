@@ -19,6 +19,23 @@ float vector2_length(Vector2 a) {
     return __builtin_sqrtf(a.x*a.x + a.y*a.y);
 }
 
+Vector2 vector2_from_polar(float angle, float len) {
+    return (Vector2) {
+        __builtin_cos(angle)*len,
+        __builtin_sin(angle)*len,
+    };
+}
+
+Vector2 vector2_mul(Vector2 a, Vector2 b) {
+    a.x *= b.x;
+    a.y *= b.y;
+    return a;
+}
+
+Vector2 vector2_xx(float x) {
+    return (Vector2){x, x};
+}
+
 // Message //////////////////////////////
 
 bool batch_message_verify_empty(MessageKind kind, Message *message) {
@@ -52,4 +69,23 @@ bool collect_item(Player player, Item *item) {
     if (vector2_distance(player.position, item->position) >= PLAYER_RADIUS) return false;
     item->alive = false;
     return true;
+}
+
+// Bombs //////////////////////////////
+
+int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
+    for (size_t index = 0; index < BOMBS_CAPACITY; ++index) {
+        Bomb *bomb = &bombs->items[index];
+        if (bomb->lifetime <= 0) {
+            bomb->lifetime    = BOMB_LIFETIME;
+            bomb->position    = position;
+            bomb->position_z  = 0.6;
+            bomb->velocity    = vector2_from_polar(direction, 1.0f);
+            bomb->velocity_z  = 0.5;
+            bomb->velocity    = vector2_mul(bomb->velocity, vector2_xx(BOMB_THROW_VELOCITY));
+            bomb->velocity_z *= BOMB_THROW_VELOCITY;
+            return (int)index;
+        }
+    }
+    return -1;
 }

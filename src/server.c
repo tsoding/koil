@@ -52,29 +52,100 @@ ItemsCollectedBatchMessage *collected_items_as_batch_message() {
     return message;
 }
 
+// Player //////////////////////////////
+
+typedef struct {         // WARNING! Must be in sync with the one in server.c3
+    Player player;
+    char new_moving;
+    ShortString remote_address;
+} PlayerOnServer;
+
+PlayerOnServer *players_get(uint32_t player_id); // implemented in C3
+
+/// Bombs //////////////////////////////
+
+Indices thrown_bombs = {0};
+
+void throw_bomb_on_server_side(uint32_t player_id, Bombs *bombs) {
+    PlayerOnServer *player = players_get(player_id);
+    if (player) {
+        int index = throw_bomb(player->player.position, player->player.direction, bombs);
+        if (index >= 0) da_append(&thrown_bombs, (size_t)index);
+    }
+}
+
+BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
+    if (thrown_bombs.count == 0) return NULL;
+    BombsSpawnedBatchMessage *message = alloc_bombs_spawned_batch_message(thrown_bombs.count);
+    for (size_t index = 0; index < thrown_bombs.count; ++index) {
+        size_t bombIndex = thrown_bombs.items[index];
+        assert(bombIndex < BOMBS_CAPACITY);
+        Bomb *bomb = &bombs->items[bombIndex];
+        message->payload[index].bombIndex = (uint32_t)bombIndex;
+        message->payload[index].x = bomb->position.x;
+        message->payload[index].y = bomb->position.y;
+        message->payload[index].z = bomb->position_z;
+        message->payload[index].dx = bomb->velocity.x;
+        message->payload[index].dy = bomb->velocity.y;
+        message->payload[index].dz = bomb->velocity_z;
+        message->payload[index].lifetime = bomb->lifetime;
+    }
+    thrown_bombs.count = 0;
+    return message;
+}
+
+Indices exploded_bombs = {0};
+
+void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) {
+    for (size_t bombIndex = 0; bombIndex < BOMBS_CAPACITY; ++bombIndex) {
+        Bomb *bomb = &bombs->items[bombIndex];
+        if (bomb->lifetime > 0) {
+            update_bomb(bomb, scene, delta_time);
+            if (bomb->lifetime <= 0) {
+                da_append(&exploded_bombs, bombIndex);
+            }
+        }
+    }
+}
+
+BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
+    if (exploded_bombs.count == 0) return NULL;
+    BombsExplodedBatchMessage *message = alloc_bombs_exploded_batch_message(exploded_bombs.count);
+    for (size_t index = 0; index < exploded_bombs.count; ++index) {
+        size_t bombIndex = exploded_bombs.items[index];
+        assert(bombIndex < BOMBS_CAPACITY);
+        Bomb bomb = bombs->items[bombIndex];
+        message->payload[index].bombIndex = bombIndex;
+        message->payload[index].x         = bomb.position.x;
+        message->payload[index].y         = bomb.position.y;
+        message->payload[index].z         = bomb.position_z;
+    }
+    exploded_bombs.count = 0;
+    return message;
+}
 
 // Connection Limits //////////////////////////////
 
 typedef struct {
-    Short_String key;           // remote address
+    ShortString key;           // remote address
     uint32_t value;             // count
 } Connection_Limit;
 
 Connection_Limit *connection_limits = NULL;
 
-uint32_t *connection_limits_get(Short_String remote_address)
+uint32_t *connection_limits_get(ShortString remote_address)
 {
     ptrdiff_t i = hmgeti(connection_limits, remote_address);
     if (i < 0) return NULL;
     return &connection_limits[i].value;
 }
 
-void connection_limits_set(Short_String remote_address, uint count)
+void connection_limits_set(ShortString remote_address, uint count)
 {
     hmput(connection_limits, remote_address, count);
 }
 
-void connection_limits_remove(Short_String remote_address)
+void connection_limits_remove(ShortString remote_address)
 {
     int deleted = hmdel(connection_limits, remote_address);
     UNUSED(deleted);

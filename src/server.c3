@@ -36,63 +36,14 @@ extern fn ItemsCollectedBatchMessage *collected_items_as_batch_message() @extern
 
 /// Bombs //////////////////////////////
 
-List(<usz>) thrown_bombs;
-
-fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) {
-    if (try player = players.get(player_id)) {
-        int index = common::throw_bomb(player.player.position, player.player.direction, bombs);
-        if (index >= 0) thrown_bombs.push(index);
-    }
-}
-
-fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
-    if (thrown_bombs.size == 0) return null;
-    BombsSpawnedBatchMessage *message = common::alloc_bombs_spawned_batch_message(thrown_bombs.size);
-    foreach (index, bombIndex: thrown_bombs) {
-        Bomb *bomb = &(*bombs)[bombIndex];
-        message.payload[index].bombIndex = (uint)bombIndex;
-        message.payload[index].x = bomb.position.x;
-        message.payload[index].y = bomb.position.y;
-        message.payload[index].z = bomb.position_z;
-        message.payload[index].dx = bomb.velocity.x;
-        message.payload[index].dy = bomb.velocity.y;
-        message.payload[index].dz = bomb.velocity_z;
-        message.payload[index].lifetime = bomb.lifetime;
-    }
-    thrown_bombs.size = 0;
-    return message;
-}
-
-List(<usz>) exploded_bombs;
-
-fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) {
-    foreach (bombIndex, &bomb: *bombs) {
-        if (bomb.lifetime > 0) {
-            common::update_bomb(bomb, scene, delta_time);
-            if (bomb.lifetime <= 0) {
-                exploded_bombs.push(bombIndex);
-            }
-        }
-    }
-}
-
-fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
-    if (exploded_bombs.size == 0) return null;
-    BombsExplodedBatchMessage *message = common::alloc_bombs_exploded_batch_message(exploded_bombs.size);
-    foreach (index, bombIndex: exploded_bombs) {
-        Bomb bomb = (*bombs)[bombIndex];
-        message.payload[index].bombIndex = (uint)bombIndex;
-        message.payload[index].x         = bomb.position.x;
-        message.payload[index].y         = bomb.position.y;
-        message.payload[index].z         = bomb.position_z;
-    }
-    exploded_bombs.size = 0;
-    return message;
-}
+extern fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) @extern("throw_bomb_on_server_side");
+extern fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern("thrown_bombs_as_batch_message");
+extern fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) @extern("update_bombs_on_server_side");
+extern fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) @extern("exploded_bombs_as_batch_message");
 
 /// Player //////////////////////////////
 
-struct PlayerOnServer {
+struct PlayerOnServer {         // WARNING! Must be in sync with the one in server.c
     Player player;
     char new_moving;
     ShortString remote_address;
@@ -106,6 +57,13 @@ HashMap(<uint, bool>) joined_ids;
 HashMap(<uint, bool>) left_ids;
 def PingEntry = Entry(<uint, uint>);
 HashMap(<uint, uint>) ping_ids;
+
+fn PlayerOnServer *players_get(uint player_id) @export("players_get") {
+    if (try player = players.get_ref(player_id)) {
+        return player;
+    }
+    return null;
+}
 
 fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player") @wasm {
     if (players.len() >= SERVER_TOTAL_LIMIT) {

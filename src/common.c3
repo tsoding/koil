@@ -227,7 +227,7 @@ fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     return -1;
 }
 
-fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) {
+fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) @export("update_bomb") {
     bool collided = false;
     bomb.lifetime -= delta_time;
     bomb.velocity_z -= BOMB_GRAVITY*delta_time;
@@ -454,9 +454,7 @@ struct Vector2 {
     float x, y;
 }
 
-fn Vector2 xx(float x) {
-    return {x, x};
-}
+extern fn Vector2 xx(float x) @extern("vector2_xx");
 
 fn Vector2 add(Vector2 a, Vector2 b) {
     a.x += b.x;
@@ -465,12 +463,7 @@ fn Vector2 add(Vector2 a, Vector2 b) {
 }
 
 extern fn Vector2 sub(Vector2 a, Vector2 b) @extern("vector2_sub");
-
-fn Vector2 mul(Vector2 a, Vector2 b) {
-    a.x *= b.x;
-    a.y *= b.y;
-    return a;
-}
+extern fn Vector2 mul(Vector2 a, Vector2 b) @extern("vector2_mul");
 
 extern fn float length(Vector2 a) @extern("vector2_length");
 
@@ -504,9 +497,7 @@ fn float dot(Vector2 a, Vector2 b) {
     return a.x*b.x + a.y*b.y;
 }
 
-fn Vector2 from_polar(float angle, float len) {
-    return {math::cos(angle)*len, math::sin(angle)*len};
-}
+extern fn Vector2 from_polar(float angle, float len) @extern("vector2_from_polar");
 
 fn Vector2 from_vector3(Vector3 a) {
     return {a.x, a.y};
