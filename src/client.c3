@@ -31,7 +31,12 @@ const uint SPRITE_ANGLES_COUNT = 8;
 
 $exec("build/packer");
 
-def Color = char[<4>];
+struct Color {
+    char r;
+    char g;
+    char b;
+    char a;
+}
 
 macro Vector2.angle_fixed(self) => platform::atan2f(self.y, self.x);
 // // TODO: math::atan2 is broken. Does not work with sprite_angle_index() properly.
@@ -171,10 +176,18 @@ fn void render_floor_and_ceiling(Image *display) {
             Vector2 t = vector2::lerp(t1, t2, (float)x/display.width);
 
             float fog = vector2::length(vector2::sub(t, camera.position));
-            float[<3>] low = 0;
-            float[<3>] high = 255;
-            display.pixels[y*display.width + x] = {(char[<3>])((float[<3>])scene_get_floor(t).rgb*fog).clamp(low, high), 255};
-            display.pixels[sz*display.width + x] = {(char[<3>])((float[<3>])scene_get_ceiling(t).rgb*fog).clamp(low, high), 255};
+
+            Color floor_color = scene_get_floor(t);
+            display.pixels[y*display.width + x].r = (char)(floor_color.r*fog).clamp(0, 255);
+            display.pixels[y*display.width + x].g = (char)(floor_color.g*fog).clamp(0, 255);
+            display.pixels[y*display.width + x].b = (char)(floor_color.b*fog).clamp(0, 255);
+            display.pixels[y*display.width + x].a = 255;
+
+            Color ceiling_color = scene_get_ceiling(t);
+            display.pixels[sz*display.width + x].r = (char)(ceiling_color.r*fog).clamp(0, 255);
+            display.pixels[sz*display.width + x].g = (char)(ceiling_color.g*fog).clamp(0, 255);
+            display.pixels[sz*display.width + x].b = (char)(ceiling_color.b*fog).clamp(0, 255);
+            display.pixels[sz*display.width + x].a = 255;
         }
     }
 }
