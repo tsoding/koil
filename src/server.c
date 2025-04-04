@@ -23,6 +23,36 @@ extern int bytes_received_within_tick;
 extern int message_sent_within_tick;
 extern int bytes_sent_within_tick;
 
+// Items //////////////////////////////
+
+typedef struct {
+    size_t *items;
+    size_t count;
+    size_t capacity;
+} Indices;
+
+Indices collected_items = {0};
+
+void collect_items_by_player(Player player, Item *items, size_t items_count) {
+    for (size_t index = 0; index < items_count; ++index) {
+        Item *item = &items[index];
+        if (collect_item(player, item)) {
+            da_append(&collected_items, index);
+        }
+    }
+}
+
+ItemsCollectedBatchMessage *collected_items_as_batch_message() {
+    if (collected_items.count == 0) return NULL;
+    ItemsCollectedBatchMessage *message = alloc_items_collected_batch_message(collected_items.count);
+    for (size_t i = 0; i < collected_items.count; ++i) {
+        message->payload[i] = collected_items.items[i];
+    }
+    collected_items.count = 0;
+    return message;
+}
+
+
 // Connection Limits //////////////////////////////
 
 typedef struct {

@@ -151,12 +151,7 @@ Item[] items = {
     },
 };
 
-fn bool collect_item(Player player, Item *item) {
-    if (!item.alive) return false;
-    if (vector2::distance(player.position, item.position) >= PLAYER_RADIUS) return false;
-    item.alive = false;
-    return true;
-}
+extern fn bool collect_item(Player player, Item *item) @extern("collect_item");
 
 struct ItemSpawned @packed {
     ItemKind itemKind;
@@ -469,11 +464,7 @@ fn Vector2 add(Vector2 a, Vector2 b) {
     return a;
 }
 
-fn Vector2 sub(Vector2 a, Vector2 b) {
-    a.x -= b.x;
-    a.y -= b.y;
-    return a;
-}
+extern fn Vector2 sub(Vector2 a, Vector2 b) @extern("vector2_sub");
 
 fn Vector2 mul(Vector2 a, Vector2 b) {
     a.x *= b.x;
@@ -481,9 +472,7 @@ fn Vector2 mul(Vector2 a, Vector2 b) {
     return a;
 }
 
-fn float length(Vector2 a) {
-    return math::sqrt(a.x*a.x + a.y*a.y);
-}
+extern fn float length(Vector2 a) @extern("vector2_length");
 
 fn Vector2 normalize(Vector2 a) {
     float l = length(a);
@@ -509,10 +498,7 @@ fn Vector2 floor(Vector2 a) {
     return {math::floor(a.x), math::floor(a.y)};
 }
 
-fn float distance(Vector2 a, Vector2 b) {
-    b = vector2::sub(b, a);
-    return vector2::length(b);
-}
+extern fn float distance(Vector2 a, Vector2 b) @extern("vector2_distance");
 
 fn float dot(Vector2 a, Vector2 b) {
     return a.x*b.x + a.y*b.y;

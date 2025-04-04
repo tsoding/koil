@@ -2,6 +2,25 @@
 
 void* allocate_temporary_buffer(size_t size);
 
+// Vector2 //////////////////////////////
+
+float vector2_distance(Vector2 a, Vector2 b){
+    b = vector2_sub(b, a);
+    return vector2_length(b);
+}
+
+Vector2 vector2_sub(Vector2 a, Vector2 b) {
+    a.x -= b.x;
+    a.y -= b.y;
+    return a;
+}
+
+float vector2_length(Vector2 a) {
+    return __builtin_sqrtf(a.x*a.x + a.y*a.y);
+}
+
+// Message //////////////////////////////
+
 bool batch_message_verify_empty(MessageKind kind, Message *message) {
     // If message is empty it's byte_length must be equal to the size of BatchMessage exactly
     if (message->byte_length != sizeof(BatchMessage)) return false;
@@ -24,4 +43,13 @@ BatchMessage *batch_message_alloc(MessageKind kind, size_t count, size_t payload
     message->byte_length = byte_length;
     message->kind = kind;
     return message;
+}
+
+// Items //////////////////////////////
+
+bool collect_item(Player player, Item *item) {
+    if (!item->alive) return false;
+    if (vector2_distance(player.position, item->position) >= PLAYER_RADIUS) return false;
+    item->alive = false;
+    return true;
 }

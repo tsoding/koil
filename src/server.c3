@@ -31,25 +31,8 @@ extern fn void connection_limits_remove(ShortString remote_address)          @ex
 
 /// Items //////////////////////////////
 
-List(<usz>) collected_items;
-
-fn void collect_items_by_player(Player player, Item[] *items) {
-    foreach (index, &item: *items) {
-        if (common::collect_item(player, item)) {
-            collected_items.push(index);
-        }
-    }
-}
-
-fn ItemsCollectedBatchMessage *collected_items_as_batch_message(Item[]* items) {
-    if (collected_items.size == 0) return null;
-    ItemsCollectedBatchMessage *message = common::alloc_items_collected_batch_message(collected_items.size);
-    for (int i = 0; i < collected_items.size; ++i) {
-        message.payload[i] = (uint)collected_items[i];
-    }
-    collected_items.size = 0;
-    return message;
-}
+extern fn void collect_items_by_player(Player player, Item *items, usz items_count) @extern("collect_items_by_player");
+extern fn ItemsCollectedBatchMessage *collected_items_as_batch_message() @extern ("collected_items_as_batch_message");
 
 /// Bombs //////////////////////////////
 
@@ -356,10 +339,10 @@ fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, floa
     // Simulating the world for one server tick.
     players.@each_entry(; PlayerOnServerEntry* entry) {
         common::update_player(&entry.value.player, scene, delta_time);
-        collect_items_by_player(entry.value.player, items);
+        collect_items_by_player(entry.value.player, (*items).ptr, (*items).len);
     };
 
-    ItemsCollectedBatchMessage *items_collected_batch_message = collected_items_as_batch_message(items);
+    ItemsCollectedBatchMessage *items_collected_batch_message = collected_items_as_batch_message();
     if (items_collected_batch_message) {
         players.@each_entry(; PlayerOnServerEntry* entry) {
             send_message_and_update_stats(entry.value.player.id, items_collected_batch_message);
