@@ -1,4 +1,6 @@
 module common;
+import common::vector2;
+import common::ivector2;
 import std::math;
 import std::io;
 import std::collections::list;
@@ -27,16 +29,6 @@ const float BOMB_SCALE = 0.25;
 const float PLAYER_SIZE = 0.5;
 const float PLAYER_RADIUS = 0.5;
 const float PLAYER_SPEED = 2;
-
-def Vector2 = float[<2>];
-def IVector2 = int[<2>];
-fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
-def Vector3 = float[<3>];
-def Vector4 = float[<4>];
-
-fn Vector2 from_polar(float angle, float len) {
-    return {math::cos(angle)*len, math::sin(angle)*len};
-}
 
 // It's such mod that proper_mod(-1, 100) === 99
 macro proper_mod(a, b) => (a%b + b)%b;
@@ -92,7 +84,7 @@ fn void load_default_scene() {
 }
 
 fn bool Scene.get_tile(&scene, Vector2 p) {
-    if (try tile = scene.walls.get((IVector2)math::floor(p))) {
+    if (try tile = scene.walls.get(ivector2::from_vector2(vector2::floor(p)))) {
         return tile;
     }
     return false;
@@ -161,7 +153,7 @@ Item[] items = {
 
 fn bool collect_item(Player player, Item *item) {
     if (!item.alive) return false;
-    if (player.position.distance(item.position) >= PLAYER_RADIUS) return false;
+    if (vector2::distance(player.position, item.position) >= PLAYER_RADIUS) return false;
     item.alive = false;
     return true;
 }
@@ -230,9 +222,9 @@ fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
             bomb.lifetime    = BOMB_LIFETIME;
             bomb.position    = position;
             bomb.position_z  = 0.6;
-            bomb.velocity    = from_polar(direction, 1.0f);
+            bomb.velocity    = vector2::from_polar(direction, 1.0f);
             bomb.velocity_z  = 0.5;
-            bomb.velocity   *= BOMB_THROW_VELOCITY;
+            bomb.velocity    = vector2::mul(bomb.velocity, vector2::xx(BOMB_THROW_VELOCITY));
             bomb.velocity_z *= BOMB_THROW_VELOCITY;
             return (int)index;
         }
@@ -253,9 +245,9 @@ fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) {
 
         if (dx > 0) bomb.velocity.x *= -1;
         if (dy > 0) bomb.velocity.y *= -1;
-        bomb.velocity *= BOMB_DAMP;
+        bomb.velocity = vector2::mul(bomb.velocity, vector2::xx(BOMB_DAMP));
         bomb.velocity_z *= BOMB_DAMP;
-        if (Vector3{bomb.velocity, bomb.velocity_z}.length() > 1) collided = true; // Wall collision
+        if (vector3::length({bomb.velocity.x, bomb.velocity.y, bomb.velocity_z}) > 1) collided = true; // Wall collision
     } else {
         bomb.position.x = nx;
         bomb.position.y = ny;
@@ -264,8 +256,8 @@ fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) {
     float nz = bomb.position_z + bomb.velocity_z*delta_time;
     if (nz < BOMB_SCALE || nz > 1.0) {
         bomb.velocity_z *= -1*BOMB_DAMP;
-        bomb.velocity *= BOMB_DAMP;
-        if (Vector3{bomb.velocity, bomb.velocity_z}.length() > 1) collided = true; // Floor collision
+        bomb.velocity = vector2::mul(bomb.velocity, vector2::xx(BOMB_DAMP));
+        if (vector3::length({bomb.velocity.x, bomb.velocity.y, bomb.velocity_z}) > 1) collided = true; // Floor collision
     } else {
         bomb.position_z = nz;
     }
@@ -412,10 +404,10 @@ fn void update_player(Player *player, Scene *scene, float delta_time) {
     Vector2 control_velocity = {0, 0};
     float angular_velocity = 0.0;
     if ((player.moving>>(uint)Moving.MOVING_FORWARD)&1) {
-        control_velocity += from_polar(player.direction, PLAYER_SPEED);
+        control_velocity = vector2::add(control_velocity, vector2::from_polar(player.direction, PLAYER_SPEED));
     }
     if ((player.moving>>(uint)Moving.MOVING_BACKWARD)&1) {
-        control_velocity -= from_polar(player.direction, PLAYER_SPEED);
+        control_velocity = vector2::sub(control_velocity, vector2::from_polar(player.direction, PLAYER_SPEED));
     }
     if ((player.moving>>(uint)Moving.TURNING_LEFT)&1) {
         angular_velocity -= math::PI;
@@ -458,3 +450,114 @@ macro uint BatchMessage.count(self, payload_size) => (self.byte_length - BatchMe
 extern fn BatchMessage *alloc(MessageKind kind, usz count, usz payload_size) @extern("batch_message_alloc");
 extern fn bool verify_empty(MessageKind kind, Message *message) @extern("batch_message_verify_empty");
 extern fn bool verify(MessageKind kind, Message *message, usz payload_size) @extern("batch_message_verify");
+
+module common::vector2;
+import common::vector3;
+import std::math;
+
+struct Vector2 {
+    float x, y;
+}
+
+fn Vector2 xx(float x) {
+    return {x, x};
+}
+
+fn Vector2 add(Vector2 a, Vector2 b) {
+    a.x += b.x;
+    a.y += b.y;
+    return a;
+}
+
+fn Vector2 sub(Vector2 a, Vector2 b) {
+    a.x -= b.x;
+    a.y -= b.y;
+    return a;
+}
+
+fn Vector2 mul(Vector2 a, Vector2 b) {
+    a.x *= b.x;
+    a.y *= b.y;
+    return a;
+}
+
+fn float length(Vector2 a) {
+    return math::sqrt(a.x*a.x + a.y*a.y);
+}
+
+fn Vector2 normalize(Vector2 a) {
+    float l = length(a);
+    if (l == 0.0) return a;
+    a.x /= l;
+    a.y /= l;
+    return a;
+}
+
+fn float lerpf(float a, float b, float t) {
+    return a + (b - a)*t;
+}
+
+fn Vector2 lerp(Vector2 a, Vector2 b, float t) {
+    return {lerpf(a.x, b.x, t), lerpf(a.y, b.y, t)};
+}
+
+fn Vector2 copysign(Vector2 a, Vector2 b) {
+    return {math::copysign(a.x, b.x), math::copysign(a.y, b.y)};
+}
+
+fn Vector2 floor(Vector2 a) {
+    return {math::floor(a.x), math::floor(a.y)};
+}
+
+fn float distance(Vector2 a, Vector2 b) {
+    b = vector2::sub(b, a);
+    return vector2::length(b);
+}
+
+fn float dot(Vector2 a, Vector2 b) {
+    return a.x*b.x + a.y*b.y;
+}
+
+fn Vector2 from_polar(float angle, float len) {
+    return {math::cos(angle)*len, math::sin(angle)*len};
+}
+
+fn Vector2 from_vector3(Vector3 a) {
+    return {a.x, a.y};
+}
+
+module common::ivector2;
+import common::vector2;
+import std::hash::fnv32a;
+
+struct IVector2 {
+    int x, y;
+}
+fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
+macro bool IVector2.equals(IVector2 a, IVector2 b) => a.x == b.x && a.y == b.y;
+
+fn IVector2 from_vector2(Vector2 a) {
+    return {(int)a.x, (int)a.y};
+}
+
+module common::vector3;
+import std::math;
+
+struct Vector3 {
+    float x, y, z;
+}
+
+fn Vector3 mul(Vector3 a, Vector3 b) {
+    a.x *= b.x;
+    a.y *= b.y;
+    a.z *= b.z;
+    return a;
+}
+
+fn Vector3 xxx(float x) {
+    return {x, x, x};
+}
+
+fn float length(Vector3 a) {
+    return math::sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
+}

@@ -98,8 +98,8 @@ struct Camera {
 fn void Camera.update(Camera *camera) {
     float halfFov = FOV*0.5;
     float fovLen = NEAR_CLIPPING_PLANE/math::cos(halfFov);
-    camera.fovLeft = common::from_polar(camera.direction-halfFov, fovLen) + camera.position;
-    camera.fovRight = common::from_polar(camera.direction+halfFov, fovLen) + camera.position;
+    camera.fovLeft  = vector2::add(vector2::from_polar(camera.direction-halfFov, fovLen), camera.position);
+    camera.fovRight = vector2::add(vector2::from_polar(camera.direction+halfFov, fovLen), camera.position);
 }
 
 struct Display {
@@ -149,14 +149,14 @@ fn void render_floor_and_ceiling(Image *display) {
     camera.update();
 
     int pz = display.height/2;
-    float bp = (camera.fovLeft - camera.position).length();
+    float bp = vector2::length(vector2::sub(camera.fovLeft, camera.position));
     for (int y = display.height/2; y < display.height; ++y) {
         int sz = display.height - y - 1;
 
         int ap = pz - sz;
         float b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        Vector2 t1 = (camera.fovLeft - camera.position).normalize()*b + camera.position;
-        Vector2 t2 = (camera.fovRight - camera.position).normalize()*b + camera.position;
+        Vector2 t1 = vector2::add(vector2::mul(vector2::normalize(vector2::sub(camera.fovLeft, camera.position)), vector2::xx(b)), camera.position);
+        Vector2 t2 = vector2::add(vector2::mul(vector2::normalize(vector2::sub(camera.fovRight, camera.position)), vector2::xx(b)), camera.position);
 
         // TODO: Render rows up until FAR_CLIPPING_PLANE
         //   There is a small bug with how we are projecting the floor and ceiling which makes it non-trivial.
@@ -168,9 +168,9 @@ fn void render_floor_and_ceiling(Image *display) {
         //   fewer rows.
 
         for (int x = 0; x < display.width; ++x) {
-            Vector2 t = t1.lerp(t2, (float)x/display.width);
+            Vector2 t = vector2::lerp(t1, t2, (float)x/display.width);
 
-            float fog = (t - camera.position).length();
+            float fog = vector2::length(vector2::sub(t, camera.position));
             float[<3>] low = 0;
             float[<3>] high = 255;
             display.pixels[y*display.width + x] = {(char[<3>])((float[<3>])scene_get_floor(t).rgb*fog).clamp(low, high), 255};
@@ -182,7 +182,7 @@ fn void render_floor_and_ceiling(Image *display) {
 fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) {
     float strip_height = display.height/zbuffer[x];
     float u = 0;
-    Vector2 t = p - c;
+    Vector2 t = vector2::sub(p, c);
     if (math::abs(t.x) < EPS && t.y > 0) {
         u = t.y;
     } else if (math::abs(t.x - 1) < EPS && t.y > 0) {
@@ -212,7 +212,7 @@ fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x
 }
 
 fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) {
-    return math::floor(p2 + math::copysign(Vector2{1.0f, 1.0f}, p2 - p1)*EPS);
+    return vector2::floor(vector2::add(p2, vector2::mul(vector2::copysign(Vector2{1.0f, 1.0f}, vector2::sub(p2, p1)), vector2::xx(EPS))));
 }
 
 fn float snap(float x, float dx) {
@@ -252,7 +252,7 @@ fn Vector2 ray_step(Vector2 p1, Vector2 p2) {
             float y3 = snap(p2.y, dy);
             float x3 = (y3 - c)/k;
             Vector2 p3t = {x3, y3};
-            if (p2.distance(p3t) < p2.distance(p3)) {
+            if (vector2::distance(p2, p3t) < vector2::distance(p2, p3)) {
                 p3 = p3t;
             }
         }
@@ -267,7 +267,7 @@ fn Vector2 ray_step(Vector2 p1, Vector2 p2) {
 
 fn Vector2 cast_ray(Scene *scene, Vector2 p1, Vector2 p2) {
     Vector2 start = p1;
-    while (start.distance(p1) < FAR_CLIPPING_PLANE) {
+    while (vector2::distance(start, p1) < FAR_CLIPPING_PLANE) {
         Vector2 c = hitting_cell(p1, p2);
         if (scene.get_tile(c)) break;
         Vector2 p3 = ray_step(p1, p2);
@@ -281,12 +281,12 @@ fn void render_walls(Image *display, float *zbuffer, Image *wall, Scene *scene) 
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
     camera.update();
 
-    Vector2 d = common::from_polar(camera.direction, 1.0f);
+    Vector2 d = vector2::from_polar(camera.direction, 1.0f);
     for (int x = 0; x < display.width; ++x) {
-        Vector2 p = cast_ray(scene, camera.position, camera.fovLeft.lerp(camera.fovRight, (float)x/display.width));
+        Vector2 p = cast_ray(scene, camera.position, vector2::lerp(camera.fovLeft, camera.fovRight, (float)x/display.width));
         Vector2 c = hitting_cell(camera.position, p);
-        Vector2 v = p - camera.position;
-        zbuffer[x] = v.dot(d);
+        Vector2 v = vector2::sub(p, camera.position);
+        zbuffer[x] = vector2::dot(v, d);
         if (scene.get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
     }
 }
@@ -295,26 +295,26 @@ fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
     camera.update();
 
-    Vector2 dir = common::from_polar(camera.direction, 1.0f);
-    Vector2 fov = camera.fovRight - camera.fovLeft;
+    Vector2 dir = vector2::from_polar(camera.direction, 1.0f);
+    Vector2 fov = vector2::sub(camera.fovRight, camera.fovLeft);
 
     sprite_pool.visible_length = 0;
     for (int i = 0; i < sprite_pool.length; ++i) {
         Sprite *sprite = &sprite_pool.items[i];
 
-        Vector2 sp = sprite.position - camera.position;
-        float spl = sp.length();
+        Vector2 sp = vector2::sub(sprite.position, camera.position);
+        float spl = vector2::length(sp);
         if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
         if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
 
-        float cos = sp.dot(dir)/spl;
+        float cos = vector2::dot(sp, dir)/spl;
         // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
         // It may or may not impact the performance of renderSprites()
         if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
         sprite.dist = NEAR_CLIPPING_PLANE/cos;
-        sp = (sp.normalize()*sprite.dist) + camera.position - camera.fovLeft;
-        sprite.t = sp.length()/fov.length()*math::copysign(1.0f, sp.dot(fov));
-        sprite.pdist = (sprite.position - camera.position).dot(dir);
+        sp = vector2::sub(vector2::add(vector2::mul(vector2::normalize(sp),vector2::xx(sprite.dist)), camera.position), camera.fovLeft);
+        sprite.t = vector2::length(sp)/vector2::length(fov)*math::copysign(1.0f, vector2::dot(sp, fov));
+        sprite.pdist = vector2::dot(vector2::sub(sprite.position, camera.position), dir);
 
         // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
         if (sprite.pdist < NEAR_CLIPPING_PLANE) continue;
@@ -333,7 +333,7 @@ fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, flo
     usz last = sprite_pool.length;
 
     sprite_pool.items[last].image = image;
-    sprite_pool.items[last].position = position.xy;
+    sprite_pool.items[last].position = {position.x, position.y};
     sprite_pool.items[last].z = position.z;
     sprite_pool.items[last].scale = scale;
     sprite_pool.items[last].pdist = 0;
@@ -385,7 +385,7 @@ fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
         if (particle.lifetime <= 0) {
             particle.lifetime = PARTICLE_LIFETIME;
 
-            particle.position = source.xy;
+            particle.position = {source.x, source.y};
             particle.position_z = source.z;
 
             float angle = platform::random()*2.0f*(float)math::PI;
@@ -394,7 +394,7 @@ fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
             particle.velocity_z = platform::random()*0.5f + 0.5f;
 
             float velocity_mag = PARTICLE_MAX_SPEED*platform::random();
-            particle.velocity *= velocity_mag;
+            particle.velocity = vector2::mul(particle.velocity, vector2::xx(velocity_mag));
             particle.velocity_z *= velocity_mag;
             break;
         }
@@ -407,14 +407,14 @@ fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime,
             particle.lifetime -= deltaTime;
             particle.velocity_z -= common::BOMB_GRAVITY*deltaTime;
 
-            Vector2 new_position = particle.position + particle.velocity*deltaTime;
+            Vector2 new_position = vector2::add(particle.position, vector2::mul(particle.velocity, vector2::xx(deltaTime)));
             if (scene.get_tile(new_position)) {
                 float dx = math::abs(math::floor(particle.position.x) - math::floor(new_position.x));
                 float dy = math::abs(math::floor(particle.position.y) - math::floor(new_position.y));
 
                 if (dx > 0) particle.velocity.x *= -1;
                 if (dy > 0) particle.velocity.y *= -1;
-                particle.velocity *= PARTICLE_DAMP;
+                particle.velocity = vector2::mul(particle.velocity, vector2::xx(PARTICLE_DAMP));
             } else {
                 particle.position = new_position;
             }
@@ -422,7 +422,7 @@ fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime,
             float nz = particle.position_z + particle.velocity_z*deltaTime;
             if (nz < PARTICLE_SCALE || nz > 1.0) {
                 particle.velocity_z *= -1;
-                particle.velocity *= PARTICLE_DAMP;
+                particle.velocity = vector2::mul(particle.velocity, vector2::xx(PARTICLE_DAMP));
             } else {
                 particle.position_z = nz;
             }
@@ -430,7 +430,7 @@ fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime,
             if (particle.lifetime > 0) {
                 push_sprite(sprite_pool,
                             image,
-                            {particle.position, particle.position_z},
+                            {particle.position.x, particle.position.y, particle.position_z},
                             PARTICLE_SCALE,
                             {0, 0}, {image.width, image.height});
             }
@@ -490,9 +490,9 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
             float z = 0.25f + ITEM_AMP - ITEM_AMP*math::sin(ITEM_FREQ*(float)math::PI*time + item.position.x + item.position.y);
             switch (item.kind) {
                 case KEY:
-                    push_sprite(sprite_pool, key_image, {item.position, z}, 0.25f, {0, 0}, {key_image.width, key_image.height});
+                    push_sprite(sprite_pool, key_image, {item.position.x, item.position.y, z}, 0.25f, {0, 0}, {key_image.width, key_image.height});
                 case BOMB:
-                    push_sprite(sprite_pool, bomb_image, {item.position, z}, 0.25f, {0, 0}, {bomb_image.width, bomb_image.height});
+                    push_sprite(sprite_pool, bomb_image, {item.position.x, item.position.y, z}, 0.25f, {0, 0}, {bomb_image.width, bomb_image.height});
             }
         }
     }
@@ -527,14 +527,14 @@ fn void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePoo
 fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, Scene *scene, float delta_time, Bombs *bombs) {
     foreach (&bomb: *bombs) {
         if (bomb.lifetime > 0) {
-            push_sprite(sprite_pool, bomb_image, {bomb.position, bomb.position_z}, common::BOMB_SCALE, {0, 0}, {bomb_image.width, bomb_image.height});
+            push_sprite(sprite_pool, bomb_image, {bomb.position.x, bomb.position.y, bomb.position_z}, common::BOMB_SCALE, {0, 0}, {bomb_image.width, bomb_image.height});
 
             if (common::update_bomb(bomb, scene, delta_time)) {
                 platform::play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
             }
 
             if (platform::is_offline_mode() && bomb.lifetime <= 0) {
-                explode_bomb({bomb.position, bomb.position_z}, me.position, particle_pool);
+                explode_bomb({bomb.position.x, bomb.position.y, bomb.position_z}, me.position, particle_pool);
             }
         }
     }
@@ -574,7 +574,7 @@ fn bool apply_bombs_exploded_batch_message(BombsExplodedBatchMessage *message, B
         bomb.position.x = message.payload[i].x;
         bomb.position.y = message.payload[i].y;
         bomb.position_z = message.payload[i].z;
-        explode_bomb({bomb.position, bomb.position_z}, me.position, particle_pool);
+        explode_bomb({bomb.position.x, bomb.position.y, bomb.position_z}, me.position, particle_pool);
     }
 
     return true;
@@ -681,7 +681,7 @@ fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
 fn uint sprite_angle_index(Vector2 camera_position, Player entity) {
     const float PI =  math::PI;
     const float TAU = 2*math::PI;
-    return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod((entity.position - camera_position).angle_fixed(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
+    return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod(vector2::sub(entity.position, camera_position).angle_fixed(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
 }
 
 fn void update_all_players(Scene *scene, float delta_time) {
@@ -694,7 +694,7 @@ fn void update_all_players(Scene *scene, float delta_time) {
 fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
     other_players.@each_entry(; OtherPlayersEntry *entry) {
         uint index = sprite_angle_index(me.position, entry.value);
-        push_sprite(sprite_pool, player_image, {entry.value.position, 1}, 1, {55*index, 0}, {55, 55});
+        push_sprite(sprite_pool, player_image, {entry.value.position.x, entry.value.position.y, 1}, 1, {55*index, 0}, {55, 55});
     };
 }
 
