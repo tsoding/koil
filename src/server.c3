@@ -115,7 +115,7 @@ fn bool register_new_player(uint id, ShortString* remote_address) @extern("regis
     return true;
 }
 
-fn void unregister_player(uint id) @extern("unregister_player") @wasm {
+fn void unregister_player(uint id) @export("server_unregister_player") {
     // console.log(`Player ${id} disconnected`);
     if (try player = players.get(id)) {
         uint *count = connection_limits_get(player.remote_address);
@@ -351,7 +351,7 @@ fn void clear_intermediate_ids() {
     ping_ids.clear();
 }
 
-fn bool process_message_on_server(uint id, Message* message) @extern("process_message_on_server") @wasm {
+fn bool process_message_on_server(uint id, Message* message) @export("server_process_message_on_server") {
     stats::inc_counter(MESSAGES_RECEIVED, 1);
     stats::messages_recieved_within_tick += 1;
     stats::inc_counter(BYTES_RECEIVED, message.byte_length);
@@ -416,47 +416,9 @@ fn uint tick() @extern("tick") @wasm {
 
 extern uint idCounter;
 
-extern fn void connections_remove(uint player_id) @extern("connections_remove");
-extern fn Cws *connections_get_ref(uint player_id) @extern("connections_get_ref");
 extern fn void connections_set(uint player_id, Cws cws) @extern("connections_set");
-
 extern fn CwsSocket cws_socket_from_fd(int fd) @extern("cws_socket_from_fd");
-
-fn void client_connection(void *data)
-{
-    uint id = (uint)(uptr)data;
-    defer {
-        server::unregister_player(id);
-        connections_remove(id);
-    }
-
-    Cws* cws = connections_get_ref(id);
-    if (cws == null) {
-        io::eprintfn("ERROR: unknown player id %d", id);
-        thread::exit(69);
-    }
-    defer {
-        cws::close(cws);
-        arena::free(&cws.arena);
-    }
-
-    while (true) {
-        CwsMessage cws_message;
-        int err = cws::read_message(cws, &cws_message);
-        if (err < 0) {
-            if ((CwsError)err != cws::ERROR_FRAME_CLOSE_SENT) {
-                io::eprintfn("ERROR: could not read message from player %d", id);
-            }
-            return;
-        }
-        usz byte_length = Message.sizeof + cws_message.payload_len;
-        Message *message = mem::tcalloc(byte_length);
-        message.byte_length = (uint)byte_length;
-        libc::memcpy(&message.bytes[0], cws_message.payload, cws_message.payload_len);
-        if (!server::process_message_on_server(id, message)) return;
-        arena::reset(&cws.arena);
-    }
-}
+extern fn void client_connection(void *data) @extern("client_connection");
 
 fn int main() {
     coroutine::init();

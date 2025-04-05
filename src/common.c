@@ -1,7 +1,5 @@
 #include "common.h"
 
-void* allocate_temporary_buffer(size_t size);
-
 // Vector2 //////////////////////////////
 
 float vector2_distance(Vector2 a, Vector2 b){

@@ -11,6 +11,8 @@
 
 // WARNING! This header must be in sync with common.c3
 
+void* allocate_temporary_buffer(size_t size);
+
 // Vector2 //////////////////////////////
 
 typedef struct {

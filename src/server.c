@@ -179,6 +179,47 @@ void connections_set(uint32_t player_id, Cws cws)
     hmput(connections, player_id, cws);
 }
 
+// Connection //////////////////////////////
+
+bool server_process_message_on_server(uint32_t id, Message* message); // Implemented in C3
+void server_unregister_player(uint32_t id); // Implemented in C3
+
+void client_connection(void *data)
+{
+    uint32_t id = (uint32_t)(uintptr_t)data;
+    Cws* cws = connections_get_ref(id);
+
+    if (cws == NULL) {
+        fprintf(stderr, "ERROR: unknown player id %u\n", id);
+        exit(69);
+    }
+
+    while (true) {
+        Cws_Message cws_message;
+        int err = cws_read_message(cws, &cws_message);
+        if (err < 0) {
+            if ((Cws_Error)err != CWS_ERROR_FRAME_CLOSE_SENT) {
+                fprintf(stderr, "ERROR: could not read message from player %u\n", id);
+            }
+            goto defer;
+        }
+        size_t byte_length = sizeof(Message) + cws_message.payload_len;
+        Message *message = allocate_temporary_buffer(byte_length);
+        message->byte_length = byte_length;
+        memcpy(message->bytes, cws_message.payload, cws_message.payload_len);
+        if (!server_process_message_on_server(id, message)) return;
+        arena_reset(&cws->arena);
+    }
+
+defer:
+    server_unregister_player(id);
+    connections_remove(id);
+    if (cws) {
+        cws_close(cws);
+        arena_free(&cws->arena);
+    }
+}
+
 // Messages //////////////////////////////
 
 uint32_t send_message(uint32_t player_id, void *message_raw)
