@@ -17,6 +17,7 @@ import arena;
 
 import common;
 
+// WARNING! Must be in sync with the value in server.c
 const usz SERVER_TOTAL_LIMIT = 2000;
 const usz SERVER_SINGLE_IP_LIMIT = 10;
 const int SERVER_FPS = 60;
@@ -69,55 +70,7 @@ struct PingEntry {         // WARNING! Must be in sync with the on in server.c
 }
 extern PingEntry *ping_ids;
 
-fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player") @wasm {
-    if (stbds::hmlen(players) >= SERVER_TOTAL_LIMIT) {
-        stats::inc_counter(PLAYERS_REJECTED, 1);
-        return false;
-    }
-
-    if (remote_address != null) {
-        usz remote_address_len = ((ZString)&(*remote_address)[0]).char_len(); // WutFace
-        if (remote_address_len == 0) {
-            stats::inc_counter(PLAYERS_REJECTED, 1);
-            return false;
-        }
-
-        uint *count = connection_limits_get(*remote_address);
-        if (count) {
-            // TODO: we need to let the player know somehow that they were rejected due to the limit
-            if (*count >= SERVER_SINGLE_IP_LIMIT) {
-                stats::inc_counter(PLAYERS_REJECTED, 1);
-                return false;
-            }
-            connection_limits_set(*remote_address, *count + 1);
-        } else {
-            connection_limits_set(*remote_address, 1);
-        }
-    }
-
-    assert(stbds::@hmgeti(players, id) < 0);
-    stbds::@hmput(joined_ids, id, true);
-
-    if (remote_address != null) {
-        stbds::@hmput(players, id, PlayerOnServer {
-            .player = {
-                .id = id,
-            },
-            .remote_address = *remote_address,
-        });
-    } else {
-        stbds::@hmput(players, id, PlayerOnServer {
-            .player = {
-                .id = id,
-            },
-        });
-    }
-
-    stats::inc_counter(PLAYERS_JOINED, 1);
-    stats::inc_counter(PLAYERS_CURRENTLY, 1);
-
-    return true;
-}
+extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
 
 fn void unregister_player(uint id) @export("server_unregister_player") {
     // console.log(`Player ${id} disconnected`);

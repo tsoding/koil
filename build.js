@@ -109,6 +109,12 @@ async function buildServer() {
             "-c", SRC_FOLDER+"common.c",
             "-o", BUILD_FOLDER+"common.o",
         ]),
+        cmdAsync("clang", [
+            "-Wall", "-Wextra", "-ggdb",
+            "-I", SRC_FOLDER+"cws/",
+            "-c", SRC_FOLDER+"stats.c",
+            "-o", BUILD_FOLDER+"stats.o",
+        ]),
     ])
     await cmdAsync("c3c", [
         "compile",
@@ -116,6 +122,7 @@ async function buildServer() {
         "-o", BUILD_FOLDER+"server",
         BUILD_FOLDER+"server.o",
         BUILD_FOLDER+"common.o",
+        BUILD_FOLDER+"stats.o",
         SRC_FOLDER+"server.c3",
         SRC_FOLDER+"common.c3",
         SRC_FOLDER+"stb_ds.c3",
