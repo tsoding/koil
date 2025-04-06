@@ -500,7 +500,7 @@ void send_message_and_update_stats(uint32_t player_id, void* message)
 int cws_socket_read(void *data, void *buffer, size_t len)
 {
     while (true) {
-        int n = read((int)(uintptr_t)data, buffer, len);
+        int n = recv((int)(uintptr_t)data, buffer, len, MSG_NOSIGNAL);
         if (n > 0) return (int)n;
         if (n < 0 && errno != EWOULDBLOCK) return (int)CWS_ERROR_ERRNO;
         if (n == 0) return (int)CWS_ERROR_CONNECTION_CLOSED;
@@ -513,7 +513,7 @@ int cws_socket_read(void *data, void *buffer, size_t len)
 int cws_socket_peek(void *data, void *buffer, size_t len)
 {
     while (true) {
-        int n = recv((int)(uintptr_t)data, buffer, len, MSG_PEEK);
+        int n = recv((int)(uintptr_t)data, buffer, len, MSG_PEEK | MSG_NOSIGNAL);
         if (n > 0) return (int)n;
         if (n < 0 && errno != EWOULDBLOCK) return (int)CWS_ERROR_ERRNO;
         if (n == 0) return (int)CWS_ERROR_CONNECTION_CLOSED;
@@ -524,7 +524,7 @@ int cws_socket_peek(void *data, void *buffer, size_t len)
 int cws_socket_write(void *data, const void *buffer, size_t len)
 {
     while (true) {
-        int n = write((int)(uintptr_t)data, buffer, len);
+        int n = send((int)(uintptr_t)data, buffer, len, MSG_NOSIGNAL);
         if (n > 0) return (int)n;
         if (n < 0 && errno != EWOULDBLOCK) return (int)CWS_ERROR_ERRNO;
         if (n == 0) return (int)CWS_ERROR_CONNECTION_CLOSED;
