@@ -233,4 +233,14 @@ typedef struct {
 
 #define verify_hello_message(message) batch_message_verify(MK_HELLO, message, sizeof(HelloPlayer));
 
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/uint8_t kind;
+    PlayerStruct payload[];
+} __attribute__((packed)) PlayersMovingBatchMessage;
+
+#define PlayersMovingBatchMessage_count(self) BatchMessage_count((BatchMessage*)self, sizeof(PlayerStruct))
+#define verify_players_moving_batch_message(message) batch_message_verify(MK_PLAYER_MOVING, message, sizeof(PlayerStruct))
+#define alloc_players_moving_batch_message(count) (PlayersMovingBatchMessage*)batch_message_alloc(MK_PLAYER_MOVING, count, sizeof(PlayerStruct))
+
 #endif // COMMON_H_

@@ -306,6 +306,37 @@ void process_left_players() {
     }
 }
 
+void process_moving_players() {
+    int count = 0;
+    for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        if (entry->value.new_moving != entry->value.player.moving) {
+            count += 1;
+        }
+    }
+    if (count <= 0) return;
+
+    PlayersMovingBatchMessage *message = alloc_players_moving_batch_message(count);
+    int index = 0;
+    for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        if (entry->value.new_moving != entry->value.player.moving) {
+            entry->value.player.moving = entry->value.new_moving;
+            message->payload[index].id        = entry->value.player.id;
+            message->payload[index].x         = entry->value.player.position.x;
+            message->payload[index].y         = entry->value.player.position.y;
+            message->payload[index].direction = entry->value.player.direction;
+            message->payload[index].moving    = entry->value.player.moving;
+            index += 1;
+        }
+    }
+
+    for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        send_message_and_update_stats(entry->value.player.id, message);
+    }
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};

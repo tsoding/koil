@@ -67,40 +67,7 @@ extern PingEntry *ping_ids;
 extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
 extern fn void process_joined_players(Item* items, usz items_count) @extern("process_joined_players");
 extern fn void process_left_players() @extern("process_left_players");
-
-fn void process_moving_players() {
-    int count = 0;
-    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-        PlayerOnServerEntry* entry = &players[i];
-        if (entry.value.new_moving != entry.value.player.moving) {
-            count += 1;
-        }
-    }
-    if (count <= 0) return;
-
-    int byte_length = PlayersMovingBatchMessage.sizeof + PlayerStruct.sizeof*count;
-    PlayersMovingBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = byte_length;
-    message.kind = MessageKind.PLAYER_MOVING;
-    int index = 0;
-    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-        PlayerOnServerEntry* entry = &players[i];
-        if (entry.value.new_moving != entry.value.player.moving) {
-            entry.value.player.moving = entry.value.new_moving;
-            message.payload[index].id = entry.value.player.id;
-            message.payload[index].x = entry.value.player.position.x;
-            message.payload[index].y = entry.value.player.position.y;
-            message.payload[index].direction = entry.value.player.direction;
-            message.payload[index].moving = entry.value.player.moving;
-            index += 1;
-        }
-    }
-
-    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-        PlayerOnServerEntry* entry = &players[i];
-        send_message_and_update_stats(entry.value.player.id, message);
-    }
-}
+extern fn void process_moving_players() @extern("process_moving_players");
 
 fn void process_thrown_bombs(Bombs *bombs) {
     // Notifying about thrown bombs
