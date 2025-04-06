@@ -70,7 +70,7 @@ extern fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @exte
 extern fn PlayersJoinedBatchMessage *joined_players_as_batch_message() @extern("joined_players_as_batch_message");
 extern fn PlayersLeftBatchMessage *left_players_as_batch_message() @extern("left_players_as_batch_message");
 
-fn void process_joined_players(Item[]* items) {
+fn void process_joined_players(Item* items, usz items_count) {
     if (stbds::hmlen(joined_ids) == 0) return;
 
     // Initialize joined players
@@ -79,7 +79,7 @@ fn void process_joined_players(Item[]* items) {
         PlayersJoinedBatchMessage *players_joined_batch_message = all_players_as_joined_batch_message();
 
         // Reconstructing the state of items batch
-        ItemsSpawnedBatchMessage *items_spanwed_batch_message = common::reconstruct_state_of_items(items);
+        ItemsSpawnedBatchMessage *items_spanwed_batch_message = common::reconstruct_state_of_items(items, items_count);
 
         // Greeting all the joined players and notifying them about other players
         for (iptr i = 0; i < stbds::hmlen(joined_ids); ++i) {
@@ -279,7 +279,7 @@ fn uint tick() @extern("tick") @wasm {
     float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
     previous_timestamp = timestamp;
 
-    process_joined_players(&common::items);
+    process_joined_players(common::items.ptr, common::items.len);
     process_left_players();
     process_moving_players();
     process_thrown_bombs(&common::bombs);
