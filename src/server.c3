@@ -65,36 +65,9 @@ struct PingEntry {         // WARNING! Must be in sync with the on in server.c
 extern PingEntry *ping_ids;
 
 extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
-extern fn void unregister_player(uint id) @extern("unregister_player");
 
 extern fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @extern("all_players_as_joined_batch_message");
-
-fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
-    if (stbds::hmlen(joined_ids) == 0) return null;
-    usz byte_length = PlayersJoinedBatchMessage.sizeof + PlayerStruct.sizeof*stbds::hmlen(joined_ids);
-    PlayersJoinedBatchMessage *message = mem::tcalloc(byte_length);
-    message.byte_length = (uint)byte_length;
-    message.kind = MessageKind.PLAYER_JOINED;
-
-    int index = 0;
-    for (iptr i = 0; i < stbds::hmlen(joined_ids); ++i) {
-        PlayerIdsEntry *entry = &joined_ids[i];
-        uint joined_id = entry.key;
-        iptr place = stbds::@hmgeti(players, joined_id);
-        if (place >= 0) { // This should never happen, but we're handling none existing ids for more robustness
-            PlayerOnServer *joined_player = &players[place].value;
-            message.payload[index].id        = joined_player.player.id;
-            message.payload[index].x         = joined_player.player.position.x;
-            message.payload[index].y         = joined_player.player.position.y;
-            message.payload[index].direction = joined_player.player.direction;
-            message.payload[index].hue       = joined_player.player.hue;
-            message.payload[index].moving    = joined_player.player.moving;
-            index += 1;
-        }
-    }
-
-    return message;
-}
+extern fn PlayersJoinedBatchMessage *joined_players_as_batch_message() @extern("joined_players_as_batch_message");
 
 fn PlayersLeftBatchMessage *left_players_as_batch_message() {
     if (stbds::hmlen(left_ids) == 0) return null;

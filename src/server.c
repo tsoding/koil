@@ -197,6 +197,29 @@ PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
     return message;
 }
 
+PlayersJoinedBatchMessage *joined_players_as_batch_message() {
+    if (hmlen(joined_ids) == 0) return NULL;
+    PlayersJoinedBatchMessage *message = alloc_players_joined_batch_message(hmlen(joined_ids));
+    int index = 0;
+    for (ptrdiff_t i = 0; i < hmlen(joined_ids); ++i) {
+        PlayerIdsEntry *entry = &joined_ids[i];
+        uint32_t joined_id = entry->key;
+        ptrdiff_t place = hmgeti(players, joined_id);
+        if (place >= 0) { // This should never happen, but we're handling none existing ids for more robustness
+            PlayerOnServer *joined_player = &players[place].value;
+            message->payload[index].id        = joined_player->player.id;
+            message->payload[index].x         = joined_player->player.position.x;
+            message->payload[index].y         = joined_player->player.position.y;
+            message->payload[index].direction = joined_player->player.direction;
+            message->payload[index].hue       = joined_player->player.hue;
+            message->payload[index].moving    = joined_player->player.moving;
+            index += 1;
+        }
+    }
+
+    return message;
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};
