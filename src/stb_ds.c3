@@ -28,6 +28,13 @@ macro @hmgeti(#t, k) {
     return temp(#t-1);
 }
 
+macro @hmfree(#p) {
+    if (#p != null) hmfree_func(#p-1, $typeof(*#p).sizeof);
+    #p = null;
+}
+
+
 extern fn void *hmput_key(void *a, usz elemsize, void *key, usz keysize, int mode) @extern("stbds_hmput_key");
 extern fn void *hmdel_key(void *a, usz elemsize, void *key, usz keysize, usz keyoffset, int mode) @extern("stbds_hmdel_key");
 extern fn void *hmget_key(void *a, usz elemsize, void *key, usz keysize, int mode) @extern("stbds_hmget_key");
+extern fn void  hmfree_func(void *p, usz elemsize) @extern("stbds_hmfree_func");

@@ -11,6 +11,8 @@
 #include "nob.h"
 #include "cws.h"
 #include "coroutine.h"
+
+// TODO: stb_ds does not provide maximum performance. we should eventually implement our own hash table.
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
 
@@ -66,6 +68,19 @@ typedef struct {         // WARNING! Must be in sync with the one in server.c3
 } PlayerOnServerEntry;
 
 PlayerOnServerEntry *players = NULL;
+
+typedef struct {         // WARNING! Must be in sync with the on in server.c3
+    uint32_t key;
+    bool value;
+} PlayerIdsEntry;
+PlayerIdsEntry* joined_ids = NULL;
+PlayerIdsEntry* left_ids = NULL;
+
+typedef struct {         // WARNING! Must be in sync with the on in server.c
+    uint32_t key;
+    uint32_t value;
+} PingEntry;
+PingEntry *ping_ids = NULL;
 
 /// Bombs //////////////////////////////
 
