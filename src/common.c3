@@ -168,29 +168,7 @@ struct ItemsSpawnedBatchMessage @packed {
 macro verify_items_spawned_batch_message(message) => msg::batch::verify(MessageKind.ITEM_SPAWNED, message, ItemSpawned.sizeof);
 macro alloc_items_spawned_batch_message(count) => (ItemsSpawnedBatchMessage*)msg::batch::alloc(MessageKind.ITEM_SPAWNED, count, ItemSpawned.sizeof);
 
-fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item *items, usz items_count) {
-    usz itemsCount = 0;
-    for (usz i = 0; i < items_count; ++i){
-        Item *item = &items[i];
-        if (item.alive) itemsCount += 1;
-    }
-    if (itemsCount == 0) return null;
-    ItemsSpawnedBatchMessage *message = alloc_items_spawned_batch_message(itemsCount);
-    usz index = 0;
-    for (usz itemIndex = 0; itemIndex < items_count; ++itemIndex) {
-        Item *item = &items[itemIndex];
-        if (item.alive) {
-            message.payload[index] = {
-                .itemKind = item.kind,
-                .itemIndex = (int)itemIndex,
-                .x = item.position.x,
-                .y = item.position.y,
-            };
-            index += 1;
-        }
-    }
-    return message;
-}
+extern fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item *items, usz items_count) @extern("reconstruct_state_of_items");
 
 struct ItemsCollectedBatchMessage @packed {
     uint byte_length;

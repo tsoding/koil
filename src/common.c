@@ -69,6 +69,30 @@ bool collect_item(Player player, Item *item) {
     return true;
 }
 
+ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item *items, size_t items_count) {
+    size_t itemsCount = 0;
+    for (size_t i = 0; i < items_count; ++i){
+        Item *item = &items[i];
+        if (item->alive) itemsCount += 1;
+    }
+    if (itemsCount == 0) return NULL;
+    ItemsSpawnedBatchMessage *message = alloc_items_spawned_batch_message(itemsCount);
+    size_t index = 0;
+    for (size_t itemIndex = 0; itemIndex < items_count; ++itemIndex) {
+        Item *item = &items[itemIndex];
+        if (item->alive) {
+            message->payload[index] = ((ItemSpawned) {
+                .itemKind = item->kind,
+                .itemIndex = (int)itemIndex,
+                .x = item->position.x,
+                .y = item->position.y,
+            });
+            index += 1;
+        }
+    }
+    return message;
+}
+
 // Bombs //////////////////////////////
 
 int throw_bomb(Vector2 position, float direction, Bombs *bombs) {

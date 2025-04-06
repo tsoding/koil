@@ -24,6 +24,10 @@
 
 Arena temp = {0};
 
+// Forward declarations //////////////////////////////
+
+void send_message_and_update_stats(uint32_t player_id, void* message);
+
 // Items //////////////////////////////
 
 typedef struct {
@@ -231,6 +235,65 @@ PlayersLeftBatchMessage *left_players_as_batch_message() {
         index += 1;
     }
     return message;
+}
+
+void process_joined_players(Item* items, size_t items_count) {
+    if (hmlen(joined_ids) == 0) return;
+
+    // Initialize joined players
+    {
+        // Reconstructing the state of the other players batch
+        PlayersJoinedBatchMessage *players_joined_batch_message = all_players_as_joined_batch_message();
+
+        // Reconstructing the state of items batch
+        ItemsSpawnedBatchMessage *items_spanwed_batch_message = reconstruct_state_of_items(items, items_count);
+
+        // Greeting all the joined players and notifying them about other players
+        for (ptrdiff_t i = 0; i < hmlen(joined_ids); ++i) {
+            PlayerIdsEntry *entry = &joined_ids[i];
+            uint joined_id = entry->key;
+            ptrdiff_t place = hmgeti(players, joined_id);
+            if (place >= 0) { // This should never happen, but we're handling none existing ids for more robustness
+                PlayerOnServer *joined_player = &players[place].value;
+                // The greetings
+                HelloMessage hello_message = {
+                    .byte_length = sizeof(HelloMessage),
+                    .kind        = MK_HELLO,
+                    .payload     = {
+                        .id         = joined_player->player.id,
+                        .x          = joined_player->player.position.x,
+                        .y          = joined_player->player.position.y,
+                        .direction  = joined_player->player.direction,
+                        .hue        = joined_player->player.hue,
+                    }
+                };
+                send_message_and_update_stats(joined_id, &hello_message);
+
+                // Reconstructing the state of the other players
+                if (players_joined_batch_message != NULL) {
+                    send_message_and_update_stats(joined_id, players_joined_batch_message);
+                }
+
+                // Reconstructing the state of items
+                if (items_spanwed_batch_message != NULL) {
+                    send_message_and_update_stats(joined_id, items_spanwed_batch_message);
+                }
+
+                // TODO: Reconstructing the state of bombs
+            }
+        }
+    }
+
+    // Notifying old player about who joined
+    PlayersJoinedBatchMessage *players_joined_batch_message = joined_players_as_batch_message();
+    if (players_joined_batch_message != NULL) {
+        for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
+            if (hmgeti(joined_ids, entry->value.player.id) < 0) { // Joined player should already know about themselves
+                send_message_and_update_stats(entry->value.player.id, players_joined_batch_message);
+            }
+        }
+    }
 }
 
 /// Bombs //////////////////////////////

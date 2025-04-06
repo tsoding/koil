@@ -199,4 +199,38 @@ typedef struct {
 #define verify_players_left_batch_message(message) batch_message_verify(MK_PLAYER_LEFT, message, sizeof(uint))
 #define alloc_players_left_batch_message(count) (PlayersLeftBatchMessage*)batch_message_alloc(MK_PLAYER_LEFT, count, sizeof(uint))
 
+typedef struct {
+    /*ItemKind*/ uint8_t itemKind;
+    uint32_t itemIndex;
+    float x;
+    float y;
+} __attribute__((packed)) ItemSpawned;
+
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    ItemSpawned payload[];
+} __attribute__((packed)) ItemsSpawnedBatchMessage;
+
+#define verify_items_spawned_batch_message(message) batch_message_verify(MK_ITEM_SPAWNED, message, sizeof(ItemSpawned))
+#define alloc_items_spawned_batch_message(count) (ItemsSpawnedBatchMessage*)batch_message_alloc(MK_ITEM_SPAWNED, count, sizeof(ItemSpawned))
+
+ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item *items, size_t items_count);
+
+typedef struct {
+    uint32_t id;
+    float x;
+    float y;
+    float direction;
+    uint8_t hue;
+} __attribute__((packed)) HelloPlayer;
+
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    HelloPlayer payload;
+} __attribute__((packed)) HelloMessage;
+
+#define verify_hello_message(message) batch_message_verify(MK_HELLO, message, sizeof(HelloPlayer));
+
 #endif // COMMON_H_

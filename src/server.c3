@@ -70,63 +70,7 @@ extern fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @exte
 extern fn PlayersJoinedBatchMessage *joined_players_as_batch_message() @extern("joined_players_as_batch_message");
 extern fn PlayersLeftBatchMessage *left_players_as_batch_message() @extern("left_players_as_batch_message");
 
-fn void process_joined_players(Item* items, usz items_count) {
-    if (stbds::hmlen(joined_ids) == 0) return;
-
-    // Initialize joined players
-    {
-        // Reconstructing the state of the other players batch
-        PlayersJoinedBatchMessage *players_joined_batch_message = all_players_as_joined_batch_message();
-
-        // Reconstructing the state of items batch
-        ItemsSpawnedBatchMessage *items_spanwed_batch_message = common::reconstruct_state_of_items(items, items_count);
-
-        // Greeting all the joined players and notifying them about other players
-        for (iptr i = 0; i < stbds::hmlen(joined_ids); ++i) {
-            PlayerIdsEntry *entry = &joined_ids[i];
-            uint joined_id = entry.key;
-            iptr place = stbds::@hmgeti(players, joined_id);
-            if (place >= 0) { // This should never happen, but we're handling none existing ids for more robustness
-                PlayerOnServer *joined_player = &players[place].value;
-                // The greetings
-                send_message_and_update_stats(joined_id, &&HelloMessage {
-                    .byte_length = HelloMessage.sizeof,
-                    .kind        = HELLO,
-                    .payload     = {
-                        .id         = joined_player.player.id,
-                        .x          = joined_player.player.position.x,
-                        .y          = joined_player.player.position.y,
-                        .direction  = joined_player.player.direction,
-                        .hue        = joined_player.player.hue,
-                    }
-                });
-
-                // Reconstructing the state of the other players
-                if (players_joined_batch_message != null) {
-                    send_message_and_update_stats(joined_id, players_joined_batch_message);
-                }
-
-                // Reconstructing the state of items
-                if (items_spanwed_batch_message != null) {
-                    send_message_and_update_stats(joined_id, items_spanwed_batch_message);
-                }
-
-                // TODO: Reconstructing the state of bombs
-            }
-        }
-    }
-
-    // Notifying old player about who joined
-    PlayersJoinedBatchMessage *players_joined_batch_message = joined_players_as_batch_message();
-    if (players_joined_batch_message != null) {
-        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-            PlayerOnServerEntry* entry = &players[i];
-            if (stbds::@hmgeti(joined_ids, entry.value.player.id) < 0) { // Joined player should already know about themselves
-                send_message_and_update_stats(entry.value.player.id, players_joined_batch_message);
-            }
-        }
-    }
-}
+extern fn void process_joined_players(Item* items, usz items_count) @extern("process_joined_players");
 
 fn void process_left_players() {
     // Notifying about whom left
