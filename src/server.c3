@@ -24,12 +24,6 @@ const int SERVER_FPS = 60;
 
 extern fn void send_message_and_update_stats(uint player_id, void* message) @extern("send_message_and_update_stats");
 
-/// Connection Limits //////////////////////////////
-
-extern fn uint *connection_limits_get(ShortString remote_address)            @extern("connection_limits_get");
-extern fn void connection_limits_set(ShortString remote_address, uint count) @extern("connection_limits_set");
-extern fn void connection_limits_remove(ShortString remote_address)          @extern("connection_limits_remove");
-
 /// Items //////////////////////////////
 
 extern fn void collect_items_by_player(Player player, Item *items, usz items_count) @extern("collect_items_by_player");
@@ -73,20 +67,7 @@ extern PingEntry *ping_ids;
 extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
 extern fn void unregister_player(uint id) @extern("unregister_player");
 
-fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
-    if (stbds::hmlen(players) == 0) return null;
-    PlayersJoinedBatchMessage *message = common::alloc_players_joined_batch_message(stbds::hmlen(players));
-    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-        PlayerOnServerEntry* entry = &players[i];
-        message.payload[i].id        = entry.value.player.id;
-        message.payload[i].x         = entry.value.player.position.x;
-        message.payload[i].y         = entry.value.player.position.y;
-        message.payload[i].direction = entry.value.player.direction;
-        message.payload[i].hue       = entry.value.player.hue;
-        message.payload[i].moving    = entry.value.player.moving;
-    };
-    return message;
-}
+extern fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @extern("all_players_as_joined_batch_message");
 
 fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
     if (stbds::hmlen(joined_ids) == 0) return null;

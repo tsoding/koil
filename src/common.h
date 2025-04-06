@@ -53,8 +53,8 @@ typedef struct {
     uint32_t id;
     Vector2 position;
     float direction;
-    char moving;
-    char hue;
+    uint8_t moving;
+    uint8_t hue;
 } Player;
 
 // Items //////////////////////////////
@@ -65,7 +65,7 @@ typedef enum {
 } ItemKind;
 
 typedef struct {
-    /*ItemKind*/char kind;
+    /*ItemKind*/uint8_t kind;
     bool alive;
     Vector2 position;
 } Item;
@@ -169,5 +169,25 @@ typedef struct {
 } __attribute__((packed)) BombsExplodedBatchMessage;
 #define verify_bombs_exploded_batch_message(message) batch_message_verify(MK_BOMB_EXPLODED, message, sizeof(BombExploded))
 #define alloc_bombs_exploded_batch_message(count) (BombsExplodedBatchMessage*)batch_message_alloc(MK_BOMB_EXPLODED, count, sizeof(BombExploded))
+
+// NOTE: this struct intended to be part of the binary protocol to communicate the state of the player.
+// This is why it is packed. Do not confuse it with struct Player which is used to track the state of the player.
+typedef struct {
+    uint32_t id;
+    float x;
+    float y;
+    float direction;
+    uint8_t hue;
+    uint8_t moving;
+} __attribute__((packed)) PlayerStruct;
+
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    PlayerStruct payload[];
+} __attribute__((packed)) PlayersJoinedBatchMessage;
+
+#define verify_players_joined_batch_message(message) batch_message_verify(MK_PLAYER_JOINED, message, sizeof(PlayerStruct))
+#define alloc_players_joined_batch_message(count) (PlayersJoinedBatchMessage*)batch_message_alloc(MK_PLAYER_JOINED, count, sizeof(PlayerStruct))
 
 #endif // COMMON_H_

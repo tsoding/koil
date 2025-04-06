@@ -182,6 +182,21 @@ void unregister_player(uint32_t id) {
     }
 }
 
+PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
+    if (hmlen(players) == 0) return NULL;
+    PlayersJoinedBatchMessage *message = alloc_players_joined_batch_message(hmlen(players));
+    for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        message->payload[i].id        = entry->value.player.id;
+        message->payload[i].x         = entry->value.player.position.x;
+        message->payload[i].y         = entry->value.player.position.y;
+        message->payload[i].direction = entry->value.player.direction;
+        message->payload[i].hue       = entry->value.player.hue;
+        message->payload[i].moving    = entry->value.player.moving;
+    };
+    return message;
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};
