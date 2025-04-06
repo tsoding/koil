@@ -118,6 +118,7 @@ async function buildServer() {
         BUILD_FOLDER+"common.o",
         SRC_FOLDER+"server.c3",
         SRC_FOLDER+"common.c3",
+        SRC_FOLDER+"stb_ds.c3",
         SRC_FOLDER+"cws/cws.c3",
         SRC_FOLDER+"cws/coroutine.c3",
     ]);

@@ -10,6 +10,7 @@ import std::net::tcp;
 import std::thread;
 import std::time::clock;
 import libc;
+import stbds;
 
 import cws;
 import coroutine;
@@ -49,8 +50,12 @@ struct PlayerOnServer {         // WARNING! Must be in sync with the one in serv
     ShortString remote_address;
 }
 
-def PlayerOnServerEntry = Entry(<uint, PlayerOnServer>);
-HashMap(<uint, PlayerOnServer>) players;
+struct PlayerOnServerEntry {         // WARNING! Must be in sync with the one in server.c
+    uint key;
+    PlayerOnServer value;
+}
+
+extern PlayerOnServerEntry *players;
 
 def PlayerIdsEntry = Entry(<uint, bool>);
 HashMap(<uint, bool>) joined_ids;
@@ -58,15 +63,8 @@ HashMap(<uint, bool>) left_ids;
 def PingEntry = Entry(<uint, uint>);
 HashMap(<uint, uint>) ping_ids;
 
-fn PlayerOnServer *players_get(uint player_id) @export("players_get") {
-    if (try player = players.get_ref(player_id)) {
-        return player;
-    }
-    return null;
-}
-
 fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player") @wasm {
-    if (players.len() >= SERVER_TOTAL_LIMIT) {
+    if (stbds::hmlen(players) >= SERVER_TOTAL_LIMIT) {
         stats::inc_counter(PLAYERS_REJECTED, 1);
         return false;
     }
@@ -91,18 +89,18 @@ fn bool register_new_player(uint id, ShortString* remote_address) @extern("regis
         }
     }
 
-    assert(!players.has_key(id));
+    assert(stbds::@hmgeti(players, id) < 0);
     joined_ids.set(id, true);
 
     if (remote_address != null) {
-        players.set(id, {
+        stbds::@hmput(players, id, PlayerOnServer {
             .player = {
                 .id = id,
             },
             .remote_address = *remote_address,
         });
     } else {
-        players.set(id, {
+        stbds::@hmput(players, id, PlayerOnServer {
             .player = {
                 .id = id,
             },
@@ -117,7 +115,9 @@ fn bool register_new_player(uint id, ShortString* remote_address) @extern("regis
 
 fn void unregister_player(uint id) @export("server_unregister_player") {
     // console.log(`Player ${id} disconnected`);
-    if (try player = players.get(id)) {
+    iptr place = stbds::@hmgeti(players, id);
+    if (place >= 0) {
+        PlayerOnServer *player = &players[place].value;
         uint *count = connection_limits_get(player.remote_address);
         if (count) {
             if (*count <= 1) {
@@ -132,24 +132,22 @@ fn void unregister_player(uint id) @export("server_unregister_player") {
         }
         stats::inc_counter(PLAYERS_LEFT, 1);
         stats::inc_counter(PLAYERS_CURRENTLY, -1);
-        players.remove(id);
+        stbds::@hmdel(players, id);
     }
 }
 
 fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
-    if (players.is_empty()) return null;
-    PlayersJoinedBatchMessage *message = common::alloc_players_joined_batch_message(players.len());
-    int index = 0;
-    players.@each_entry(; PlayerOnServerEntry* entry) {
-        message.payload[index].id        = entry.value.player.id;
-        message.payload[index].x         = entry.value.player.position.x;
-        message.payload[index].y         = entry.value.player.position.y;
-        message.payload[index].direction = entry.value.player.direction;
-        message.payload[index].hue       = entry.value.player.hue;
-        message.payload[index].moving    = entry.value.player.moving;
-        index += 1;
+    if (stbds::hmlen(players) == 0) return null;
+    PlayersJoinedBatchMessage *message = common::alloc_players_joined_batch_message(stbds::hmlen(players));
+    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        message.payload[i].id        = entry.value.player.id;
+        message.payload[i].x         = entry.value.player.position.x;
+        message.payload[i].y         = entry.value.player.position.y;
+        message.payload[i].direction = entry.value.player.direction;
+        message.payload[i].hue       = entry.value.player.hue;
+        message.payload[i].moving    = entry.value.player.moving;
     };
-
     return message;
 }
 
@@ -163,7 +161,9 @@ fn PlayersJoinedBatchMessage *joined_players_as_batch_message() {
     int index = 0;
     joined_ids.@each_entry(; PlayerIdsEntry *entry) {
         uint joined_id = entry.key;
-        if (try joined_player = players.get(joined_id)) { // This should never happen, but we're handling none existing ids for more robustness
+        iptr place = stbds::@hmgeti(players, joined_id);
+        if (place >= 0) { // This should never happen, but we're handling none existing ids for more robustness
+            PlayerOnServer *joined_player = &players[place].value;
             message.payload[index].id        = joined_player.player.id;
             message.payload[index].x         = joined_player.player.position.x;
             message.payload[index].y         = joined_player.player.position.y;
@@ -203,7 +203,9 @@ fn void process_joined_players(Item[]* items) {
         // Greeting all the joined players and notifying them about other players
         joined_ids.@each_entry(; PlayerIdsEntry *entry) {
             uint joined_id = entry.key;
-            if (try joined_player = players.get(joined_id)) { // This should never happen, but we're handling none existing ids for more robustness
+            iptr place = stbds::@hmgeti(players, joined_id);
+            if (place >= 0) { // This should never happen, but we're handling none existing ids for more robustness
+                PlayerOnServer *joined_player = &players[place].value;
                 // The greetings
                 send_message_and_update_stats(joined_id, &&HelloMessage {
                     .byte_length = HelloMessage.sizeof,
@@ -235,11 +237,12 @@ fn void process_joined_players(Item[]* items) {
     // Notifying old player about who joined
     PlayersJoinedBatchMessage *players_joined_batch_message = joined_players_as_batch_message();
     if (players_joined_batch_message != null) {
-        players.@each_entry(; PlayerOnServerEntry* entry) {
+        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
             if (!joined_ids.has_key(entry.value.player.id)) { // Joined player should already know about themselves
                 send_message_and_update_stats(entry.value.player.id, players_joined_batch_message);
             }
-        };
+        }
     }
 }
 
@@ -247,18 +250,20 @@ fn void process_left_players() {
     // Notifying about whom left
     if (left_ids.is_empty()) return;
     PlayersLeftBatchMessage *players_left_batch_message = left_players_as_batch_message();
-    players.@each_entry(; PlayerOnServerEntry* entry) {
+    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
         send_message_and_update_stats(entry.value.player.id, players_left_batch_message);
-    };
+    }
 }
 
 fn void process_moving_players() {
     int count = 0;
-    players.@each_entry(; PlayerOnServerEntry* entry) {
+    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
         if (entry.value.new_moving != entry.value.player.moving) {
             count += 1;
         }
-    };
+    }
     if (count <= 0) return;
 
     int byte_length = PlayersMovingBatchMessage.sizeof + PlayerStruct.sizeof*count;
@@ -266,7 +271,8 @@ fn void process_moving_players() {
     message.byte_length = byte_length;
     message.kind = MessageKind.PLAYER_MOVING;
     int index = 0;
-    players.@each_entry(; PlayerOnServerEntry* entry) {
+    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
         if (entry.value.new_moving != entry.value.player.moving) {
             entry.value.player.moving = entry.value.new_moving;
             message.payload[index].id = entry.value.player.id;
@@ -276,43 +282,48 @@ fn void process_moving_players() {
             message.payload[index].moving = entry.value.player.moving;
             index += 1;
         }
-    };
+    }
 
-    players.@each_entry(; PlayerOnServerEntry* entry) {
+    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
         send_message_and_update_stats(entry.value.player.id, message);
-    };
+    }
 }
 
 fn void process_thrown_bombs(Bombs *bombs) {
     // Notifying about thrown bombs
     BombsSpawnedBatchMessage *bombs_spawned_batch_message = thrown_bombs_as_batch_message(bombs);
     if (bombs_spawned_batch_message != null) {
-        players.@each_entry(; PlayerOnServerEntry* entry) {
+        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
             send_message_and_update_stats(entry.value.player.id, bombs_spawned_batch_message);
-        };
+        }
     }
 }
 
 fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, float delta_time) {
     // Simulating the world for one server tick.
-    players.@each_entry(; PlayerOnServerEntry* entry) {
+    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
         common::update_player(&entry.value.player, scene, delta_time);
         collect_items_by_player(entry.value.player, (*items).ptr, (*items).len);
-    };
+    }
 
     ItemsCollectedBatchMessage *items_collected_batch_message = collected_items_as_batch_message();
     if (items_collected_batch_message) {
-        players.@each_entry(; PlayerOnServerEntry* entry) {
+        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
             send_message_and_update_stats(entry.value.player.id, items_collected_batch_message);
-        };
+        }
     }
 
     update_bombs_on_server_side(scene, delta_time, bombs);
     BombsExplodedBatchMessage *bombs_exploded_batch_message = exploded_bombs_as_batch_message(bombs);
     if (bombs_exploded_batch_message) {
-        players.@each_entry(; PlayerOnServerEntry* entry) {
+        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
             send_message_and_update_stats(entry.value.player.id, bombs_exploded_batch_message);
-        };
+        }
     }
 }
 
@@ -321,7 +332,9 @@ fn void process_pings() {
     ping_ids.@each_entry(; PingEntry *entry) {
         uint id = entry.key;
         uint timestamp = entry.value;
-        if (try player = players.get(id)) { // This MAY happen. A player may send a ping and leave.
+        iptr place = stbds::@hmgeti(players, id);
+        if (place >= 0) { // This MAY happen. A player may send a ping and leave.
+            PlayerOnServer *player = &players[place].value;
             send_message_and_update_stats(id, &&PongMessage {
                 .byte_length = PongMessage.sizeof,
                 .kind = PONG,
@@ -332,7 +345,9 @@ fn void process_pings() {
 }
 
 fn void player_update_moving(uint id, AmmaMovingMessage *message) {
-    if (try value = players.get_ref(id)) {
+    iptr place = stbds::@hmgeti(players, id);
+    if (place >= 0) {
+        PlayerOnServer *value = &players[place].value;
         if (message.payload.start) {
             value.new_moving |= (1<<(uint)message.payload.direction);
         } else {

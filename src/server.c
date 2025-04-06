@@ -60,15 +60,21 @@ typedef struct {         // WARNING! Must be in sync with the one in server.c3
     ShortString remote_address;
 } PlayerOnServer;
 
-PlayerOnServer *players_get(uint32_t player_id); // implemented in C3
+typedef struct {         // WARNING! Must be in sync with the one in server.c3
+    uint key;
+    PlayerOnServer value;
+} PlayerOnServerEntry;
+
+PlayerOnServerEntry *players = NULL;
 
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};
 
 void throw_bomb_on_server_side(uint32_t player_id, Bombs *bombs) {
-    PlayerOnServer *player = players_get(player_id);
-    if (player) {
+    ptrdiff_t place = hmgeti(players, player_id);
+    if (place >= 0) {
+        PlayerOnServer *player = &players[place].value;
         int index = throw_bomb(player->player.position, player->player.direction, bombs);
         if (index >= 0) da_append(&thrown_bombs, (size_t)index);
     }
