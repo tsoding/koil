@@ -400,6 +400,17 @@ BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) {
     return message;
 }
 
+void process_thrown_bombs(Bombs *bombs) {
+    // Notifying about thrown bombs
+    BombsSpawnedBatchMessage *bombs_spawned_batch_message = thrown_bombs_as_batch_message(bombs);
+    if (bombs_spawned_batch_message != NULL) {
+        for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
+            send_message_and_update_stats(entry->value.player.id, bombs_spawned_batch_message);
+        }
+    }
+}
+
 // Connections //////////////////////////////
 
 typedef struct {

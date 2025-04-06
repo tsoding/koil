@@ -68,17 +68,7 @@ extern fn bool register_new_player(uint id, ShortString* remote_address) @extern
 extern fn void process_joined_players(Item* items, usz items_count) @extern("process_joined_players");
 extern fn void process_left_players() @extern("process_left_players");
 extern fn void process_moving_players() @extern("process_moving_players");
-
-fn void process_thrown_bombs(Bombs *bombs) {
-    // Notifying about thrown bombs
-    BombsSpawnedBatchMessage *bombs_spawned_batch_message = thrown_bombs_as_batch_message(bombs);
-    if (bombs_spawned_batch_message != null) {
-        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-            PlayerOnServerEntry* entry = &players[i];
-            send_message_and_update_stats(entry.value.player.id, bombs_spawned_batch_message);
-        }
-    }
-}
+extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs");
 
 fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, float delta_time) {
     // Simulating the world for one server tick.
