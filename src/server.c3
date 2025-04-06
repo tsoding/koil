@@ -65,22 +65,8 @@ struct PingEntry {         // WARNING! Must be in sync with the on in server.c
 extern PingEntry *ping_ids;
 
 extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
-
-extern fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @extern("all_players_as_joined_batch_message");
-extern fn PlayersJoinedBatchMessage *joined_players_as_batch_message() @extern("joined_players_as_batch_message");
-extern fn PlayersLeftBatchMessage *left_players_as_batch_message() @extern("left_players_as_batch_message");
-
 extern fn void process_joined_players(Item* items, usz items_count) @extern("process_joined_players");
-
-fn void process_left_players() {
-    // Notifying about whom left
-    if (stbds::hmlen(left_ids) == 0) return;
-    PlayersLeftBatchMessage *players_left_batch_message = left_players_as_batch_message();
-    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-        PlayerOnServerEntry* entry = &players[i];
-        send_message_and_update_stats(entry.value.player.id, players_left_batch_message);
-    }
-}
+extern fn void process_left_players() @extern("process_left_players");
 
 fn void process_moving_players() {
     int count = 0;

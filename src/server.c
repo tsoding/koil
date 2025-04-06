@@ -296,6 +296,16 @@ void process_joined_players(Item* items, size_t items_count) {
     }
 }
 
+void process_left_players() {
+    // Notifying about whom left
+    if (hmlen(left_ids) == 0) return;
+    PlayersLeftBatchMessage *players_left_batch_message = left_players_as_batch_message();
+    for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        send_message_and_update_stats(entry->value.player.id, players_left_batch_message);
+    }
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};
