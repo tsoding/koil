@@ -158,6 +158,30 @@ bool register_new_player(uint32_t id, ShortString* remote_address) {
     return true;
 }
 
+void unregister_player(uint32_t id) {
+    // console.log(`Player ${id} disconnected`);
+    ptrdiff_t place = hmgeti(players, id);
+    if (place >= 0) {
+        PlayerOnServer *player = &players[place].value;
+        uint32_t *count = connection_limits_get(player->remote_address);
+        if (count) {
+            if (*count <= 1) {
+                connection_limits_remove(player->remote_address);
+            } else {
+                connection_limits_set(player->remote_address, *count - 1);
+            }
+        }
+
+        if (!hmdel(joined_ids, id)) {
+            hmput(left_ids, id, false);
+        }
+
+        stat_inc_counter(SE_PLAYERS_LEFT, 1);
+        stat_inc_counter(SE_PLAYERS_CURRENTLY, -1);
+        hmdel(players, id);
+    }
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};
@@ -252,7 +276,6 @@ void connections_set(uint32_t player_id, Cws cws)
 // Connection //////////////////////////////
 
 bool server_process_message_on_server(uint32_t id, Message* message); // Implemented in C3
-void server_unregister_player(uint32_t id); // Implemented in C3
 
 void client_connection(void *data)
 {
@@ -282,7 +305,7 @@ void client_connection(void *data)
     }
 
 defer:
-    server_unregister_player(id);
+    unregister_player(id);
     connections_remove(id);
     if (cws) {
         cws_close(cws);

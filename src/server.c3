@@ -71,30 +71,7 @@ struct PingEntry {         // WARNING! Must be in sync with the on in server.c
 extern PingEntry *ping_ids;
 
 extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
-
-fn void unregister_player(uint id) @export("server_unregister_player") {
-    // console.log(`Player ${id} disconnected`);
-    iptr place = stbds::@hmgeti(players, id);
-    if (place >= 0) {
-        PlayerOnServer *player = &players[place].value;
-        uint *count = connection_limits_get(player.remote_address);
-        if (count) {
-            if (*count <= 1) {
-                connection_limits_remove(player.remote_address);
-            } else {
-                connection_limits_set(player.remote_address, *count - 1);
-            }
-        }
-
-        if (!stbds::@hmdel(joined_ids, id)) {
-            stbds::@hmput(left_ids, id, false);
-        }
-
-        stats::inc_counter(PLAYERS_LEFT, 1);
-        stats::inc_counter(PLAYERS_CURRENTLY, -1);
-        stbds::@hmdel(players, id);
-    }
-}
+extern fn void unregister_player(uint id) @extern("unregister_player");
 
 fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() {
     if (stbds::hmlen(players) == 0) return null;
