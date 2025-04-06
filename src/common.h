@@ -190,4 +190,13 @@ typedef struct {
 #define verify_players_joined_batch_message(message) batch_message_verify(MK_PLAYER_JOINED, message, sizeof(PlayerStruct))
 #define alloc_players_joined_batch_message(count) (PlayersJoinedBatchMessage*)batch_message_alloc(MK_PLAYER_JOINED, count, sizeof(PlayerStruct))
 
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    uint32_t payload[];
+} __attribute__((packed)) PlayersLeftBatchMessage;
+#define PlayersLeftBatchMessage_count(self) BatchMessage_count((BatchMessage*)self, sizeof(uint))
+#define verify_players_left_batch_message(message) batch_message_verify(MK_PLAYER_LEFT, message, sizeof(uint))
+#define alloc_players_left_batch_message(count) (PlayersLeftBatchMessage*)batch_message_alloc(MK_PLAYER_LEFT, count, sizeof(uint))
+
 #endif // COMMON_H_

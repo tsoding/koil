@@ -220,6 +220,19 @@ PlayersJoinedBatchMessage *joined_players_as_batch_message() {
     return message;
 }
 
+PlayersLeftBatchMessage *left_players_as_batch_message() {
+    if (hmlen(left_ids) == 0) return NULL;
+    PlayersLeftBatchMessage *message = alloc_players_left_batch_message(hmlen(left_ids));
+    int index = 0;
+    for (ptrdiff_t i = 0; i < hmlen(left_ids); ++i) {
+        PlayerIdsEntry *entry = &left_ids[i];
+        uint32_t left_id = entry->key;
+        message->payload[index] = left_id;
+        index += 1;
+    }
+    return message;
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};

@@ -68,19 +68,7 @@ extern fn bool register_new_player(uint id, ShortString* remote_address) @extern
 
 extern fn PlayersJoinedBatchMessage *all_players_as_joined_batch_message() @extern("all_players_as_joined_batch_message");
 extern fn PlayersJoinedBatchMessage *joined_players_as_batch_message() @extern("joined_players_as_batch_message");
-
-fn PlayersLeftBatchMessage *left_players_as_batch_message() {
-    if (stbds::hmlen(left_ids) == 0) return null;
-    PlayersLeftBatchMessage *message = common::alloc_players_left_batch_message(stbds::hmlen(left_ids));
-    int index = 0;
-    for (iptr i = 0; i < stbds::hmlen(left_ids); ++i) {
-        PlayerIdsEntry *entry = &left_ids[i];
-        uint left_id = entry.key;
-        message.payload[index] = left_id;
-        index += 1;
-    }
-    return message;
-}
+extern fn PlayersLeftBatchMessage *left_players_as_batch_message() @extern("left_players_as_batch_message");
 
 fn void process_joined_players(Item[]* items) {
     if (stbds::hmlen(joined_ids) == 0) return;
