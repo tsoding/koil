@@ -25,7 +25,7 @@ Dependencies
 $ npm install
 $ node run build
 $ npm run serve
-$ <browser> https://localhost:6969/
+$ <browser> http://localhost:6969/
 ```
 
 This script starts up http-server at http://localhost:6969/ to serve the content of the current folder and the server of the game. See [serve.js](./serve.js) for more details.
