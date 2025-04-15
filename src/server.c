@@ -491,6 +491,7 @@ uint32_t send_message(uint32_t player_id, void *message_raw)
     Message* message = message_raw;
     int err = cws_send_message(cws, CWS_MESSAGE_BIN, message->bytes, message->byte_length - sizeof(message->byte_length));
     if (err < 0) {
+        // TODO: do not crash on failing to send a message
         fprintf(stderr, "ERROR: Could not send message to player %d: %s\n", player_id, cws_error_message(cws, (Cws_Error)err));
         exit(69);
     }
