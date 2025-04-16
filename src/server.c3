@@ -76,9 +76,7 @@ extern fn void process_pings() @extern("process_pings");
 
 extern fn void player_update_moving(uint id, AmmaMovingMessage *message) @extern("player_update_moving");
 
-fn void schedule_ping_for_player(uint id, PingMessage *message) {
-    stbds::@hmput(ping_ids, id, message.payload);
-}
+extern fn void schedule_ping_for_player(uint id, PingMessage *message) @extern("schedule_ping_for_player");
 
 fn void clear_intermediate_ids() {
     stbds::@hmfree(joined_ids);

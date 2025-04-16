@@ -471,6 +471,10 @@ void process_pings(void) {
     }
 }
 
+void schedule_ping_for_player(uint32_t id, PingMessage *message) {
+    hmput(ping_ids, id, message->payload);
+}
+
 // Connections //////////////////////////////
 
 typedef struct {

@@ -283,4 +283,12 @@ typedef struct {
 
 #define verify_amma_moving_message(message) batch_message_verify(MK_AMMA_MOVING, message, sizeof(AmmaMoving))
 
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    uint32_t payload;
+} __attribute__((packed)) PingMessage;
+
+#define verify_ping_message(message) batch_message_verify(MK_PING, message, sizeof(uint))
+
 #endif // COMMON_H_
