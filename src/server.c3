@@ -73,16 +73,9 @@ extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs"
 extern fn void process_world_simulation(Item *items, usz items_len, Scene *scene, Bombs *bombs, float delta_time) @extern("process_world_simulation");
 
 extern fn void process_pings() @extern("process_pings");
-
 extern fn void player_update_moving(uint id, AmmaMovingMessage *message) @extern("player_update_moving");
-
 extern fn void schedule_ping_for_player(uint id, PingMessage *message) @extern("schedule_ping_for_player");
-
-fn void clear_intermediate_ids() {
-    stbds::@hmfree(joined_ids);
-    stbds::@hmfree(left_ids);
-    stbds::@hmfree(ping_ids);
-}
+extern fn void clear_intermediate_ids() @extern("clear_intermediate_ids");
 
 fn bool process_message_on_server(uint id, Message* message) @export("server_process_message_on_server") {
     stats::inc_counter(MESSAGES_RECEIVED, 1);

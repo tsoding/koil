@@ -475,6 +475,12 @@ void schedule_ping_for_player(uint32_t id, PingMessage *message) {
     hmput(ping_ids, id, message->payload);
 }
 
+void clear_intermediate_ids(void) {
+    hmfree(joined_ids);
+    hmfree(left_ids);
+    hmfree(ping_ids);
+}
+
 // Connections //////////////////////////////
 
 typedef struct {
