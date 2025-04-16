@@ -5,7 +5,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifndef PI
+#define PI 3.14159265358979323846f
+#endif // PI
+
 #define PLAYER_RADIUS 0.5f
+#define PLAYER_SPEED 2.0f
+#define PLAYER_SIZE 0.5f
 #define BOMB_LIFETIME 2.0f
 #define BOMB_THROW_VELOCITY 5.0f
 
@@ -19,6 +25,7 @@ typedef struct {
     float x, y;
 } Vector2;
 
+Vector2 vector2_add(Vector2 a, Vector2 b);
 float vector2_distance(Vector2 a, Vector2 b);
 Vector2 vector2_sub(Vector2 a, Vector2 b);
 float vector2_length(Vector2 a);
@@ -47,7 +54,21 @@ typedef struct {
     size_t capacity;
 } Assets;
 
+// Scene //////////////////////////////
+
+typedef void Scene;
+
+bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy); // Implemented in C3
+
 // Player //////////////////////////////
+
+typedef enum {
+    MOVING_FORWARD,
+    MOVING_BACKWARD,
+    TURNING_LEFT,
+    TURNING_RIGHT,
+    COUNT_MOVINGS,
+} Moving;
 
 typedef struct {
     uint32_t id;
@@ -56,6 +77,8 @@ typedef struct {
     uint8_t moving;
     uint8_t hue;
 } Player;
+
+void update_player(Player *player, Scene *scene, float delta_time);
 
 // Items //////////////////////////////
 
@@ -71,10 +94,6 @@ typedef struct {
 } Item;
 
 bool collect_item(Player player, Item *item);
-
-// Scene //////////////////////////////
-
-typedef void Scene;
 
 // Bombs //////////////////////////////
 

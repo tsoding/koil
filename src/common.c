@@ -7,6 +7,12 @@ float vector2_distance(Vector2 a, Vector2 b){
     return vector2_length(b);
 }
 
+Vector2 vector2_add(Vector2 a, Vector2 b) {
+    a.x += b.x;
+    a.y += b.y;
+    return a;
+}
+
 Vector2 vector2_sub(Vector2 a, Vector2 b) {
     a.x -= b.x;
     a.y -= b.y;
@@ -110,4 +116,33 @@ int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
         }
     }
     return -1;
+}
+
+// Player //////////////////////////////
+
+void update_player(Player *player, Scene *scene, float delta_time) {
+    Vector2 control_velocity = {0, 0};
+    float angular_velocity = 0.0;
+    if ((player->moving>>(uint32_t)MOVING_FORWARD)&1) {
+        control_velocity = vector2_add(control_velocity, vector2_from_polar(player->direction, PLAYER_SPEED));
+    }
+    if ((player->moving>>(uint32_t)MOVING_BACKWARD)&1) {
+        control_velocity = vector2_sub(control_velocity, vector2_from_polar(player->direction, PLAYER_SPEED));
+    }
+    if ((player->moving>>(uint32_t)TURNING_LEFT)&1) {
+        angular_velocity -= PI;
+    }
+    if ((player->moving>>(uint32_t)TURNING_RIGHT)&1) {
+        angular_velocity += PI;
+    }
+    player->direction = __builtin_fmodf(player->direction + angular_velocity*delta_time, 2*PI);
+
+    float nx = player->position.x + control_velocity.x*delta_time;
+    if (scene_can_rectangle_fit_here(scene, nx, player->position.y, PLAYER_SIZE, PLAYER_SIZE)) {
+        player->position.x = nx;
+    }
+    float ny = player->position.y + control_velocity.y*delta_time;
+    if (scene_can_rectangle_fit_here(scene, player->position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
+        player->position.y = ny;
+    }
 }

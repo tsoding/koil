@@ -90,7 +90,7 @@ fn bool Scene.get_tile(&scene, Vector2 p) {
     return false;
 }
 
-fn bool Scene.can_rectangle_fit_here(&scene, float px, float py, float sx, float sy) {
+fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy) @export("scene_can_rectangle_fit_here") {
     int x1 = (int)math::floor(px - sx*0.5f);
     int x2 = (int)math::floor(px + sx*0.5f);
     int y1 = (int)math::floor(py - sy*0.5f);
@@ -375,32 +375,7 @@ struct PingMessage @packed {
 }
 macro verify_ping_message(message) => msg::batch::verify(MessageKind.PING, message, uint.sizeof);
 
-fn void update_player(Player *player, Scene *scene, float delta_time) {
-    Vector2 control_velocity = {0, 0};
-    float angular_velocity = 0.0;
-    if ((player.moving>>(uint)Moving.MOVING_FORWARD)&1) {
-        control_velocity = vector2::add(control_velocity, vector2::from_polar(player.direction, PLAYER_SPEED));
-    }
-    if ((player.moving>>(uint)Moving.MOVING_BACKWARD)&1) {
-        control_velocity = vector2::sub(control_velocity, vector2::from_polar(player.direction, PLAYER_SPEED));
-    }
-    if ((player.moving>>(uint)Moving.TURNING_LEFT)&1) {
-        angular_velocity -= math::PI;
-    }
-    if ((player.moving>>(uint)Moving.TURNING_RIGHT)&1) {
-        angular_velocity += math::PI;
-    }
-    player.direction = (player.direction + angular_velocity*delta_time)%(2*(float)math::PI);
-
-    float nx = player.position.x + control_velocity.x*delta_time;
-    if (scene.can_rectangle_fit_here(nx, player.position.y, PLAYER_SIZE, PLAYER_SIZE)) {
-        player.position.x = nx;
-    }
-    float ny = player.position.y + control_velocity.y*delta_time;
-    if (scene.can_rectangle_fit_here(player.position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
-        player.position.y = ny;
-    }
-}
+extern fn void update_player(Player *player, Scene *scene, float delta_time) @extern("update_player");
 
 /// Temporary Memory //////////////////////////////
 
@@ -436,12 +411,7 @@ struct Vector2 {
 
 extern fn Vector2 xx(float x) @extern("vector2_xx");
 
-fn Vector2 add(Vector2 a, Vector2 b) {
-    a.x += b.x;
-    a.y += b.y;
-    return a;
-}
-
+extern fn Vector2 add(Vector2 a, Vector2 b) @extern("vector2_add");
 extern fn Vector2 sub(Vector2 a, Vector2 b) @extern("vector2_sub");
 extern fn Vector2 mul(Vector2 a, Vector2 b) @extern("vector2_mul");
 

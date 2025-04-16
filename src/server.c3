@@ -70,31 +70,7 @@ extern fn void process_left_players() @extern("process_left_players");
 extern fn void process_moving_players() @extern("process_moving_players");
 extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs");
 
-fn void process_world_simulation(Item[] *items, Scene *scene, Bombs *bombs, float delta_time) {
-    // Simulating the world for one server tick.
-    for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-        PlayerOnServerEntry* entry = &players[i];
-        common::update_player(&entry.value.player, scene, delta_time);
-        collect_items_by_player(entry.value.player, (*items).ptr, (*items).len);
-    }
-
-    ItemsCollectedBatchMessage *items_collected_batch_message = collected_items_as_batch_message();
-    if (items_collected_batch_message) {
-        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-            PlayerOnServerEntry* entry = &players[i];
-            send_message_and_update_stats(entry.value.player.id, items_collected_batch_message);
-        }
-    }
-
-    update_bombs_on_server_side(scene, delta_time, bombs);
-    BombsExplodedBatchMessage *bombs_exploded_batch_message = exploded_bombs_as_batch_message(bombs);
-    if (bombs_exploded_batch_message) {
-        for (iptr i = 0; i < stbds::hmlen(players); ++i) {
-            PlayerOnServerEntry* entry = &players[i];
-            send_message_and_update_stats(entry.value.player.id, bombs_exploded_batch_message);
-        }
-    }
-}
+extern fn void process_world_simulation(Item *items, usz items_len, Scene *scene, Bombs *bombs, float delta_time) @extern("process_world_simulation");
 
 fn void process_pings() {
     // Sending out pings
@@ -170,7 +146,7 @@ fn uint tick() @extern("tick") @wasm {
     process_left_players();
     process_moving_players();
     process_thrown_bombs(&common::bombs);
-    process_world_simulation(&common::items, &common::scene, &common::bombs, delta_time);
+    process_world_simulation(common::items.ptr, common::items.len, &common::scene, &common::bombs, delta_time);
     process_pings();
 
     uint tickTime = now_msecs() - timestamp;

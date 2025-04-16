@@ -411,6 +411,34 @@ void process_thrown_bombs(Bombs *bombs) {
     }
 }
 
+// World //////////////////////////////
+
+void process_world_simulation(Item *items, size_t items_len, Scene *scene, Bombs *bombs, float delta_time) {
+    // Simulating the world for one server tick.
+    for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+        PlayerOnServerEntry* entry = &players[i];
+        update_player(&entry->value.player, scene, delta_time);
+        collect_items_by_player(entry->value.player, items, items_len);
+    }
+
+    ItemsCollectedBatchMessage *items_collected_batch_message = collected_items_as_batch_message();
+    if (items_collected_batch_message) {
+        for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
+            send_message_and_update_stats(entry->value.player.id, items_collected_batch_message);
+        }
+    }
+
+    update_bombs_on_server_side(scene, delta_time, bombs);
+    BombsExplodedBatchMessage *bombs_exploded_batch_message = exploded_bombs_as_batch_message(bombs);
+    if (bombs_exploded_batch_message) {
+        for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
+            PlayerOnServerEntry* entry = &players[i];
+            send_message_and_update_stats(entry->value.player.id, bombs_exploded_batch_message);
+        }
+    }
+}
+
 // Connections //////////////////////////////
 
 typedef struct {
