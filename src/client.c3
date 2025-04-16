@@ -451,24 +451,24 @@ fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime,
     }
 }
 
-fn void kill_all_items(Item[]* items) {
-    foreach (&item: *items) {
-        item.alive = false;
+fn void kill_all_items(Item* items, usz items_count) {
+    for (usz i = 0; i < items_count; ++i) {
+        items[i].alive = false;
     }
 }
 
-fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message, Item[]* items) {
+fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message, Item* items, usz items_count) {
     usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
 
     for (usz i = 0; i < count; ++i) {
         int itemIndex = message.payload[i];
 
-        if (!(0 <= itemIndex && itemIndex < items.len)) {
+        if (!(0 <= itemIndex && itemIndex < items_count)) {
             io::printn(string::tformat("Received bogus-amogus ItemCollected message from server. Invalid index %d", itemIndex));
             return false;
         }
 
-        Item *item = &(*items)[itemIndex];
+        Item *item = &items[itemIndex];
 
         if (item.alive) {
             item.alive = false;
@@ -479,15 +479,15 @@ fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message,
     return true;
 }
 
-fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Item[]* items) {
+fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Item* items, usz items_count) {
     usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/ItemSpawned.sizeof;
     for (usz i = 0; i < count; ++i) {
         int itemIndex = message.payload[i].itemIndex;
-        if (!(0 <= itemIndex && itemIndex < items.len)) {
+        if (!(0 <= itemIndex && itemIndex < items_count)) {
             io::printn(string::tformat("Received bogus-amogus ItemSpawned message from server. Invalid item index %d", itemIndex));
             return false;
         }
-        Item *item = &(*items)[itemIndex];
+        Item *item = &items[itemIndex];
         item.alive = true;
         item.kind = message.payload[i].itemKind;
         item.position.x = message.payload[i].x;
@@ -497,8 +497,9 @@ fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Ite
     return true;
 }
 
-fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *key_image, Image *bomb_image) {
-    foreach (item: *items) {
+fn void render_items(SpritePool *sprite_pool, Item* items, usz items_count, float time, Image *key_image, Image *bomb_image) {
+    for (usz i = 0; i < items_count; ++i) {
+        Item *item = &items[i];
         if (item.alive) {
             float z = 0.25f + ITEM_AMP - ITEM_AMP*math::sin(ITEM_FREQ*(float)math::PI*time + item.position.x + item.position.y);
             switch (item.kind) {
@@ -511,21 +512,22 @@ fn void render_items(SpritePool *sprite_pool, Item[]* items, float time, Image *
     }
 }
 
-fn void update_items_offline(Item[]* items) {
-    foreach (item_index, &item: *items) {
+fn void update_items_offline(Item *items, usz items_count) {
+    for (usz item_index = 0; item_index < items_count; ++item_index) {
+        Item *item = &items[item_index];
         if (common::collect_item(me, item)) {
             platform::play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
         }
     }
 }
 
-fn void update_items(SpritePool *sprite_pool, float time, Item[] *items, Image *key_image, Image *bomb_image) {
+fn void update_items(SpritePool *sprite_pool, float time, Item *items, usz items_count, Image *key_image, Image *bomb_image) {
     // Rendering the items as sprites
-    render_items(sprite_pool, items, time, key_image, bomb_image);
+    render_items(sprite_pool, items, items_count, time, key_image, bomb_image);
 
     // Offline mode. Updating items state without asking the server.
     if (platform::is_offline_mode()) {
-        update_items_offline(items);
+        update_items_offline(items, items_count);
     }
 }
 
@@ -618,10 +620,10 @@ const Control[*] CONTROL_KEYS = {
     {83, MOVING_BACKWARD},
 };
 
-fn bool apply_hello_message_to_me(HelloPlayer hello_player, Item[]* items) {
+fn bool apply_hello_message_to_me(HelloPlayer hello_player, Item *items, usz items_count) {
     // TODO: maybe we should reset everything (bombs, etc) on hello message
     // So to let the server recreate the world properly
-    kill_all_items(items);
+    kill_all_items(items, items_count);
     me.id         = hello_player.id;
     me.position.x = hello_player.x;
     me.position.y = hello_player.y;
@@ -800,7 +802,7 @@ fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
     Image player_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
 
     update_all_players(&common::scene, delta_time);
-    update_items(&sprite_pool, time, &common::items, &key_image, &bomb_image);
+    update_items(&sprite_pool, time, common::items_ptr(), common::items_len(), &key_image, &bomb_image);
     update_bombs_on_client_side(&sprite_pool, &particle_pool, &bomb_image, &common::scene, delta_time, &common::bombs);
     update_particles(&particle_image, &sprite_pool, delta_time, &common::scene, &particle_pool);
 
@@ -842,7 +844,7 @@ fn uint ping_msecs() @extern("ping_msecs") @wasm {
 
 fn bool process_message(Message *message) @extern("process_message") @wasm {
     if (common::verify_hello_message(message)) {
-        apply_hello_message_to_me(((HelloMessage*)message).payload, &common::items);
+        apply_hello_message_to_me(((HelloMessage*)message).payload, common::items_ptr(), common::items_len());
         return true;
     }
     if (common::verify_players_joined_batch_message(message)) {
@@ -862,11 +864,11 @@ fn bool process_message(Message *message) @extern("process_message") @wasm {
         return true;
     }
     if (common::verify_items_collected_batch_message(message)) {
-        if (!apply_items_collected_batch_message((ItemsCollectedBatchMessage*)message, &common::items)) return false;
+        if (!apply_items_collected_batch_message((ItemsCollectedBatchMessage*)message, common::items_ptr(), common::items_len())) return false;
         return true;
     }
     if (common::verify_items_spawned_batch_message(message)) {
-        if (!apply_items_spawned_batch_message((ItemsSpawnedBatchMessage*)message, &common::items)) return false;
+        if (!apply_items_spawned_batch_message((ItemsSpawnedBatchMessage*)message, common::items_ptr(), common::items_len())) return false;
         return true;
     }
     if (common::verify_bombs_spawned_batch_message(message)) {

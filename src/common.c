@@ -99,6 +99,47 @@ ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item *items, size_t items_c
     return message;
 }
 
+static Item items[] = {
+    {
+        .kind = ITEM_BOMB,
+        .position = {1.5, 3.5},
+        .alive = true,
+    },
+    {
+        .kind = ITEM_KEY,
+        .position = {2.5, 1.5},
+        .alive = true,
+    },
+    {
+        .kind = ITEM_KEY,
+        .position = {3, 1.5},
+        .alive = true,
+    },
+    {
+        .kind = ITEM_KEY,
+        .position = {3.5, 1.5},
+        .alive = true,
+    },
+    {
+        .kind = ITEM_KEY,
+        .position = {4.0, 1.5},
+        .alive = true,
+    },
+    {
+        .kind = ITEM_KEY,
+        .position = {4.5, 1.5},
+        .alive = true,
+    },
+};
+
+Item *items_ptr() {
+    return items;
+}
+
+size_t items_len() {
+    return sizeof(items)/sizeof(items[0]);
+}
+
 // Bombs //////////////////////////////
 
 int throw_bomb(Vector2 position, float direction, Bombs *bombs) {

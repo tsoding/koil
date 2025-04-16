@@ -94,6 +94,8 @@ typedef struct {
 } Item;
 
 bool collect_item(Player player, Item *item);
+Item *items_ptr();
+size_t items_len();
 
 // Bombs //////////////////////////////
 

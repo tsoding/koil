@@ -81,11 +81,11 @@ fn uint tick() @extern("tick") @wasm {
     float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
     previous_timestamp = timestamp;
 
-    process_joined_players(common::items.ptr, common::items.len);
+    process_joined_players(common::items_ptr(), common::items_len());
     process_left_players();
     process_moving_players();
     process_thrown_bombs(&common::bombs);
-    process_world_simulation(common::items.ptr, common::items.len, &common::scene, &common::bombs, delta_time);
+    process_world_simulation(common::items_ptr(), common::items_len(), &common::scene, &common::bombs, delta_time);
     process_pings();
 
     uint tickTime = now_msecs() - timestamp;

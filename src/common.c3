@@ -118,38 +118,8 @@ struct Item {
     Vector2 position;
 }
 
-Item[] items = {
-    {
-        .kind = ItemKind.BOMB,
-        .position = {1.5, 3.5},
-        .alive = true,
-    },
-    {
-        .kind = ItemKind.KEY,
-        .position = {2.5, 1.5},
-        .alive = true,
-    },
-    {
-        .kind = ItemKind.KEY,
-        .position = {3, 1.5},
-        .alive = true,
-    },
-    {
-        .kind = ItemKind.KEY,
-        .position = {3.5, 1.5},
-        .alive = true,
-    },
-    {
-        .kind = ItemKind.KEY,
-        .position = {4.0, 1.5},
-        .alive = true,
-    },
-    {
-        .kind = ItemKind.KEY,
-        .position = {4.5, 1.5},
-        .alive = true,
-    },
-};
+extern fn Item *items_ptr() @extern("items_ptr");
+extern fn usz items_len() @extern("items_len");
 
 extern fn bool collect_item(Player player, Item *item) @extern("collect_item");
 
