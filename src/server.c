@@ -27,6 +27,7 @@ Arena temp = {0};
 // Forward declarations //////////////////////////////
 
 void send_message_and_update_stats(uint32_t player_id, void* message);
+bool process_message_on_server(uint32_t id, Message* message);
 
 // Items //////////////////////////////
 
@@ -511,8 +512,6 @@ void connections_set(uint32_t player_id, Cws cws)
 
 // Connection //////////////////////////////
 
-bool server_process_message_on_server(uint32_t id, Message* message); // Implemented in C3
-
 void client_connection(void *data)
 {
     uint32_t id = (uint32_t)(uintptr_t)data;
@@ -536,7 +535,7 @@ void client_connection(void *data)
         Message *message = allocate_temporary_buffer(byte_length);
         message->byte_length = byte_length;
         memcpy(message->bytes, cws_message.payload, cws_message.payload_len);
-        if (!server_process_message_on_server(id, message)) return;
+        if (!process_message_on_server(id, message)) return;
         arena_reset(&cws->arena);
     }
 
@@ -575,6 +574,30 @@ void send_message_and_update_stats(uint32_t player_id, void* message)
         bytes_sent_within_tick += sent;
         message_sent_within_tick += 1;
     }
+}
+
+bool process_message_on_server(uint32_t id, Message* message) {
+    stat_inc_counter(SE_MESSAGES_RECEIVED, 1);
+    messages_recieved_within_tick += 1;
+    stat_inc_counter(SE_BYTES_RECEIVED, message->byte_length);
+    bytes_received_within_tick += message->byte_length;
+
+    if (verify_amma_moving_message(message)) {
+        player_update_moving(id, (AmmaMovingMessage*)message);
+        return true;
+    }
+    if (verify_amma_throwing_message(message)) {
+        throw_bomb_on_server_side(id, &bombs);
+        return true;
+    }
+    if (verify_ping_message(message)) {
+        schedule_ping_for_player(id, (PingMessage*)message);
+        return true;
+    }
+
+    // console.log(`Received bogus-amogus message from client ${id}:`, view)
+    stat_inc_counter(SE_BOGUS_AMOGUS_MESSAGES, 1);
+    return false;
 }
 
 // Cws_Socket //////////////////////////////

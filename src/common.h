@@ -145,6 +145,7 @@ typedef struct {
 } __attribute__((packed)) BatchMessage;
 
 bool batch_message_verify(MessageKind kind, Message *message, size_t payload_size);
+bool batch_message_verify_empty(MessageKind kind, Message *message);
 BatchMessage *batch_message_alloc(MessageKind kind, size_t count, size_t payload_size);
 
 typedef struct {
@@ -290,5 +291,12 @@ typedef struct {
 } __attribute__((packed)) PingMessage;
 
 #define verify_ping_message(message) batch_message_verify(MK_PING, message, sizeof(uint))
+
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+} __attribute__((packed)) AmmaThrowingMessage;
+
+#define verify_amma_throwing_message(message) batch_message_verify_empty(MK_AMMA_THROWING, message)
 
 #endif // COMMON_H_

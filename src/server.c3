@@ -73,33 +73,7 @@ extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs"
 extern fn void process_world_simulation(Item *items, usz items_len, Scene *scene, Bombs *bombs, float delta_time) @extern("process_world_simulation");
 
 extern fn void process_pings() @extern("process_pings");
-extern fn void player_update_moving(uint id, AmmaMovingMessage *message) @extern("player_update_moving");
-extern fn void schedule_ping_for_player(uint id, PingMessage *message) @extern("schedule_ping_for_player");
 extern fn void clear_intermediate_ids() @extern("clear_intermediate_ids");
-
-fn bool process_message_on_server(uint id, Message* message) @export("server_process_message_on_server") {
-    stats::inc_counter(MESSAGES_RECEIVED, 1);
-    stats::messages_recieved_within_tick += 1;
-    stats::inc_counter(BYTES_RECEIVED, message.byte_length);
-    stats::bytes_received_within_tick += message.byte_length;
-
-    if (common::verify_amma_moving_message(message)) {
-        player_update_moving(id, (AmmaMovingMessage*)message);
-        return true;
-    }
-    if (common::verify_amma_throwing_message(message)) {
-        throw_bomb_on_server_side(id, &common::bombs);
-        return true;
-    }
-    if (common::verify_ping_message(message)) {
-        schedule_ping_for_player(id, (PingMessage*)message);
-        return true;
-    }
-
-    // console.log(`Received bogus-amogus message from client ${id}:`, view)
-    stats::inc_counter(BOGUS_AMOGUS_MESSAGES, 1);
-    return false;
-}
 
 uint previous_timestamp = 0;
 fn uint tick() @extern("tick") @wasm {
