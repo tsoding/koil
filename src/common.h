@@ -262,4 +262,12 @@ typedef struct {
 #define verify_players_moving_batch_message(message) batch_message_verify(MK_PLAYER_MOVING, message, sizeof(PlayerStruct))
 #define alloc_players_moving_batch_message(count) (PlayersMovingBatchMessage*)batch_message_alloc(MK_PLAYER_MOVING, count, sizeof(PlayerStruct))
 
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    uint32_t payload;
+} __attribute__((packed)) PongMessage;
+
+#define verify_pong_message(message) batch_message_verify(MK_PONG, message, sizeof(uint32_t));
+
 #endif // COMMON_H_

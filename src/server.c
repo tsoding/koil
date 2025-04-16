@@ -439,6 +439,26 @@ void process_world_simulation(Item *items, size_t items_len, Scene *scene, Bombs
     }
 }
 
+// Pings //////////////////////////////
+
+void process_pings(void) {
+    // Sending out pings
+    for (ptrdiff_t i = 0; i < hmlen(ping_ids); ++i) {
+        PingEntry *entry = &ping_ids[i];
+        uint32_t id = entry->key;
+        uint32_t timestamp = entry->value;
+        ptrdiff_t place = hmgeti(players, id);
+        if (place >= 0) { // This MAY happen. A player may send a ping and leave.
+            PongMessage pong_message = {
+                .byte_length = sizeof(PongMessage),
+                .kind = MK_PONG,
+                .payload = timestamp,
+            };
+            send_message_and_update_stats(id, &pong_message);
+        }
+    }
+}
+
 // Connections //////////////////////////////
 
 typedef struct {

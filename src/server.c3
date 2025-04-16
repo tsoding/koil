@@ -72,23 +72,7 @@ extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs"
 
 extern fn void process_world_simulation(Item *items, usz items_len, Scene *scene, Bombs *bombs, float delta_time) @extern("process_world_simulation");
 
-fn void process_pings() {
-    // Sending out pings
-    for (iptr i = 0; i < stbds::hmlen(ping_ids); ++i) {
-        PingEntry *entry = &ping_ids[i];
-        uint id = entry.key;
-        uint timestamp = entry.value;
-        iptr place = stbds::@hmgeti(players, id);
-        if (place >= 0) { // This MAY happen. A player may send a ping and leave.
-            PlayerOnServer *player = &players[place].value;
-            send_message_and_update_stats(id, &&PongMessage {
-                .byte_length = PongMessage.sizeof,
-                .kind = PONG,
-                .payload = timestamp,
-            });
-        }
-    }
-}
+extern fn void process_pings() @extern("process_pings");
 
 fn void player_update_moving(uint id, AmmaMovingMessage *message) {
     iptr place = stbds::@hmgeti(players, id);
