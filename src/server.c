@@ -337,6 +337,18 @@ void process_moving_players() {
     }
 }
 
+void player_update_moving(uint32_t id, AmmaMovingMessage *message) {
+    ptrdiff_t place = hmgeti(players, id);
+    if (place >= 0) {
+        PlayerOnServer *value = &players[place].value;
+        if (message->payload.start) {
+            value->new_moving |= (1<<(uint32_t)message->payload.direction);
+        } else {
+            value->new_moving &= ~(1<<(uint32_t)message->payload.direction);
+        }
+    }
+}
+
 /// Bombs //////////////////////////////
 
 Indices thrown_bombs = {0};

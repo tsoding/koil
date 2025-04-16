@@ -268,6 +268,19 @@ typedef struct {
     uint32_t payload;
 } __attribute__((packed)) PongMessage;
 
-#define verify_pong_message(message) batch_message_verify(MK_PONG, message, sizeof(uint32_t));
+#define verify_pong_message(message) batch_message_verify(MK_PONG, message, sizeof(uint32_t))
+
+typedef struct {
+    /*Moving*/ uint8_t direction;
+    uint8_t start;
+} __attribute__((packed)) AmmaMoving;
+
+typedef struct {
+    uint32_t byte_length;
+    /*MessageKind*/ uint8_t kind;
+    AmmaMoving payload;
+} __attribute__((packed)) AmmaMovingMessage;
+
+#define verify_amma_moving_message(message) batch_message_verify(MK_AMMA_MOVING, message, sizeof(AmmaMoving))
 
 #endif // COMMON_H_

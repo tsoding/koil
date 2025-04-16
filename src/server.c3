@@ -74,17 +74,7 @@ extern fn void process_world_simulation(Item *items, usz items_len, Scene *scene
 
 extern fn void process_pings() @extern("process_pings");
 
-fn void player_update_moving(uint id, AmmaMovingMessage *message) {
-    iptr place = stbds::@hmgeti(players, id);
-    if (place >= 0) {
-        PlayerOnServer *value = &players[place].value;
-        if (message.payload.start) {
-            value.new_moving |= (1<<(uint)message.payload.direction);
-        } else {
-            value.new_moving &= ~(1<<(uint)message.payload.direction);
-        }
-    }
-}
+extern fn void player_update_moving(uint id, AmmaMovingMessage *message) @extern("player_update_moving");
 
 fn void schedule_ping_for_player(uint id, PingMessage *message) {
     stbds::@hmput(ping_ids, id, message.payload);
