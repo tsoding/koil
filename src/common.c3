@@ -336,7 +336,7 @@ extern fn void update_player(Player *player, float delta_time) @extern("update_p
 /// Temporary Memory //////////////////////////////
 
 usz temp_mark = 0;
-fn void reset_temp_mark() {
+fn void reset_temp_mark() @export("reset_temp_mark") {
     allocator::temp().reset(temp_mark);
 }
 

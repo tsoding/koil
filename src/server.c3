@@ -18,104 +18,18 @@ import arena;
 import common;
 
 // WARNING! Must be in sync with the value in server.c
-const usz SERVER_TOTAL_LIMIT = 2000;
-const usz SERVER_SINGLE_IP_LIMIT = 10;
 const int SERVER_FPS = 60;
-
-extern fn void send_message_and_update_stats(uint player_id, void* message) @extern("send_message_and_update_stats");
-
-/// Items //////////////////////////////
-
-extern fn void collect_items_by_player(Player player, Item *items, usz items_count) @extern("collect_items_by_player");
-extern fn ItemsCollectedBatchMessage *collected_items_as_batch_message() @extern ("collected_items_as_batch_message");
-
-/// Bombs //////////////////////////////
-
-extern fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) @extern("throw_bomb_on_server_side");
-extern fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern("thrown_bombs_as_batch_message");
-extern fn void update_bombs_on_server_side(float delta_time, Bombs *bombs) @extern("update_bombs_on_server_side");
-extern fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) @extern("exploded_bombs_as_batch_message");
 
 /// Player //////////////////////////////
 
-struct PlayerOnServer {         // WARNING! Must be in sync with the one in server.c
-    Player player;
-    char new_moving;
-    ShortString remote_address;
-}
-
-struct PlayerOnServerEntry {         // WARNING! Must be in sync with the one in server.c
-    uint key;
-    PlayerOnServer value;
-}
-
-extern PlayerOnServerEntry *players;
-
-struct PlayerIdsEntry {         // WARNING! Must be in sync with the on in server.c
-    uint key;
-    bool value;
-}
-extern PlayerIdsEntry* joined_ids;
-extern PlayerIdsEntry* left_ids;
-
-struct PingEntry {         // WARNING! Must be in sync with the on in server.c
-    uint key;
-    uint value;
-}
-extern PingEntry *ping_ids;
-
 extern fn bool register_new_player(uint id, ShortString* remote_address) @extern("register_new_player");
-extern fn void process_joined_players(Item* items, usz items_count) @extern("process_joined_players");
-extern fn void process_left_players() @extern("process_left_players");
-extern fn void process_moving_players() @extern("process_moving_players");
-extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs");
 
-extern fn void process_world_simulation(Item *items, usz items_len, Bombs *bombs, float delta_time) @extern("process_world_simulation");
-
-extern fn void process_pings() @extern("process_pings");
-extern fn void clear_intermediate_ids() @extern("clear_intermediate_ids");
-
-uint previous_timestamp = 0;
-fn uint tick() @extern("tick") @wasm {
-    uint timestamp = now_msecs();
-    float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
-    previous_timestamp = timestamp;
-
-    process_joined_players(common::items_ptr(), common::items_len());
-    process_left_players();
-    process_moving_players();
-    process_thrown_bombs(&common::bombs);
-    process_world_simulation(common::items_ptr(), common::items_len(), &common::bombs, delta_time);
-    process_pings();
-
-    uint tickTime = now_msecs() - timestamp;
-    stats::inc_counter(TICKS_COUNT, 1);
-    stats::push_sample(TICK_TIMES, tickTime/1000.0f);
-    stats::inc_counter(MESSAGES_SENT, stats::message_sent_within_tick);
-    stats::push_sample(TICK_MESSAGES_SENT, stats::message_sent_within_tick);
-    stats::push_sample(TICK_MESSAGES_RECEIVED, stats::messages_recieved_within_tick);
-    stats::inc_counter(BYTES_SENT, stats::bytes_sent_within_tick);
-    stats::push_sample(TICK_BYTE_SENT, stats::bytes_sent_within_tick);
-    stats::push_sample(TICK_BYTE_RECEIVED, stats::bytes_received_within_tick);
-
-    clear_intermediate_ids();
-
-    stats::bytes_received_within_tick = 0;
-    stats::messages_recieved_within_tick = 0;
-    stats::message_sent_within_tick = 0;
-    stats::bytes_sent_within_tick = 0;
-
-    // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
-    stats::print_per_n_ticks(SERVER_FPS, now_msecs());
-
-    common::reset_temp_mark();
-    return tickTime;
-}
+extern uint previous_timestamp;
+extern fn uint tick() @extern("tick");
 
 // Entry ///////////////////////////////
 
 extern uint idCounter;
-
 extern fn void connections_set(uint player_id, Cws cws) @extern("connections_set");
 extern fn CwsSocket cws_socket_from_fd(int fd) @extern("cws_socket_from_fd");
 extern fn void client_connection(void *data) @extern("client_connection");
@@ -170,7 +84,7 @@ fn int main() {
     }
 }
 
-fn uint now_msecs()
+fn uint now_msecs() @export("now_msecs")
 {
     return (uint)(clock::now()/1000_000);
 }
@@ -199,12 +113,4 @@ enum StatEntry: inline usz {    // WARNING! Must be synced with Stat_Entry in se
     COUNT,
 }
 
-extern int messages_recieved_within_tick;
-extern int bytes_received_within_tick;
-extern int message_sent_within_tick;
-extern int bytes_sent_within_tick;
-
-extern fn void push_sample(StatEntry entry, float sample) @extern("stat_push_sample");
-extern fn void inc_counter(StatEntry entry, int delta) @extern("stat_inc_counter");
 extern fn void start_timer_at(StatEntry entry, uint msecs) @extern("stat_start_timer_at");
-extern fn void print_per_n_ticks(int n, uint now_msecs) @extern("stat_print_per_n_ticks");

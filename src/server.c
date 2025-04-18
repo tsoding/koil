@@ -600,6 +600,44 @@ bool process_message_on_server(uint32_t id, Message* message) {
     return false;
 }
 
+uint32_t now_msecs();           // Implemented in C3
+uint32_t previous_timestamp = 0;
+uint32_t tick() {
+    uint32_t timestamp = now_msecs();
+    float delta_time = (float)(timestamp - previous_timestamp)/1000.0f;
+    previous_timestamp = timestamp;
+
+    process_joined_players(items_ptr(), items_len());
+    process_left_players();
+    process_moving_players();
+    process_thrown_bombs(&bombs);
+    process_world_simulation(items_ptr(), items_len(), &bombs, delta_time);
+    process_pings();
+
+    uint32_t tickTime = now_msecs() - timestamp;
+    stat_inc_counter(SE_TICKS_COUNT, 1);
+    stat_push_sample(SE_TICK_TIMES, tickTime/1000.0f);
+    stat_inc_counter(SE_MESSAGES_SENT, message_sent_within_tick);
+    stat_push_sample(SE_TICK_MESSAGES_SENT, message_sent_within_tick);
+    stat_push_sample(SE_TICK_MESSAGES_RECEIVED, messages_recieved_within_tick);
+    stat_inc_counter(SE_BYTES_SENT, bytes_sent_within_tick);
+    stat_push_sample(SE_TICK_BYTE_SENT, bytes_sent_within_tick);
+    stat_push_sample(SE_TICK_BYTE_RECEIVED, bytes_received_within_tick);
+
+    clear_intermediate_ids();
+
+    bytes_received_within_tick = 0;
+    messages_recieved_within_tick = 0;
+    message_sent_within_tick = 0;
+    bytes_sent_within_tick = 0;
+
+    // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
+    stat_print_per_n_ticks(SERVER_FPS, now_msecs());
+
+    reset_temp_mark();
+    return tickTime;
+}
+
 // Cws_Socket //////////////////////////////
 
 int cws_socket_read(void *data, void *buffer, size_t len)
