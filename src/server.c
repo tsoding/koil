@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <time.h>
 
 #include <sys/socket.h>
 
@@ -600,7 +601,12 @@ bool process_message_on_server(uint32_t id, Message* message) {
     return false;
 }
 
-uint32_t now_msecs();           // Implemented in C3
+uint32_t now_msecs() {
+    struct timespec ts = {0};
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint32_t)(((uint64_t)ts.tv_sec*1000*1000*1000 + (uint64_t)ts.tv_nsec)/1000/1000);
+}
+
 uint32_t previous_timestamp = 0;
 uint32_t tick() {
     uint32_t timestamp = now_msecs();

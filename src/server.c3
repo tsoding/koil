@@ -84,10 +84,7 @@ fn int main() {
     }
 }
 
-fn uint now_msecs() @export("now_msecs")
-{
-    return (uint)(clock::now()/1000_000);
-}
+extern fn uint now_msecs() @extern("now_msecs");
 
 /// Stats //////////////////////////////
 
