@@ -385,11 +385,11 @@ BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) {
 
 Indices exploded_bombs = {0};
 
-void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) {
+void update_bombs_on_server_side(float delta_time, Bombs *bombs) {
     for (size_t bombIndex = 0; bombIndex < BOMBS_CAPACITY; ++bombIndex) {
         Bomb *bomb = &bombs->items[bombIndex];
         if (bomb->lifetime > 0) {
-            update_bomb(bomb, scene, delta_time);
+            update_bomb(bomb, delta_time);
             if (bomb->lifetime <= 0) {
                 da_append(&exploded_bombs, bombIndex);
             }
@@ -426,11 +426,11 @@ void process_thrown_bombs(Bombs *bombs) {
 
 // World //////////////////////////////
 
-void process_world_simulation(Item *items, size_t items_len, Scene *scene, Bombs *bombs, float delta_time) {
+void process_world_simulation(Item *items, size_t items_len, Bombs *bombs, float delta_time) {
     // Simulating the world for one server tick.
     for (ptrdiff_t i = 0; i < hmlen(players); ++i) {
         PlayerOnServerEntry* entry = &players[i];
-        update_player(&entry->value.player, scene, delta_time);
+        update_player(&entry->value.player, delta_time);
         collect_items_by_player(entry->value.player, items, items_len);
     }
 
@@ -442,7 +442,7 @@ void process_world_simulation(Item *items, size_t items_len, Scene *scene, Bombs
         }
     }
 
-    update_bombs_on_server_side(scene, delta_time, bombs);
+    update_bombs_on_server_side(delta_time, bombs);
     BombsExplodedBatchMessage *bombs_exploded_batch_message = exploded_bombs_as_batch_message(bombs);
     if (bombs_exploded_batch_message) {
         for (ptrdiff_t i = 0; i < hmlen(players); ++i) {

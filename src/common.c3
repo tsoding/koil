@@ -57,47 +57,33 @@ struct Message @packed {
 
 /// Scene //////////////////////////////
 
-struct Scene {
-    HashMap(<IVector2, bool>) walls;
+const usz WALLS_WIDTH = 7;
+const usz WALLS_HEIGHT = 7;
+bool[WALLS_HEIGHT][WALLS_WIDTH] walls = {
+    { false, false, true, true, true, false, false},
+    { false, false, false, false, false, true, false},
+    { true, false, false, false, false, true, false},
+    { true,  false, false, false, false, true, false},
+    { true, false, false, false, false, false, false},
+    { false,  true, true, true, false, false, false},
+    { false,  false, false, false, false, false, false},
+};
+
+fn bool scene_get_tile(Vector2 p) {
+    IVector2 ip = ivector2::from_vector2(vector2::floor(p));
+    if (!(0 <= ip.x && ip.x < WALLS_WIDTH)) return false;
+    if (!(0 <= ip.y && ip.y < WALLS_HEIGHT)) return false;
+    return walls[ip.y][ip.x];
 }
 
-Scene scene;
-fn void load_default_scene() {
-    bool[*][*] default_walls = {
-        { false, false, true, true, true, false, false},
-        { false, false, false, false, false, true, false},
-        { true, false, false, false, false, true, false},
-        { true,  false, false, false, false, true, false},
-        { true, false, false, false, false, false, false},
-        { false,  true, true, true, false, false, false},
-        { false,  false, false, false, false, false, false},
-    };
-    usz width = default_walls[0].len;
-    usz height = default_walls.len;
-    for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
-            if (default_walls[y][x]) {
-                scene.walls.set({x, y}, default_walls[y][x]);
-            }
-        }
-    }
-}
-
-fn bool Scene.get_tile(&scene, Vector2 p) {
-    if (try tile = scene.walls.get(ivector2::from_vector2(vector2::floor(p)))) {
-        return tile;
-    }
-    return false;
-}
-
-fn bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy) @export("scene_can_rectangle_fit_here") {
+fn bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy) @export("scene_can_rectangle_fit_here") {
     int x1 = (int)math::floor(px - sx*0.5f);
     int x2 = (int)math::floor(px + sx*0.5f);
     int y1 = (int)math::floor(py - sy*0.5f);
     int y2 = (int)math::floor(py + sy*0.5f);
     for (int x = x1; x <= x2; ++x) {
         for (int y = y1; y <= y2; ++y) {
-            if (scene.get_tile({x, y})) {
+            if (scene_get_tile({x, y})) {
                 return false;
             }
         }
@@ -177,14 +163,14 @@ fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     return -1;
 }
 
-fn bool update_bomb(Bomb *bomb, Scene* scene, float delta_time) @export("update_bomb") {
+fn bool update_bomb(Bomb *bomb, float delta_time) @export("update_bomb") {
     bool collided = false;
     bomb.lifetime -= delta_time;
     bomb.velocity_z -= BOMB_GRAVITY*delta_time;
 
     float nx = bomb.position.x + bomb.velocity.x*delta_time;
     float ny = bomb.position.y + bomb.velocity.y*delta_time;
-    if (scene.get_tile({nx, ny})) {
+    if (scene_get_tile({nx, ny})) {
         float dx = math::abs(math::floor(bomb.position.x) - math::floor(nx));
         float dy = math::abs(math::floor(bomb.position.y) - math::floor(ny));
 
@@ -345,7 +331,7 @@ struct PingMessage @packed {
 }
 macro verify_ping_message(message) => msg::batch::verify(MessageKind.PING, message, uint.sizeof);
 
-extern fn void update_player(Player *player, Scene *scene, float delta_time) @extern("update_player");
+extern fn void update_player(Player *player, float delta_time) @extern("update_player");
 
 /// Temporary Memory //////////////////////////////
 

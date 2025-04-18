@@ -33,7 +33,7 @@ extern fn ItemsCollectedBatchMessage *collected_items_as_batch_message() @extern
 
 extern fn void throw_bomb_on_server_side(uint player_id, Bombs *bombs) @extern("throw_bomb_on_server_side");
 extern fn BombsSpawnedBatchMessage *thrown_bombs_as_batch_message(Bombs *bombs) @extern("thrown_bombs_as_batch_message");
-extern fn void update_bombs_on_server_side(Scene *scene, float delta_time, Bombs *bombs) @extern("update_bombs_on_server_side");
+extern fn void update_bombs_on_server_side(float delta_time, Bombs *bombs) @extern("update_bombs_on_server_side");
 extern fn BombsExplodedBatchMessage* exploded_bombs_as_batch_message(Bombs* bombs) @extern("exploded_bombs_as_batch_message");
 
 /// Player //////////////////////////////
@@ -70,7 +70,7 @@ extern fn void process_left_players() @extern("process_left_players");
 extern fn void process_moving_players() @extern("process_moving_players");
 extern fn void process_thrown_bombs(Bombs *bombs) @extern("process_thrown_bombs");
 
-extern fn void process_world_simulation(Item *items, usz items_len, Scene *scene, Bombs *bombs, float delta_time) @extern("process_world_simulation");
+extern fn void process_world_simulation(Item *items, usz items_len, Bombs *bombs, float delta_time) @extern("process_world_simulation");
 
 extern fn void process_pings() @extern("process_pings");
 extern fn void clear_intermediate_ids() @extern("clear_intermediate_ids");
@@ -85,7 +85,7 @@ fn uint tick() @extern("tick") @wasm {
     process_left_players();
     process_moving_players();
     process_thrown_bombs(&common::bombs);
-    process_world_simulation(common::items_ptr(), common::items_len(), &common::scene, &common::bombs, delta_time);
+    process_world_simulation(common::items_ptr(), common::items_len(), &common::bombs, delta_time);
     process_pings();
 
     uint tickTime = now_msecs() - timestamp;
@@ -125,7 +125,6 @@ fn int main() {
 
     stats::start_timer_at(StatEntry.UPTIME, now_msecs());
     common::temp_mark = allocator::temp().used;
-    common::load_default_scene();
     server::previous_timestamp = now_msecs();
 
     const String HOST = "0.0.0.0";

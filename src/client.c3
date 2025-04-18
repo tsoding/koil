@@ -278,11 +278,11 @@ fn Vector2 ray_step(Vector2 p1, Vector2 p2) {
     return p3;
 }
 
-fn Vector2 cast_ray(Scene *scene, Vector2 p1, Vector2 p2) {
+fn Vector2 cast_ray(Vector2 p1, Vector2 p2) {
     Vector2 start = p1;
     while (vector2::distance(start, p1) < FAR_CLIPPING_PLANE) {
         Vector2 c = hitting_cell(p1, p2);
-        if (scene.get_tile(c)) break;
+        if (common::scene_get_tile(c)) break;
         Vector2 p3 = ray_step(p1, p2);
         p1 = p2;
         p2 = p3;
@@ -290,17 +290,17 @@ fn Vector2 cast_ray(Scene *scene, Vector2 p1, Vector2 p2) {
     return p2;
 }
 
-fn void render_walls(Image *display, float *zbuffer, Image *wall, Scene *scene) {
+fn void render_walls(Image *display, float *zbuffer, Image *wall) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
     camera.update();
 
     Vector2 d = vector2::from_polar(camera.direction, 1.0f);
     for (int x = 0; x < display.width; ++x) {
-        Vector2 p = cast_ray(scene, camera.position, vector2::lerp(camera.fovLeft, camera.fovRight, (float)x/display.width));
+        Vector2 p = cast_ray(camera.position, vector2::lerp(camera.fovLeft, camera.fovRight, (float)x/display.width));
         Vector2 c = hitting_cell(camera.position, p);
         Vector2 v = vector2::sub(p, camera.position);
         zbuffer[x] = vector2::dot(v, d);
-        if (scene.get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
+        if (common::scene_get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
     }
 }
 
@@ -414,14 +414,14 @@ fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
     }
 }
 
-fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, Scene *scene, ParticlePool *particle_pool) {
+fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, ParticlePool *particle_pool) {
     foreach (&particle: particle_pool.items) {
         if (particle.lifetime > 0) {
             particle.lifetime -= deltaTime;
             particle.velocity_z -= common::BOMB_GRAVITY*deltaTime;
 
             Vector2 new_position = vector2::add(particle.position, vector2::mul(particle.velocity, vector2::xx(deltaTime)));
-            if (scene.get_tile(new_position)) {
+            if (common::scene_get_tile(new_position)) {
                 float dx = math::abs(math::floor(particle.position.x) - math::floor(new_position.x));
                 float dy = math::abs(math::floor(particle.position.y) - math::floor(new_position.y));
 
@@ -539,12 +539,12 @@ fn void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePoo
     }
 }
 
-fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, Scene *scene, float delta_time, Bombs *bombs) {
+fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, float delta_time, Bombs *bombs) {
     foreach (&bomb: *bombs) {
         if (bomb.lifetime > 0) {
             push_sprite(sprite_pool, bomb_image, {bomb.position.x, bomb.position.y, bomb.position_z}, common::BOMB_SCALE, {0, 0}, {bomb_image.width, bomb_image.height});
 
-            if (common::update_bomb(bomb, scene, delta_time)) {
+            if (common::update_bomb(bomb, delta_time)) {
                 platform::play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
             }
 
@@ -699,11 +699,11 @@ fn uint sprite_angle_index(Vector2 camera_position, Player entity) {
     return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod(vector2::sub(entity.position, camera_position).angle_fixed(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
 }
 
-fn void update_all_players(Scene *scene, float delta_time) {
+fn void update_all_players(float delta_time) {
     other_players.@each_entry(; OtherPlayersEntry *entry) {
-        common::update_player(&entry.value, scene, delta_time);
+        common::update_player(&entry.value, delta_time);
     };
-    common::update_player(&me, scene, delta_time);
+    common::update_player(&me, delta_time);
 }
 
 fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
@@ -801,15 +801,15 @@ fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
     assert(asset);
     Image player_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
 
-    update_all_players(&common::scene, delta_time);
+    update_all_players(delta_time);
     update_items(&sprite_pool, time, common::items_ptr(), common::items_len(), &key_image, &bomb_image);
-    update_bombs_on_client_side(&sprite_pool, &particle_pool, &bomb_image, &common::scene, delta_time, &common::bombs);
-    update_particles(&particle_image, &sprite_pool, delta_time, &common::scene, &particle_pool);
+    update_bombs_on_client_side(&sprite_pool, &particle_pool, &bomb_image, delta_time, &common::bombs);
+    update_particles(&particle_image, &sprite_pool, delta_time, &particle_pool);
 
     render_other_players(&sprite_pool, &player_image);
 
     render_floor_and_ceiling(&display.image);
-    render_walls(&display.image, display.zbuffer, &wall_image, &common::scene);
+    render_walls(&display.image, display.zbuffer, &wall_image);
     cull_and_sort_sprites(&sprite_pool);
     render_sprites(&display.image, display.zbuffer, &sprite_pool);
 
@@ -906,7 +906,6 @@ fn void entry() @init(2048) @private {
         return buffer.len;
     };
     common::temp_mark = allocator::temp().used;
-    common::load_default_scene();
 }
 
 module client::platform;

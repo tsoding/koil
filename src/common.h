@@ -58,7 +58,7 @@ typedef struct {
 
 typedef void Scene;
 
-bool scene_can_rectangle_fit_here(Scene *scene, float px, float py, float sx, float sy); // Implemented in C3
+bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy); // Implemented in C3
 
 // Player //////////////////////////////
 
@@ -78,7 +78,7 @@ typedef struct {
     uint8_t hue;
 } Player;
 
-void update_player(Player *player, Scene *scene, float delta_time);
+void update_player(Player *player, float delta_time);
 
 // Items //////////////////////////////
 
@@ -116,7 +116,7 @@ typedef struct {
 extern Bombs bombs;             // Implemented in C3
 
 int throw_bomb(Vector2 position, float direction, Bombs *bombs);
-bool update_bomb(Bomb *bomb, Scene *scene, float delta_time); // Implemented in C3
+bool update_bomb(Bomb *bomb, float delta_time); // Implemented in C3
 
 // Messages //////////////////////////////
 
