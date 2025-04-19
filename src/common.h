@@ -20,7 +20,7 @@
 
 // WARNING! This header must be in sync with common.c3
 
-void* allocate_temporary_buffer(size_t size);
+void* allocate_temporary_buffer(size_t size); // Implemented in C3
 void reset_temp_mark(void);         // Implemented in C3
 
 // Vector3 //////////////////////////////
