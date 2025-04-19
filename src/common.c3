@@ -145,7 +145,7 @@ struct Bomb {
 }
 
 def Bombs = Bomb[20];
-Bombs bombs @export("bombs");
+extern Bombs bombs @extern("bombs");
 
 fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     foreach (index, &bomb: *bombs) {

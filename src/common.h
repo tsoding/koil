@@ -114,7 +114,7 @@ typedef struct {
     Bomb items[BOMBS_CAPACITY];
 } Bombs;
 
-extern Bombs bombs;             // Implemented in C3
+extern Bombs bombs;
 
 int throw_bomb(Vector2 position, float direction, Bombs *bombs);
 bool update_bomb(Bomb *bomb, float delta_time); // Implemented in C3

@@ -142,6 +142,8 @@ size_t items_len() {
 
 // Bombs //////////////////////////////
 
+Bombs bombs = {0};
+
 int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     for (size_t index = 0; index < BOMBS_CAPACITY; ++index) {
         Bomb *bomb = &bombs->items[index];
