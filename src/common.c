@@ -161,6 +161,38 @@ int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     return -1;
 }
 
+bool update_bomb(Bomb *bomb, float delta_time) {
+    bool collided = false;
+    bomb->lifetime -= delta_time;
+    bomb->velocity_z -= BOMB_GRAVITY*delta_time;
+
+    float nx = bomb->position.x + bomb->velocity.x*delta_time;
+    float ny = bomb->position.y + bomb->velocity.y*delta_time;
+    if (scene_get_tile((Vector2) {nx, ny})) {
+        float dx = __builtin_fabsf(__builtin_floorf(bomb->position.x) - __builtin_floorf(nx));
+        float dy = __builtin_fabsf(__builtin_floorf(bomb->position.y) - __builtin_floorf(ny));
+
+        if (dx > 0) bomb->velocity.x *= -1;
+        if (dy > 0) bomb->velocity.y *= -1;
+        bomb->velocity = vector2_mul(bomb->velocity, vector2_xx(BOMB_DAMP));
+        bomb->velocity_z *= BOMB_DAMP;
+        if (vector3_length((Vector3){bomb->velocity.x, bomb->velocity.y, bomb->velocity_z}) > 1) collided = true; // Wall collision
+    } else {
+        bomb->position.x = nx;
+        bomb->position.y = ny;
+    }
+
+    float nz = bomb->position_z + bomb->velocity_z*delta_time;
+    if (nz < BOMB_SCALE || nz > 1.0) {
+        bomb->velocity_z *= -1*BOMB_DAMP;
+        bomb->velocity = vector2_mul(bomb->velocity, vector2_xx(BOMB_DAMP));
+        if (vector3_length((Vector3){bomb->velocity.x, bomb->velocity.y, bomb->velocity_z}) > 1) collided = true; // Floor collision
+    } else {
+        bomb->position_z = nz;
+    }
+    return collided;
+}
+
 // Player //////////////////////////////
 
 void update_player(Player *player, float delta_time) {

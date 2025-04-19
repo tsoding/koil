@@ -69,7 +69,7 @@ bool[WALLS_HEIGHT][WALLS_WIDTH] walls = {
     { false,  false, false, false, false, false, false},
 };
 
-fn bool scene_get_tile(Vector2 p) {
+fn bool scene_get_tile(Vector2 p) @export("scene_get_tile") {
     IVector2 ip = ivector2::from_vector2(vector2::floor(p));
     if (!(0 <= ip.x && ip.x < WALLS_WIDTH)) return false;
     if (!(0 <= ip.y && ip.y < WALLS_HEIGHT)) return false;
@@ -163,37 +163,7 @@ fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
     return -1;
 }
 
-fn bool update_bomb(Bomb *bomb, float delta_time) @export("update_bomb") {
-    bool collided = false;
-    bomb.lifetime -= delta_time;
-    bomb.velocity_z -= BOMB_GRAVITY*delta_time;
-
-    float nx = bomb.position.x + bomb.velocity.x*delta_time;
-    float ny = bomb.position.y + bomb.velocity.y*delta_time;
-    if (scene_get_tile({nx, ny})) {
-        float dx = math::abs(math::floor(bomb.position.x) - math::floor(nx));
-        float dy = math::abs(math::floor(bomb.position.y) - math::floor(ny));
-
-        if (dx > 0) bomb.velocity.x *= -1;
-        if (dy > 0) bomb.velocity.y *= -1;
-        bomb.velocity = vector2::mul(bomb.velocity, vector2::xx(BOMB_DAMP));
-        bomb.velocity_z *= BOMB_DAMP;
-        if (vector3::length({bomb.velocity.x, bomb.velocity.y, bomb.velocity_z}) > 1) collided = true; // Wall collision
-    } else {
-        bomb.position.x = nx;
-        bomb.position.y = ny;
-    }
-
-    float nz = bomb.position_z + bomb.velocity_z*delta_time;
-    if (nz < BOMB_SCALE || nz > 1.0) {
-        bomb.velocity_z *= -1*BOMB_DAMP;
-        bomb.velocity = vector2::mul(bomb.velocity, vector2::xx(BOMB_DAMP));
-        if (vector3::length({bomb.velocity.x, bomb.velocity.y, bomb.velocity_z}) > 1) collided = true; // Floor collision
-    } else {
-        bomb.position_z = nz;
-    }
-    return collided;
-}
+extern fn bool update_bomb(Bomb *bomb, float delta_time) @extern("update_bomb");
 
 struct BombSpawned @packed {
     uint bombIndex;
@@ -441,6 +411,6 @@ fn Vector3 xxx(float x) {
     return {x, x, x};
 }
 
-fn float length(Vector3 a) {
+fn float length(Vector3 a) @export("vector3_length") {
     return math::sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
 }

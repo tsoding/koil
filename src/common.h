@@ -14,11 +14,22 @@
 #define PLAYER_SIZE 0.5f
 #define BOMB_LIFETIME 2.0f
 #define BOMB_THROW_VELOCITY 5.0f
+#define BOMB_GRAVITY 10.0f
+#define BOMB_DAMP 0.8f
+#define BOMB_SCALE 0.25f
 
 // WARNING! This header must be in sync with common.c3
 
 void* allocate_temporary_buffer(size_t size);
 void reset_temp_mark(void);         // Implemented in C3
+
+// Vector3 //////////////////////////////
+
+typedef struct {
+    float x, y, z;
+} Vector3;
+
+float vector3_length(Vector3 a); // Implemented in C3
 
 // Vector2 //////////////////////////////
 
@@ -60,6 +71,7 @@ typedef struct {
 typedef void Scene;
 
 bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy); // Implemented in C3
+bool scene_get_tile(Vector2 p); // Implemented in C3
 
 // Player //////////////////////////////
 
@@ -117,7 +129,7 @@ typedef struct {
 extern Bombs bombs;
 
 int throw_bomb(Vector2 position, float direction, Bombs *bombs);
-bool update_bomb(Bomb *bomb, float delta_time); // Implemented in C3
+bool update_bomb(Bomb *bomb, float delta_time);
 
 // Messages //////////////////////////////
 
