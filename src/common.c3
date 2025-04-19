@@ -57,24 +57,7 @@ struct Message @packed {
 
 /// Scene //////////////////////////////
 
-const usz WALLS_WIDTH = 7;
-const usz WALLS_HEIGHT = 7;
-bool[WALLS_HEIGHT][WALLS_WIDTH] walls = {
-    { false, false, true, true, true, false, false},
-    { false, false, false, false, false, true, false},
-    { true, false, false, false, false, true, false},
-    { true,  false, false, false, false, true, false},
-    { true, false, false, false, false, false, false},
-    { false,  true, true, true, false, false, false},
-    { false,  false, false, false, false, false, false},
-};
-
-fn bool scene_get_tile(Vector2 p) @export("scene_get_tile") {
-    IVector2 ip = ivector2::from_vector2(vector2::floor(p));
-    if (!(0 <= ip.x && ip.x < WALLS_WIDTH)) return false;
-    if (!(0 <= ip.y && ip.y < WALLS_HEIGHT)) return false;
-    return walls[ip.y][ip.x];
-}
+extern fn bool scene_get_tile(Vector2 p) @extern("scene_get_tile");
 
 fn bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy) @export("scene_can_rectangle_fit_here") {
     int x1 = (int)math::floor(px - sx*0.5f);
@@ -363,9 +346,7 @@ fn Vector2 copysign(Vector2 a, Vector2 b) {
     return {math::copysign(a.x, b.x), math::copysign(a.y, b.y)};
 }
 
-fn Vector2 floor(Vector2 a) {
-    return {math::floor(a.x), math::floor(a.y)};
-}
+extern fn Vector2 floor(Vector2 a) @extern("vector2_floor");
 
 extern fn float distance(Vector2 a, Vector2 b) @extern("vector2_distance");
 
@@ -389,9 +370,7 @@ struct IVector2 {
 fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
 macro bool IVector2.equals(IVector2 a, IVector2 b) => a.x == b.x && a.y == b.y;
 
-fn IVector2 from_vector2(Vector2 a) {
-    return {(int)a.x, (int)a.y};
-}
+extern fn IVector2 from_vector2(Vector2 a) @extern("ivector2_from_vector2");
 
 module common::vector3;
 import std::math;

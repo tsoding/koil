@@ -46,6 +46,20 @@ Vector2 vector2_xx(float x) {
     return (Vector2){x, x};
 }
 
+Vector2 vector2_floor(Vector2 a) {
+    return (Vector2) {
+        __builtin_floorf(a.x),
+        __builtin_floorf(a.y)
+    };
+}
+
+
+// IVector2 //////////////////////////////
+
+IVector2 ivector2_from_vector2(Vector2 a) {
+    return (IVector2) {(int)a.x, (int)a.y};
+}
+
 // Message //////////////////////////////
 
 bool batch_message_verify_empty(MessageKind kind, Message *message) {
@@ -226,4 +240,25 @@ void update_player(Player *player, float delta_time) {
     if (scene_can_rectangle_fit_here(player->position.x, ny, PLAYER_SIZE, PLAYER_SIZE)) {
         player->position.y = ny;
     }
+}
+
+// Scene //////////////////////////////
+
+#define WALLS_WIDTH 7
+#define WALLS_HEIGHT 7
+bool walls[WALLS_HEIGHT][WALLS_WIDTH] = {
+    { false, false, true, true, true, false, false},
+    { false, false, false, false, false, true, false},
+    { true, false, false, false, false, true, false},
+    { true,  false, false, false, false, true, false},
+    { true, false, false, false, false, false, false},
+    { false,  true, true, true, false, false, false},
+    { false,  false, false, false, false, false, false},
+};
+
+bool scene_get_tile(Vector2 p) {
+    IVector2 ip = ivector2_from_vector2(vector2_floor(p));
+    if (!(0 <= ip.x && ip.x < WALLS_WIDTH)) return false;
+    if (!(0 <= ip.y && ip.y < WALLS_HEIGHT)) return false;
+    return walls[ip.y][ip.x];
 }

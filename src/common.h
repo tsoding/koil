@@ -44,6 +44,15 @@ float vector2_length(Vector2 a);
 Vector2 vector2_from_polar(float angle, float len);
 Vector2 vector2_mul(Vector2 a, Vector2 b);
 Vector2 vector2_xx(float x);
+Vector2 vector2_floor(Vector2 a);
+
+// IVector2 //////////////////////////////
+
+typedef struct {
+    int x, y;
+} IVector2;
+
+IVector2 ivector2_from_vector2(Vector2 a);
 
 // Short String //////////////////////////////
 
@@ -68,10 +77,8 @@ typedef struct {
 
 // Scene //////////////////////////////
 
-typedef void Scene;
-
 bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy); // Implemented in C3
-bool scene_get_tile(Vector2 p); // Implemented in C3
+bool scene_get_tile(Vector2 p);
 
 // Player //////////////////////////////
 
