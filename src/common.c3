@@ -58,21 +58,7 @@ struct Message @packed {
 /// Scene //////////////////////////////
 
 extern fn bool scene_get_tile(Vector2 p) @extern("scene_get_tile");
-
-fn bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy) @export("scene_can_rectangle_fit_here") {
-    int x1 = (int)math::floor(px - sx*0.5f);
-    int x2 = (int)math::floor(px + sx*0.5f);
-    int y1 = (int)math::floor(py - sy*0.5f);
-    int y2 = (int)math::floor(py + sy*0.5f);
-    for (int x = x1; x <= x2; ++x) {
-        for (int y = y1; y <= y2; ++y) {
-            if (scene_get_tile({x, y})) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
+extern fn bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy) @extern("scene_can_rectangle_fit_here");
 
 /// Items //////////////////////////////
 

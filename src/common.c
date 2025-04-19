@@ -262,3 +262,18 @@ bool scene_get_tile(Vector2 p) {
     if (!(0 <= ip.y && ip.y < WALLS_HEIGHT)) return false;
     return walls[ip.y][ip.x];
 }
+
+bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy) {
+    int x1 = (int)__builtin_floorf(px - sx*0.5f);
+    int x2 = (int)__builtin_floorf(px + sx*0.5f);
+    int y1 = (int)__builtin_floorf(py - sy*0.5f);
+    int y2 = (int)__builtin_floorf(py + sy*0.5f);
+    for (int x = x1; x <= x2; ++x) {
+        for (int y = y1; y <= y2; ++y) {
+            if (scene_get_tile((Vector2) {x, y})) {
+                return false;
+            }
+        }
+    }
+    return true;
+}

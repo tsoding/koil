@@ -77,7 +77,7 @@ typedef struct {
 
 // Scene //////////////////////////////
 
-bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy); // Implemented in C3
+bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy);
 bool scene_get_tile(Vector2 p);
 
 // Player //////////////////////////////
