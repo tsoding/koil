@@ -29,7 +29,7 @@ typedef struct {
     float x, y, z;
 } Vector3;
 
-float vector3_length(Vector3 a); // Implemented in C3
+float vector3_length(Vector3 a);
 
 // Vector2 //////////////////////////////
 

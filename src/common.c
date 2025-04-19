@@ -1,5 +1,11 @@
 #include "common.h"
 
+// Vector3 //////////////////////////////
+
+float vector3_length(Vector3 a) {
+    return __builtin_sqrtf(a.x*a.x + a.y*a.y + a.z*a.z);
+}
+
 // Vector2 //////////////////////////////
 
 float vector2_distance(Vector2 a, Vector2 b){

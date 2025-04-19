@@ -411,6 +411,4 @@ fn Vector3 xxx(float x) {
     return {x, x, x};
 }
 
-fn float length(Vector3 a) @export("vector3_length") {
-    return math::sqrt(a.x*a.x + a.y*a.y + a.z*a.z);
-}
+extern fn float length(Vector3 a) @extern("vector3_length");
