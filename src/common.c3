@@ -116,22 +116,7 @@ struct Bomb {
 def Bombs = Bomb[20];
 extern Bombs bombs @extern("bombs");
 
-fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) {
-    foreach (index, &bomb: *bombs) {
-        if (bomb.lifetime <= 0) {
-            bomb.lifetime    = BOMB_LIFETIME;
-            bomb.position    = position;
-            bomb.position_z  = 0.6;
-            bomb.velocity    = vector2::from_polar(direction, 1.0f);
-            bomb.velocity_z  = 0.5;
-            bomb.velocity    = vector2::mul(bomb.velocity, vector2::xx(BOMB_THROW_VELOCITY));
-            bomb.velocity_z *= BOMB_THROW_VELOCITY;
-            return (int)index;
-        }
-    }
-    return -1;
-}
-
+extern fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) @extern("throw_bomb");
 extern fn bool update_bomb(Bomb *bomb, float delta_time) @extern("update_bomb");
 
 struct BombSpawned @packed {
