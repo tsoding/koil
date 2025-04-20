@@ -9,6 +9,7 @@
 #define PI 3.14159265358979323846f
 #endif // PI
 
+#define SERVER_PORT 6970  // WARNING! Has to be in sync with SERVER_PORT in client.mts
 #define PLAYER_RADIUS 0.5f
 #define PLAYER_SPEED 2.0f
 #define PLAYER_SIZE 0.5f

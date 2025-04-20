@@ -4,6 +4,10 @@
 #include <time.h>
 
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "common.h"
 
@@ -640,7 +644,7 @@ uint32_t tick() {
     // TODO: serve the stats over a separate websocket, so a separate html page can poll it once in a while
     stat_print_per_n_ticks(SERVER_FPS, now_msecs());
 
-    reset_temp_mark();
+    arena_reset(&temp);
     return tickTime;
 }
 
@@ -703,4 +707,104 @@ Cws_Socket cws_socket_from_fd(int fd)
         .shutdown = cws_socket_shutdown,
         .close    = cws_socket_close,
     };
+}
+
+// main //////////////////////////////
+
+void* allocate_temporary_buffer(size_t size) {
+    return arena_alloc(&temp, size);
+}
+
+int set_non_blocking(int sockfd)
+{
+    int flags = fcntl(sockfd, F_GETFL, 0);
+    if (flags < 0) return -1;
+    if (fcntl(sockfd, F_SETFL, flags | O_NONBLOCK) < 0) return -1;
+    return 0;
+}
+
+int main() {
+    const char *HOST = "0.0.0.0";
+
+    coroutine_init();
+
+    stat_start_timer_at(SE_UPTIME, now_msecs());
+    previous_timestamp = now_msecs();
+
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        fprintf(stderr, "ERROR: could not create server socket: %s\n", strerror(errno));
+        return 1;
+    }
+
+    int yes = 1;
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes)) < 0) {
+        fprintf(stderr, "ERROR: could not configure server socket: %s\n", strerror(errno));
+        return 1;
+    }
+
+    struct sockaddr_in server_addr = {0};
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(SERVER_PORT);
+    server_addr.sin_addr.s_addr = inet_addr(HOST);
+    if (bind(server_fd, (void*)&server_addr, sizeof(server_addr)) < 0) {
+        fprintf(stderr, "ERROR: could not bind server socket: %s\n", strerror(errno));
+        return 1;
+    }
+
+    if (listen(server_fd, 69) < 0) {
+        fprintf(stderr, "ERROR: could not listen to server socket: %s\n", strerror(errno));
+        return 1;
+    }
+
+    if (set_non_blocking(server_fd) < 0) {
+        fprintf(stderr, "ERROR: could not set server socket non-blocking: %s\n", strerror(errno));
+        return 1;
+    }
+
+    printf("Listening to ws://%s:%d/\n", HOST, SERVER_PORT);
+    while (true) {
+        struct sockaddr_in client_addr = {0};
+        socklen_t client_addr_len = sizeof(client_addr);
+        int client_fd = accept(server_fd, (void*)&client_addr, &client_addr_len);
+        if (client_fd >= 0) {
+            if (set_non_blocking(client_fd) < 0) {
+                fprintf(stderr, "ERROR: could not set client socket non-blocking: %s\n", strerror(errno));
+                return 1;
+            }
+
+            Cws cws = {
+                .socket = cws_socket_from_fd(client_fd),
+            };
+
+            int err = cws_server_handshake(&cws);
+            if (err < 0) {
+                // TODO: do not die on error in here
+                fprintf(stderr, "ERROR: server_handshake: %s\n", cws_error_message(&cws, (Cws_Error)err));
+                return 1;
+            }
+
+            uint32_t id = idCounter++;
+            // TODO: pass the remote address to server::register_new_player() to enable connection limits
+            if (!register_new_player(id, NULL)) {
+                cws_close(&cws);
+                arena_free(&cws.arena);
+                continue;
+            }
+
+            connections_set(id, cws);
+            coroutine_go(&client_connection, (void*)(uintptr_t)id);
+        } else if (errno != EAGAIN) {
+            fprintf(stderr, "ERROR: could not accept connection from client: %s\n", strerror(errno));
+            return 1;
+        }
+
+        uint32_t tick_time = tick();
+        int delay = (1000 - (int)tick_time*SERVER_FPS)/SERVER_FPS;
+        if (delay < 0) delay = 0;
+        struct timespec ts_req = { .tv_nsec = delay*1000*1000 };
+        nanosleep(&ts_req, NULL);
+
+        coroutine_yield();
+    }
 }
