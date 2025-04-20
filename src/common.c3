@@ -257,17 +257,6 @@ macro verify_ping_message(message) => msg::batch::verify(MessageKind.PING, messa
 
 extern fn void update_player(Player *player, float delta_time) @extern("update_player");
 
-/// Temporary Memory //////////////////////////////
-
-usz temp_mark = 0;
-fn void reset_temp_mark() @export("reset_temp_mark") {
-    allocator::temp().reset(temp_mark);
-}
-
-fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer") @wasm {
-    return mem::tcalloc(size);
-}
-
 module common::msg::batch;
 
 struct BatchMessage @packed {

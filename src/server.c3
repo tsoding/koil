@@ -34,11 +34,20 @@ extern fn void connections_set(uint player_id, Cws cws) @extern("connections_set
 extern fn CwsSocket cws_socket_from_fd(int fd) @extern("cws_socket_from_fd");
 extern fn void client_connection(void *data) @extern("client_connection");
 
+usz temp_mark = 0;
+fn void reset_temp_mark() @export("reset_temp_mark") {
+    allocator::temp().reset(temp_mark);
+}
+
+fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer") @wasm {
+    return mem::tcalloc(size);
+}
+
 fn int main() {
     coroutine::init();
 
     stats::start_timer_at(StatEntry.UPTIME, now_msecs());
-    common::temp_mark = allocator::temp().used;
+    temp_mark = allocator::temp().used;
     server::previous_timestamp = now_msecs();
 
     const String HOST = "0.0.0.0";

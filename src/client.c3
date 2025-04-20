@@ -29,6 +29,15 @@ const float MINIMAP_SCALE = 0.07;
 
 const uint SPRITE_ANGLES_COUNT = 8;
 
+usz temp_mark = 0;
+fn void reset_temp_mark() @export("reset_temp_mark") {
+    allocator::temp().reset(temp_mark);
+}
+
+fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer") @wasm {
+    return mem::tcalloc(size);
+}
+
 $exec("build/packer");
 
 struct Color {
@@ -815,7 +824,7 @@ fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
 
     ping_server_if_needed();
     reset_sprite_pool();
-    common::reset_temp_mark();
+    reset_temp_mark();
 }
 
 uint ping_cooldown = PING_COOLDOWN;
@@ -905,7 +914,7 @@ fn void entry() @init(2048) @private {
         client::platform::write(&buffer[0], buffer.len);
         return buffer.len;
     };
-    common::temp_mark = allocator::temp().used;
+    temp_mark = allocator::temp().used;
 }
 
 module client::platform;
