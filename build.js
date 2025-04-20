@@ -52,7 +52,14 @@ async function buildClient() {
             "-I", SRC_FOLDER+"cws/",
             "-c", SRC_FOLDER+"common.c",
             "-o", BUILD_FOLDER+"common.wasm.o",
-        ])
+        ]),
+        cmdAsync("clang", [
+            "-Wall", "-Wextra",
+            "--target=wasm32",
+            "-I", SRC_FOLDER+"cws/",
+            "-c", SRC_FOLDER+"client.c",
+            "-o", BUILD_FOLDER+"client.wasm.o",
+        ]),
     ])
 
     return cmdAsync("c3c", [
@@ -66,6 +73,7 @@ async function buildClient() {
         "-z", "--export-table",
         "-z", "--allow-undefined",
         BUILD_FOLDER+"common.wasm.o",
+        BUILD_FOLDER+"client.wasm.o",
         SRC_FOLDER+"client.c3",
         SRC_FOLDER+"common.c3",
     ])
