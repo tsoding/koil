@@ -84,14 +84,14 @@ async function buildCWS() {
         cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-o", BUILD_FOLDER+"coroutine.o",
-            "-ggdb",
+            "-fsanitize=address",
             "-c",
             SRC_FOLDER+"cws/coroutine.c"
         ]),
         cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-o", BUILD_FOLDER+"cws.o",
-            "-ggdb",
+            "-fsanitize=address",
             "-c",
             SRC_FOLDER+"cws/cws.c"
         ]),
@@ -110,27 +110,28 @@ async function buildServer() {
         cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-I", SRC_FOLDER+"cws/",
+            "-fsanitize=address",
             "-c", SRC_FOLDER+"server.c",
-            "-ggdb",
             "-o", BUILD_FOLDER+"server.o",
         ]),
         cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-I", SRC_FOLDER+"cws/",
+            "-fsanitize=address",
             "-c", SRC_FOLDER+"common.c",
-            "-ggdb",
             "-o", BUILD_FOLDER+"common.o",
         ]),
         cmdAsync("clang", [
             "-Wall", "-Wextra", "-ggdb",
             "-I", SRC_FOLDER+"cws/",
+            "-fsanitize=address",
             "-c", SRC_FOLDER+"stats.c",
-            "-ggdb",
             "-o", BUILD_FOLDER+"stats.o",
         ]),
     ])
     await cmdAsync("clang", [
         "-ggdb",
+        "-fsanitize=address",
         "-o", BUILD_FOLDER+"server",
         BUILD_FOLDER+"server.o",
         BUILD_FOLDER+"common.o",
