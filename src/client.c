@@ -1,6 +1,4 @@
-#include "common.h"
-
-#define EPS 1e-6f
+#include "client.h"
 
 float snap(float x, float dx) {
     if (dx > 0) return __builtin_ceilf(x + __builtin_copysign(1.0f, dx)*EPS);
@@ -50,4 +48,11 @@ Vector2 ray_step(Vector2 p1, Vector2 p2) {
     }
 
     return p3;
+}
+
+void camera_update(Camera *camera) {
+    float halfFov = FOV*0.5;
+    float fovLen = NEAR_CLIPPING_PLANE/__builtin_cos(halfFov);
+    camera->fovLeft  = vector2_add(vector2_from_polar(camera->direction-halfFov, fovLen), camera->position);
+    camera->fovRight = vector2_add(vector2_from_polar(camera->direction+halfFov, fovLen), camera->position);
 }

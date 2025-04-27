@@ -109,12 +109,7 @@ struct Camera {
     Vector2 fovRight;
 }
 
-fn void Camera.update(Camera *camera) {
-    float halfFov = FOV*0.5;
-    float fovLen = NEAR_CLIPPING_PLANE/math::cos(halfFov);
-    camera.fovLeft  = vector2::add(vector2::from_polar(camera.direction-halfFov, fovLen), camera.position);
-    camera.fovRight = vector2::add(vector2::from_polar(camera.direction+halfFov, fovLen), camera.position);
-}
+extern fn void camera_update(Camera *camera) @extern("camera_update");
 
 struct Display {
     Image image;
@@ -160,7 +155,7 @@ fn Color scene_get_ceiling(Vector2 p) {
 
 fn void render_floor_and_ceiling(Image *display) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
-    camera.update();
+    camera_update(&camera);
 
     int pz = display.height/2;
     float bp = vector2::length(vector2::sub(camera.fovLeft, camera.position));
@@ -254,7 +249,7 @@ fn Vector2 cast_ray(Vector2 p1, Vector2 p2) {
 
 fn void render_walls(Image *display, float *zbuffer, Image *wall) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
-    camera.update();
+    camera_update(&camera);
 
     Vector2 d = vector2::from_polar(camera.direction, 1.0f);
     for (int x = 0; x < display.width; ++x) {
@@ -268,7 +263,7 @@ fn void render_walls(Image *display, float *zbuffer, Image *wall) {
 
 fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
-    camera.update();
+    camera_update(&camera);
 
     Vector2 dir = vector2::from_polar(camera.direction, 1.0f);
     Vector2 fov = vector2::sub(camera.fovRight, camera.fovLeft);
