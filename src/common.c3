@@ -286,10 +286,7 @@ extern fn float length(Vector2 a) @extern("vector2_length");
 extern fn Vector2 normalize(Vector2 a) @extern("vector2_normalize");
 extern fn float lerpf(float a, float b, float t) @extern("lerpf");
 extern fn Vector2 lerp(Vector2 a, Vector2 b, float t) @extern("vector2_lerp");
-
-fn Vector2 copysign(Vector2 a, Vector2 b) {
-    return {math::copysign(a.x, b.x), math::copysign(a.y, b.y)};
-}
+extern fn Vector2 copysign(Vector2 a, Vector2 b) @extern("vector2_copysign");
 
 extern fn Vector2 floor(Vector2 a) @extern("vector2_floor");
 extern fn float distance(Vector2 a, Vector2 b) @extern("vector2_distance");

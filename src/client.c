@@ -1,6 +1,7 @@
 #include "common.h"
 
 #define EPS 1e-6f
+#define FAR_CLIPPING_PLANE 10.0f
 #define NEAR_CLIPPING_PLANE 0.1f
 #define FOV (PI*0.5f)
 #define SCENE_FLOOR1   (Color) {0x17, 0x29, 0x29, 0xff}
@@ -204,4 +205,20 @@ void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, V
         display->pixels[destP].g = (char)(cell->pixels[srcP].g*shadow);
         display->pixels[destP].b = (char)(cell->pixels[srcP].b*shadow);
     }
+}
+
+Vector2 hitting_cell(Vector2 p1, Vector2 p2) {
+    return vector2_floor(vector2_add(p2, vector2_mul(vector2_copysign((Vector2) {1.0f, 1.0f}, vector2_sub(p2, p1)), vector2_xx(EPS))));
+}
+
+Vector2 cast_ray(Vector2 p1, Vector2 p2) {
+    Vector2 start = p1;
+    while (vector2_distance(start, p1) < FAR_CLIPPING_PLANE) {
+        Vector2 c = hitting_cell(p1, p2);
+        if (scene_get_tile(c)) break;
+        Vector2 p3 = ray_step(p1, p2);
+        p1 = p2;
+        p2 = p3;
+    }
+    return p2;
 }

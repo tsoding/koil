@@ -135,25 +135,10 @@ const Color SCENE_CEILING2 = {0x41, 0x2f, 0x2f, 0xff};
 
 extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_and_ceiling");
 extern fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) @extern("render_column_of_wall");
-
-fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) {
-    return vector2::floor(vector2::add(p2, vector2::mul(vector2::copysign(Vector2{1.0f, 1.0f}, vector2::sub(p2, p1)), vector2::xx(EPS))));
-}
-
+extern fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) @extern("hitting_cell");
 extern fn float snap(float x, float dx) @extern("snap");
 extern fn Vector2 ray_step(Vector2 p1, Vector2 p2) @extern("ray_step");
-
-fn Vector2 cast_ray(Vector2 p1, Vector2 p2) {
-    Vector2 start = p1;
-    while (vector2::distance(start, p1) < FAR_CLIPPING_PLANE) {
-        Vector2 c = hitting_cell(p1, p2);
-        if (common::scene_get_tile(c)) break;
-        Vector2 p3 = ray_step(p1, p2);
-        p1 = p2;
-        p2 = p3;
-    }
-    return p2;
-}
+extern fn Vector2 cast_ray(Vector2 p1, Vector2 p2) @extern("cast_ray");
 
 fn void render_walls(Image *display, float *zbuffer, Image *wall) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };

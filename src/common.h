@@ -51,6 +51,8 @@ Vector2 vector2_xx(float x);
 Vector2 vector2_floor(Vector2 a);
 Vector2 vector2_normalize(Vector2 a);
 Vector2 vector2_lerp(Vector2 a, Vector2 b, float t);
+Vector2 vector2_copysign(Vector2 a, Vector2 b);
+
 
 // IVector2 //////////////////////////////
 
