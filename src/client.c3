@@ -128,31 +128,8 @@ fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
     display.zbuffer = mem::calloc(float.sizeof*width);
 }
 
-const Color SCENE_FLOOR1   = {0x17, 0x29, 0x29, 0xff};
-const Color SCENE_FLOOR2   = {0x2f, 0x41, 0x41, 0xff};
-const Color SCENE_CEILING1 = {0x29, 0x17, 0x17, 0xff};
-const Color SCENE_CEILING2 = {0x41, 0x2f, 0x2f, 0xff};
-
 extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_and_ceiling");
-extern fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) @extern("render_column_of_wall");
-extern fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) @extern("hitting_cell");
-extern fn float snap(float x, float dx) @extern("snap");
-extern fn Vector2 ray_step(Vector2 p1, Vector2 p2) @extern("ray_step");
-extern fn Vector2 cast_ray(Vector2 p1, Vector2 p2) @extern("cast_ray");
-
-fn void render_walls(Image *display, float *zbuffer, Image *wall) {
-    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
-    camera_update(&camera);
-
-    Vector2 d = vector2::from_polar(camera.direction, 1.0f);
-    for (int x = 0; x < display.width; ++x) {
-        Vector2 p = cast_ray(camera.position, vector2::lerp(camera.fovLeft, camera.fovRight, (float)x/display.width));
-        Vector2 c = hitting_cell(camera.position, p);
-        Vector2 v = vector2::sub(p, camera.position);
-        zbuffer[x] = vector2::dot(v, d);
-        if (common::scene_get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
-    }
-}
+extern fn void render_walls(Image *display, float *zbuffer, Image *wall) @extern("render_walls");
 
 fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
     Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };

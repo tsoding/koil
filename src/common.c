@@ -73,6 +73,9 @@ Vector2 vector2_copysign(Vector2 a, Vector2 b) {
     return (Vector2) {__builtin_copysign(a.x, b.x), __builtin_copysign(a.y, b.y)};
 }
 
+float vector2_dot(Vector2 a, Vector2 b) {
+    return a.x*b.x + a.y*b.y;
+}
 
 // IVector2 //////////////////////////////
 

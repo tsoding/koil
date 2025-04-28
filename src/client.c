@@ -222,3 +222,17 @@ Vector2 cast_ray(Vector2 p1, Vector2 p2) {
     }
     return p2;
 }
+
+void render_walls(Image *display, float *zbuffer, Image *wall) {
+    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
+    camera_update(&camera);
+
+    Vector2 d = vector2_from_polar(camera.direction, 1.0f);
+    for (int x = 0; x < (int)display->width; ++x) {
+        Vector2 p = cast_ray(camera.position, vector2_lerp(camera.fovLeft, camera.fovRight, (float)x/display->width));
+        Vector2 c = hitting_cell(camera.position, p);
+        Vector2 v = vector2_sub(p, camera.position);
+        zbuffer[x] = vector2_dot(v, d);
+        if (scene_get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
+    }
+}

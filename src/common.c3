@@ -287,14 +287,9 @@ extern fn Vector2 normalize(Vector2 a) @extern("vector2_normalize");
 extern fn float lerpf(float a, float b, float t) @extern("lerpf");
 extern fn Vector2 lerp(Vector2 a, Vector2 b, float t) @extern("vector2_lerp");
 extern fn Vector2 copysign(Vector2 a, Vector2 b) @extern("vector2_copysign");
-
 extern fn Vector2 floor(Vector2 a) @extern("vector2_floor");
 extern fn float distance(Vector2 a, Vector2 b) @extern("vector2_distance");
-
-fn float dot(Vector2 a, Vector2 b) {
-    return a.x*b.x + a.y*b.y;
-}
-
+extern fn float dot(Vector2 a, Vector2 b) @extern("vector2_dot");
 extern fn Vector2 from_polar(float angle, float len) @extern("vector2_from_polar");
 
 fn Vector2 from_vector3(Vector3 a) {
