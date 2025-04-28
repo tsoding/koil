@@ -1,5 +1,9 @@
 #include "common.h"
 
+float lerpf(float a, float b, float t) {
+    return a + (b - a)*t;
+}
+
 // Vector3 //////////////////////////////
 
 float vector3_length(Vector3 a) {
@@ -53,6 +57,17 @@ Vector2 vector2_floor(Vector2 a) {
     };
 }
 
+Vector2 vector2_normalize(Vector2 a) {
+    float l = vector2_length(a);
+    if (l == 0.0) return a;
+    a.x /= l;
+    a.y /= l;
+    return a;
+}
+
+Vector2 vector2_lerp(Vector2 a, Vector2 b, float t) {
+    return (Vector2) {lerpf(a.x, b.x, t), lerpf(a.y, b.y, t)};
+}
 
 // IVector2 //////////////////////////////
 

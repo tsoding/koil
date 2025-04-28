@@ -133,64 +133,7 @@ const Color SCENE_FLOOR2   = {0x2f, 0x41, 0x41, 0xff};
 const Color SCENE_CEILING1 = {0x29, 0x17, 0x17, 0xff};
 const Color SCENE_CEILING2 = {0x41, 0x2f, 0x2f, 0xff};
 
-fn Color scene_get_floor(Vector2 p) {
-    if ((p.x.floor() + p.y.floor())%2 == 0) {
-        return SCENE_FLOOR1;
-    } else {
-        return SCENE_FLOOR2;
-    }
-}
-
-fn Color scene_get_ceiling(Vector2 p) {
-    if ((p.x.floor() + p.y.floor())%2 == 0) {
-        return SCENE_CEILING1;
-    } else {
-        return SCENE_CEILING2;
-    }
-}
-
-fn void render_floor_and_ceiling(Image *display) {
-    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
-    camera_update(&camera);
-
-    int pz = display.height/2;
-    float bp = vector2::length(vector2::sub(camera.fovLeft, camera.position));
-    for (int y = display.height/2; y < display.height; ++y) {
-        int sz = display.height - y - 1;
-
-        int ap = pz - sz;
-        float b = (bp/ap)*pz/NEAR_CLIPPING_PLANE;
-        Vector2 t1 = vector2::add(vector2::mul(vector2::normalize(vector2::sub(camera.fovLeft, camera.position)), vector2::xx(b)), camera.position);
-        Vector2 t2 = vector2::add(vector2::mul(vector2::normalize(vector2::sub(camera.fovRight, camera.position)), vector2::xx(b)), camera.position);
-
-        // TODO: Render rows up until FAR_CLIPPING_PLANE
-        //   There is a small bug with how we are projecting the floor and ceiling which makes it non-trivial.
-        //   I think we are projecting it too far, and the only reason it works is because we have no
-        //   specific textures at specific places anywhere. So it works completely accidentally.
-        //   We need to fix this bug first.
-        //
-        //   But if we manage to do that, this optimization should give a decent speed up 'cause we can render
-        //   fewer rows.
-
-        for (int x = 0; x < display.width; ++x) {
-            Vector2 t = vector2::lerp(t1, t2, (float)x/display.width);
-
-            float fog = vector2::length(vector2::sub(t, camera.position));
-
-            Color floor_color = scene_get_floor(t);
-            display.pixels[y*display.width + x].r = (char)(floor_color.r*fog).clamp(0, 255);
-            display.pixels[y*display.width + x].g = (char)(floor_color.g*fog).clamp(0, 255);
-            display.pixels[y*display.width + x].b = (char)(floor_color.b*fog).clamp(0, 255);
-            display.pixels[y*display.width + x].a = 255;
-
-            Color ceiling_color = scene_get_ceiling(t);
-            display.pixels[sz*display.width + x].r = (char)(ceiling_color.r*fog).clamp(0, 255);
-            display.pixels[sz*display.width + x].g = (char)(ceiling_color.g*fog).clamp(0, 255);
-            display.pixels[sz*display.width + x].b = (char)(ceiling_color.b*fog).clamp(0, 255);
-            display.pixels[sz*display.width + x].a = 255;
-        }
-    }
-}
+extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_and_ceiling");
 
 fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) {
     float strip_height = display.height/zbuffer[x];
@@ -837,7 +780,7 @@ fn bool process_message(Message *message) @extern("process_message") @wasm {
     return false;
 }
 
-Player me;
+extern Player me @extern("me");
 def OtherPlayersEntry = Entry(<uint, Player>);
 HashMap(<uint, Player>) other_players;
 

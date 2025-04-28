@@ -9,6 +9,8 @@
 #define PI 3.14159265358979323846f
 #endif // PI
 
+float lerpf(float a, float b, float t);
+
 #define SERVER_PORT 6970  // WARNING! Has to be in sync with SERVER_PORT in client.mts
 #define PLAYER_RADIUS 0.5f
 #define PLAYER_SPEED 2.0f
@@ -47,6 +49,8 @@ Vector2 vector2_from_polar(float angle, float len);
 Vector2 vector2_mul(Vector2 a, Vector2 b);
 Vector2 vector2_xx(float x);
 Vector2 vector2_floor(Vector2 a);
+Vector2 vector2_normalize(Vector2 a);
+Vector2 vector2_lerp(Vector2 a, Vector2 b, float t);
 
 // IVector2 //////////////////////////////
 
