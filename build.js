@@ -72,6 +72,7 @@ async function buildClient() {
         "-o", "client",
         "-z", "--export-table",
         "-z", "--allow-undefined",
+        "-z", "--export=pixels_of_display",
         BUILD_FOLDER+"common.wasm.o",
         BUILD_FOLDER+"client.wasm.o",
         SRC_FOLDER+"client.c3",

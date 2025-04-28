@@ -116,7 +116,7 @@ struct Display {
     float *zbuffer;
 }
 
-Display display;
+extern Display display @extern("display");
 
 fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
 {
@@ -126,10 +126,6 @@ fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
     display.image.height = height;
     display.image.pixels = mem::calloc(Color.sizeof*width*height);
     display.zbuffer = mem::calloc(float.sizeof*width);
-}
-
-fn Color *pixels_of_display() @extern("pixels_of_display") @wasm {
-    return &display.image.pixels[0];
 }
 
 const Color SCENE_FLOOR1   = {0x17, 0x29, 0x29, 0xff};

@@ -1,4 +1,37 @@
-#include "client.h"
+#include "common.h"
+
+#define EPS 1e-6f
+#define NEAR_CLIPPING_PLANE 0.1f
+#define FOV (PI*0.5f)
+
+typedef struct {
+    Vector2 position;
+    float direction;
+    Vector2 fovLeft;
+    Vector2 fovRight;
+} Camera;
+
+void camera_update(Camera *camera);
+
+typedef struct {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} Color;
+
+typedef struct {
+    size_t width;
+    size_t height;
+    Color *pixels;
+} Image;
+
+typedef struct {
+    Image image;
+    float *zbuffer;
+} Display;
+
+Display display = {0};
 
 float snap(float x, float dx) {
     if (dx > 0) return __builtin_ceilf(x + __builtin_copysign(1.0f, dx)*EPS);
@@ -55,4 +88,8 @@ void camera_update(Camera *camera) {
     float fovLen = NEAR_CLIPPING_PLANE/__builtin_cos(halfFov);
     camera->fovLeft  = vector2_add(vector2_from_polar(camera->direction-halfFov, fovLen), camera->position);
     camera->fovRight = vector2_add(vector2_from_polar(camera->direction+halfFov, fovLen), camera->position);
+}
+
+Color *pixels_of_display() {
+    return &display.image.pixels[0];
 }
