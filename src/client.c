@@ -115,6 +115,16 @@ Color scene_get_ceiling(Vector2 p) {
     }
 }
 
+int maxi(int a, int b) {
+    if (a > b) return a;
+    return b;
+}
+
+int mini(int a, int b) {
+    if (a < b) return a;
+    return b;
+}
+
 int clampi(int x, int lo, int hi) {
     if (x < lo) x = lo;
     if (x > hi) x = hi;
@@ -161,5 +171,37 @@ void render_floor_and_ceiling(Image *display) {
             display->pixels[sz*display->width + x].b = clampi(ceiling_color.b*fog, 0, 255);
             display->pixels[sz*display->width + x].a = 255;
         }
+    }
+}
+
+void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) {
+    float strip_height = display->height/zbuffer[x];
+    float u = 0;
+    Vector2 t = vector2_sub(p, c);
+    if (__builtin_fabsf(t.x) < EPS && t.y > 0) {
+        u = t.y;
+    } else if (__builtin_fabsf(t.x - 1) < EPS && t.y > 0) {
+        u = 1 - t.y;
+    } else if (__builtin_fabsf(t.y) < EPS && t.x > 0) {
+        u = 1 - t.x;
+    } else {
+        u = t.x;
+    }
+
+    float y1f = (display->height - strip_height)*0.5f;
+    int y1 = (int)__builtin_ceilf(y1f);
+    int y2 = (int)__builtin_floorf(y1 + strip_height);
+    int by1 = maxi(0, y1);
+    int by2 = mini((int)display->height, y2);
+    int tx = (int)__builtin_floorf(u*cell->width);
+    float sh = cell->height / strip_height;
+    float shadow = __builtin_fminf(1.0f/zbuffer[x]*4.0f, 1.0f);
+    for (int y = by1; y < by2; ++y) {
+        int ty = (int)__builtin_floorf((y - y1f)*sh);
+        int destP = y*display->width + x;
+        int srcP = ty*cell->width + tx;
+        display->pixels[destP].r = (char)(cell->pixels[srcP].r);
+        display->pixels[destP].g = (char)(cell->pixels[srcP].g*shadow);
+        display->pixels[destP].b = (char)(cell->pixels[srcP].b*shadow);
     }
 }

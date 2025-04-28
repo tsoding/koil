@@ -134,38 +134,7 @@ const Color SCENE_CEILING1 = {0x29, 0x17, 0x17, 0xff};
 const Color SCENE_CEILING2 = {0x41, 0x2f, 0x2f, 0xff};
 
 extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_and_ceiling");
-
-fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) {
-    float strip_height = display.height/zbuffer[x];
-    float u = 0;
-    Vector2 t = vector2::sub(p, c);
-    if (math::abs(t.x) < EPS && t.y > 0) {
-        u = t.y;
-    } else if (math::abs(t.x - 1) < EPS && t.y > 0) {
-        u = 1 - t.y;
-    } else if (math::abs(t.y) < EPS && t.x > 0) {
-        u = 1 - t.x;
-    } else {
-        u = t.x;
-    }
-
-    float y1f = (display.height - strip_height)*0.5f;
-    int y1 = (int)math::ceil(y1f);
-    int y2 = (int)math::floor(y1 + strip_height);
-    int by1 = math::max(0, y1);
-    int by2 = math::min((int)display.height, y2);
-    int tx = (int)math::floor(u*cell.width);
-    float sh = cell.height / strip_height;
-    float shadow = math::min(1.0f/zbuffer[x]*4.0f, 1.0f);
-    for (int y = by1; y < by2; ++y) {
-        int ty = (int)math::floor((y - y1f)*sh);
-        int destP = y*display.width + x;
-        int srcP = ty*cell.width + tx;
-        display.pixels[destP].r = (char)(cell.pixels[srcP].r);
-        display.pixels[destP].g = (char)(cell.pixels[srcP].g*shadow);
-        display.pixels[destP].b = (char)(cell.pixels[srcP].b*shadow);
-    }
-}
+extern fn void render_column_of_wall(Image *display, float *zbuffer, Image *cell, int x, Vector2 p, Vector2 c) @extern("render_column_of_wall");
 
 fn Vector2 hitting_cell(Vector2 p1, Vector2 p2) {
     return vector2::floor(vector2::add(p2, vector2::mul(vector2::copysign(Vector2{1.0f, 1.0f}, vector2::sub(p2, p1)), vector2::xx(EPS))));
