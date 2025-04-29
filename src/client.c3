@@ -130,42 +130,7 @@ fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
 
 extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_and_ceiling");
 extern fn void render_walls(Image *display, float *zbuffer, Image *wall) @extern("render_walls");
-
-fn void cull_and_sort_sprites(SpritePool *sprite_pool) {
-    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
-    camera_update(&camera);
-
-    Vector2 dir = vector2::from_polar(camera.direction, 1.0f);
-    Vector2 fov = vector2::sub(camera.fovRight, camera.fovLeft);
-
-    sprite_pool.visible_length = 0;
-    for (int i = 0; i < sprite_pool.length; ++i) {
-        Sprite *sprite = &sprite_pool.items[i];
-
-        Vector2 sp = vector2::sub(sprite.position, camera.position);
-        float spl = vector2::length(sp);
-        if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
-        if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
-
-        float cos = vector2::dot(sp, dir)/spl;
-        // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
-        // It may or may not impact the performance of renderSprites()
-        if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
-        sprite.dist = NEAR_CLIPPING_PLANE/cos;
-        sp = vector2::sub(vector2::add(vector2::mul(vector2::normalize(sp),vector2::xx(sprite.dist)), camera.position), camera.fovLeft);
-        sprite.t = vector2::length(sp)/vector2::length(fov)*math::copysign(1.0f, vector2::dot(sp, fov));
-        sprite.pdist = vector2::dot(vector2::sub(sprite.position, camera.position), dir);
-
-        // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
-        if (sprite.pdist < NEAR_CLIPPING_PLANE) continue;
-        if (sprite.pdist >= FAR_CLIPPING_PLANE) continue;
-
-        sprite_pool.visible_items[sprite_pool.visible_length++] = sprite;
-    }
-
-    quicksort(sprite_pool.visible_items[0..sprite_pool.visible_length-1],
-              fn int(Sprite *a, Sprite *b) => (int)math::copysign(1.0f, b.pdist - a.pdist));
-}
+extern fn void cull_and_sort_sprites(SpritePool *sprite_pool) @extern("cull_and_sort_sprites");
 
 fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) {
     if (sprite_pool.length >= SPRITE_POOL_CAPACITY) return;

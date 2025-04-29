@@ -1,4 +1,6 @@
+#include <stdint.h>
 #include "common.h"
+#include "sort.h"
 
 #define EPS 1e-6f
 #define FAR_CLIPPING_PLANE 10.0f
@@ -8,6 +10,7 @@
 #define SCENE_FLOOR2   (Color) {0x2f, 0x41, 0x41, 0xff}
 #define SCENE_CEILING1 (Color) {0x29, 0x17, 0x17, 0xff}
 #define SCENE_CEILING2 (Color) {0x41, 0x2f, 0x2f, 0xff}
+#define SPRITE_POOL_CAPACITY 1000
 
 typedef struct {
     Vector2 position;
@@ -235,4 +238,67 @@ void render_walls(Image *display, float *zbuffer, Image *wall) {
         zbuffer[x] = vector2_dot(v, d);
         if (scene_get_tile(c)) render_column_of_wall(display, zbuffer, wall, x, p, c);
     }
+}
+
+typedef struct {
+    Image *image;
+    // TODO: Use Vector3 instead
+    // We can't do it right now due to some alignment restriction stuff
+    Vector2 position;
+    float z;
+    float scale;
+    IVector2 crop_position;
+    IVector2 crop_size;
+
+    float dist;  // Actual distance.
+    float pdist; // Perpendicular distance.
+    float t;     // Normalized horizontal position on the screen
+} Sprite;
+
+typedef struct {
+    Sprite items[SPRITE_POOL_CAPACITY];
+    int length;
+    Sprite* visible_items[SPRITE_POOL_CAPACITY];
+    int visible_length;
+} SpritePool;
+
+int sprite_pdist_compare(const void *ap, const void *bp) {
+    Sprite * const *a = ap;
+    Sprite * const *b = bp;
+    return (int)__builtin_copysign(1.0f, (*b)->pdist - (*a)->pdist);
+}
+
+void cull_and_sort_sprites(SpritePool *sprite_pool) {
+    Camera camera = { .position = {me.position.x, me.position.y}, .direction = me.direction };
+    camera_update(&camera);
+
+    Vector2 dir = vector2_from_polar(camera.direction, 1.0f);
+    Vector2 fov = vector2_sub(camera.fovRight, camera.fovLeft);
+
+    sprite_pool->visible_length = 0;
+    for (int i = 0; i < sprite_pool->length; ++i) {
+        Sprite *sprite = &sprite_pool->items[i];
+
+        Vector2 sp = vector2_sub(sprite->position, camera.position);
+        float spl = vector2_length(sp);
+        if (spl <= NEAR_CLIPPING_PLANE) continue; // Sprite is too close
+        if (spl >= FAR_CLIPPING_PLANE) continue;  // Sprite is too far
+
+        float cos = vector2_dot(sp, dir)/spl;
+        // TODO: @perf the sprites that are invisible on the screen but within FOV 180° are not culled
+        // It may or may not impact the performance of renderSprites()
+        if (cos < 0) continue;  // Sprite is outside of the maximal FOV 180°
+        sprite->dist = NEAR_CLIPPING_PLANE/cos;
+        sp = vector2_sub(vector2_add(vector2_mul(vector2_normalize(sp),vector2_xx(sprite->dist)), camera.position), camera.fovLeft);
+        sprite->t = vector2_length(sp)/vector2_length(fov)*__builtin_copysign(1.0f, vector2_dot(sp, fov));
+        sprite->pdist = vector2_dot(vector2_sub(sprite->position, camera.position), dir);
+
+        // TODO: I'm not sure if these checks are necessary considering the `spl <= NEAR_CLIPPING_PLANE` above
+        if (sprite->pdist < NEAR_CLIPPING_PLANE) continue;
+        if (sprite->pdist >= FAR_CLIPPING_PLANE) continue;
+
+        sprite_pool->visible_items[sprite_pool->visible_length++] = sprite;
+    }
+
+    quick_sort(sprite_pool->visible_items, sprite_pool->visible_length, sizeof(sprite_pool->visible_items[0]), sprite_pdist_compare);
 }
