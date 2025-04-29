@@ -302,3 +302,21 @@ void cull_and_sort_sprites(SpritePool *sprite_pool) {
 
     quick_sort(sprite_pool->visible_items, sprite_pool->visible_length, sizeof(sprite_pool->visible_items[0]), sprite_pdist_compare);
 }
+
+void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) {
+    if (sprite_pool->length >= SPRITE_POOL_CAPACITY) return;
+
+    size_t last = sprite_pool->length;
+
+    sprite_pool->items[last].image = image;
+    sprite_pool->items[last].position = (Vector2){position.x, position.y};
+    sprite_pool->items[last].z = position.z;
+    sprite_pool->items[last].scale = scale;
+    sprite_pool->items[last].pdist = 0;
+    sprite_pool->items[last].dist = 0;
+    sprite_pool->items[last].t = 0;
+    sprite_pool->items[last].crop_position = crop_position;
+    sprite_pool->items[last].crop_size = crop_size;
+
+    sprite_pool->length += 1;
+}

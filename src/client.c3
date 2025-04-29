@@ -131,24 +131,7 @@ fn void resize_display(usz width, usz height) @extern("resize_display") @wasm
 extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_and_ceiling");
 extern fn void render_walls(Image *display, float *zbuffer, Image *wall) @extern("render_walls");
 extern fn void cull_and_sort_sprites(SpritePool *sprite_pool) @extern("cull_and_sort_sprites");
-
-fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) {
-    if (sprite_pool.length >= SPRITE_POOL_CAPACITY) return;
-
-    usz last = sprite_pool.length;
-
-    sprite_pool.items[last].image = image;
-    sprite_pool.items[last].position = {position.x, position.y};
-    sprite_pool.items[last].z = position.z;
-    sprite_pool.items[last].scale = scale;
-    sprite_pool.items[last].pdist = 0;
-    sprite_pool.items[last].dist = 0;
-    sprite_pool.items[last].t = 0;
-    sprite_pool.items[last].crop_position = crop_position;
-    sprite_pool.items[last].crop_size = crop_size;
-
-    sprite_pool.length += 1;
-}
+extern fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) @extern("push_sprite");
 
 fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) {
     for (int i = 0; i < sprite_pool.visible_length; ++i) {
