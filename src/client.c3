@@ -132,41 +132,7 @@ extern fn void render_floor_and_ceiling(Image *display) @extern("render_floor_an
 extern fn void render_walls(Image *display, float *zbuffer, Image *wall) @extern("render_walls");
 extern fn void cull_and_sort_sprites(SpritePool *sprite_pool) @extern("cull_and_sort_sprites");
 extern fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) @extern("push_sprite");
-
-fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) {
-    for (int i = 0; i < sprite_pool.visible_length; ++i) {
-        Sprite *sprite = sprite_pool.visible_items[i];
-        float cx = display.width*sprite.t;
-        float cy = display.height*0.5f;
-        float maxSpriteSize = display.height/sprite.pdist;
-        float spriteSize = maxSpriteSize*sprite.scale;
-        int x1 = (int)math::floor(cx - spriteSize*0.5f);
-        int x2 = (int)math::floor(x1 + spriteSize - 1.0f);
-        int bx1 = math::max(0, x1);
-        int bx2 = math::min(display.width-1, x2);
-        int y1 = (int)math::floor(cy + maxSpriteSize*0.5f - maxSpriteSize*sprite.z);
-        int y2 = (int)math::floor(y1 + spriteSize - 1);
-        int by1 = math::max(0, y1);
-        int by2 = math::min(display.height-1, y2);
-
-        Color *src = &sprite.image.pixels[0];
-        Color *dest = &display.pixels[0];
-        for (int x = bx1; x <= bx2; ++x) {
-            if (sprite.pdist < zbuffer[x]) {
-                for (int y = by1; y <= by2; ++y) {
-                    int tx = (int)math::floor((float)(x - x1)/spriteSize*sprite.crop_size.x);
-                    int ty = (int)math::floor((float)(y - y1)/spriteSize*sprite.crop_size.y);
-                    int srcP = (ty + sprite.crop_position.y)*sprite.image.width + (tx + sprite.crop_position.x);
-                    int destP = y*display.width + x;
-                    float alpha = src[srcP].a/255.0f;
-                    dest[destP].r = (char)(dest[destP].r*(1 - alpha) + src[srcP].r*alpha);
-                    dest[destP].g = (char)(dest[destP].g*(1 - alpha) + src[srcP].g*alpha);
-                    dest[destP].b = (char)(dest[destP].b*(1 - alpha) + src[srcP].b*alpha);
-                }
-            }
-        }
-    }
-}
+extern fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) @extern("render_sprites");
 
 fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
     foreach (&particle: particle_pool.items) {
