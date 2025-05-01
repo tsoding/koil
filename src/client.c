@@ -28,6 +28,7 @@ typedef enum {
 
 float platform_random(void);
 void platform_play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
+bool platform_is_offline_mode();
 
 typedef struct {
     Vector2 position;
@@ -478,5 +479,15 @@ void update_items_offline(Item *items, size_t items_count) {
         if (collect_item(me, item)) {
             platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item->position.x, item->position.y);
         }
+    }
+}
+
+void update_items(SpritePool *sprite_pool, float time, Item *items, size_t items_count, Image *key_image, Image *bomb_image) {
+    // Rendering the items as sprites
+    render_items(sprite_pool, items, items_count, time, key_image, bomb_image);
+
+    // Offline mode. Updating items state without asking the server.
+    if (platform_is_offline_mode()) {
+        update_items_offline(items, items_count);
     }
 }

@@ -177,18 +177,7 @@ fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Ite
 }
 
 extern fn void render_items(SpritePool *sprite_pool, Item* items, usz items_count, float time, Image *key_image, Image *bomb_image) @extern("render_items");
-extern fn void update_items_offline(Item *items, usz items_count) @extern("update_items_offline");
-
-fn void update_items(SpritePool *sprite_pool, float time, Item *items, usz items_count, Image *key_image, Image *bomb_image) {
-    // Rendering the items as sprites
-    render_items(sprite_pool, items, items_count, time, key_image, bomb_image);
-
-    // Offline mode. Updating items state without asking the server.
-    if (platform::is_offline_mode()) {
-        update_items_offline(items, items_count);
-    }
-}
-
+extern fn void update_items(SpritePool *sprite_pool, float time, Item *items, usz items_count, Image *key_image, Image *bomb_image) @extern("update_items");
 
 fn void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePool *particle_pool) {
     platform::play_sound(BOMB_BLAST, player_position.x, player_position.y, bomb_position.x, bomb_position.y);
