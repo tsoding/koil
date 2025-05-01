@@ -177,15 +177,7 @@ fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Ite
 }
 
 extern fn void render_items(SpritePool *sprite_pool, Item* items, usz items_count, float time, Image *key_image, Image *bomb_image) @extern("render_items");
-
-fn void update_items_offline(Item *items, usz items_count) {
-    for (usz item_index = 0; item_index < items_count; ++item_index) {
-        Item *item = &items[item_index];
-        if (common::collect_item(me, item)) {
-            platform::play_sound(ITEM_PICKUP, me.position.x, me.position.y, item.position.x, item.position.y);
-        }
-    }
-}
+extern fn void update_items_offline(Item *items, usz items_count) @extern("update_items_offline");
 
 fn void update_items(SpritePool *sprite_pool, float time, Item *items, usz items_count, Image *key_image, Image *bomb_image) {
     // Rendering the items as sprites

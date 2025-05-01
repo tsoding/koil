@@ -19,7 +19,15 @@
 #define ITEM_AMP 0.07f
 #define ITEM_FREQ 0.7f
 
+// WARNING! Must be synchronized with AssetSound in client.mts
+typedef enum {
+    BOMB_BLAST,
+    BOMB_RICOCHET,
+    ITEM_PICKUP,
+} AssetSound;
+
 float platform_random(void);
+void platform_play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
 
 typedef struct {
     Vector2 position;
@@ -460,6 +468,15 @@ void render_items(SpritePool *sprite_pool, Item* items, size_t items_count, floa
                     push_sprite(sprite_pool, bomb_image, (Vector3){item->position.x, item->position.y, z}, 0.25f, (IVector2){0, 0}, (IVector2){bomb_image->width, bomb_image->height});
                     break;
             }
+        }
+    }
+}
+
+void update_items_offline(Item *items, size_t items_count) {
+    for (size_t item_index = 0; item_index < items_count; ++item_index) {
+        Item *item = &items[item_index];
+        if (collect_item(me, item)) {
+            platform_play_sound(ITEM_PICKUP, me.position.x, me.position.y, item->position.x, item->position.y);
         }
     }
 }
