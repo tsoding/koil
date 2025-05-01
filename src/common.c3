@@ -17,16 +17,6 @@ struct Asset {
 
 def Assets = List(<Asset>);
 
-const ushort SERVER_PORT = 6970;  // WARNING! Has to be in sync with SERVER_PORT in client.mts
-const float BOMB_GRAVITY = 10;
-const float BOMB_LIFETIME = 2;
-const float BOMB_THROW_VELOCITY = 5;
-const float BOMB_DAMP = 0.8;
-const float BOMB_SCALE = 0.25;
-const float PLAYER_SIZE = 0.5;
-const float PLAYER_RADIUS = 0.5;
-const float PLAYER_SPEED = 2;
-
 /// Messages //////////////////////////////
 
 enum MessageKind: inline char {
@@ -49,11 +39,6 @@ struct Message @packed {
     char[*] bytes;
 }
 
-/// Scene //////////////////////////////
-
-extern fn bool scene_get_tile(Vector2 p) @extern("scene_get_tile");
-extern fn bool scene_can_rectangle_fit_here(float px, float py, float sx, float sy) @extern("scene_can_rectangle_fit_here");
-
 /// Items //////////////////////////////
 
 enum ItemKind: inline char {
@@ -70,8 +55,6 @@ struct Item {
 extern fn Item *items_ptr() @extern("items_ptr");
 extern fn usz items_len() @extern("items_len");
 
-extern fn bool collect_item(Player player, Item *item) @extern("collect_item");
-
 struct ItemSpawned @packed {
     ItemKind itemKind;
     uint itemIndex;
@@ -86,8 +69,6 @@ struct ItemsSpawnedBatchMessage @packed {
 }
 macro verify_items_spawned_batch_message(message) => msg::batch::verify(MessageKind.ITEM_SPAWNED, message, ItemSpawned.sizeof);
 macro alloc_items_spawned_batch_message(count) => (ItemsSpawnedBatchMessage*)msg::batch::alloc(MessageKind.ITEM_SPAWNED, count, ItemSpawned.sizeof);
-
-extern fn ItemsSpawnedBatchMessage* reconstruct_state_of_items(Item *items, usz items_count) @extern("reconstruct_state_of_items");
 
 struct ItemsCollectedBatchMessage @packed {
     uint byte_length;
@@ -111,7 +92,6 @@ def Bombs = Bomb[20];
 extern Bombs bombs @extern("bombs");
 
 extern fn int throw_bomb(Vector2 position, float direction, Bombs *bombs) @extern("throw_bomb");
-extern fn bool update_bomb(Bomb *bomb, float delta_time) @extern("update_bomb");
 
 struct BombSpawned @packed {
     uint bombIndex;
@@ -272,24 +252,6 @@ struct Vector2 {
     float x, y;
 }
 
-extern fn Vector2 xx(float x) @extern("vector2_xx");
-extern fn Vector2 add(Vector2 a, Vector2 b) @extern("vector2_add");
-extern fn Vector2 sub(Vector2 a, Vector2 b) @extern("vector2_sub");
-extern fn Vector2 mul(Vector2 a, Vector2 b) @extern("vector2_mul");
-extern fn float length(Vector2 a) @extern("vector2_length");
-extern fn Vector2 normalize(Vector2 a) @extern("vector2_normalize");
-extern fn float lerpf(float a, float b, float t) @extern("lerpf");
-extern fn Vector2 lerp(Vector2 a, Vector2 b, float t) @extern("vector2_lerp");
-extern fn Vector2 copysign(Vector2 a, Vector2 b) @extern("vector2_copysign");
-extern fn Vector2 floor(Vector2 a) @extern("vector2_floor");
-extern fn float distance(Vector2 a, Vector2 b) @extern("vector2_distance");
-extern fn float dot(Vector2 a, Vector2 b) @extern("vector2_dot");
-extern fn Vector2 from_polar(float angle, float len) @extern("vector2_from_polar");
-
-fn Vector2 from_vector3(Vector3 a) {
-    return {a.x, a.y};
-}
-
 module common::ivector2;
 import common::vector2;
 import std::hash::fnv32a;
@@ -298,24 +260,9 @@ struct IVector2 {
     int x, y;
 }
 
-extern fn IVector2 from_vector2(Vector2 a) @extern("ivector2_from_vector2");
-
 module common::vector3;
 import std::math;
 
 struct Vector3 {
     float x, y, z;
 }
-
-fn Vector3 mul(Vector3 a, Vector3 b) {
-    a.x *= b.x;
-    a.y *= b.y;
-    a.z *= b.z;
-    return a;
-}
-
-fn Vector3 xxx(float x) {
-    return {x, x, x};
-}
-
-extern fn float length(Vector3 a) @extern("vector3_length");
