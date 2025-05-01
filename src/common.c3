@@ -7,9 +7,6 @@ import std::collections::list;
 import std::collections::map;
 import std::hash::fnv32a;
 
-def ShortString = char[64];
-macro uint ShortString.hash(self) => fnv32a::encode(&self);
-
 // WARNING! struct Asset definition must be in sync with the one in common.h
 struct Asset {
     String filename;
@@ -29,9 +26,6 @@ const float BOMB_SCALE = 0.25;
 const float PLAYER_SIZE = 0.5;
 const float PLAYER_RADIUS = 0.5;
 const float PLAYER_SPEED = 2;
-
-// It's such mod that proper_mod(-1, 100) === 99
-macro proper_mod(a, b) => (a%b + b)%b;
 
 /// Messages //////////////////////////////
 
@@ -303,8 +297,6 @@ import std::hash::fnv32a;
 struct IVector2 {
     int x, y;
 }
-fn uint IVector2.hash(IVector2 self) => fnv32a::encode(@as_char_view(self));
-macro bool IVector2.equals(IVector2 a, IVector2 b) => a.x == b.x && a.y == b.y;
 
 extern fn IVector2 from_vector2(Vector2 a) @extern("ivector2_from_vector2");
 

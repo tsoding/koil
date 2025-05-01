@@ -9,6 +9,7 @@
 #define PI 3.14159265358979323846f
 #endif // PI
 
+// It's such mod that proper_mod(-1, 100) === 99
 float proper_fmodf(float a, float b);
 
 float lerpf(float a, float b, float t);
