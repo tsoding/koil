@@ -178,24 +178,8 @@ fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Ite
 
 extern fn void render_items(SpritePool *sprite_pool, Item* items, usz items_count, float time, Image *key_image, Image *bomb_image) @extern("render_items");
 extern fn void update_items(SpritePool *sprite_pool, float time, Item *items, usz items_count, Image *key_image, Image *bomb_image) @extern("update_items");
-
 extern fn void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePool *particle_pool) @extern("explode_bomb");
-
-fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, float delta_time, Bombs *bombs) {
-    foreach (&bomb: *bombs) {
-        if (bomb.lifetime > 0) {
-            push_sprite(sprite_pool, bomb_image, {bomb.position.x, bomb.position.y, bomb.position_z}, common::BOMB_SCALE, {0, 0}, {bomb_image.width, bomb_image.height});
-
-            if (common::update_bomb(bomb, delta_time)) {
-                platform::play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb.position.x, bomb.position.y);
-            }
-
-            if (platform::is_offline_mode() && bomb.lifetime <= 0) {
-                explode_bomb({bomb.position.x, bomb.position.y, bomb.position_z}, me.position, particle_pool);
-            }
-        }
-    }
-}
+extern fn void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, float delta_time, Bombs *bombs) @extern("update_bombs_on_client_side");
 
 fn bool apply_bombs_spawned_batch_message(BombsSpawnedBatchMessage *message, Bombs *bombs) {
     usz count = (message.byte_length - BombsSpawnedBatchMessage.sizeof)/BombSpawned.sizeof;

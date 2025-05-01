@@ -499,3 +499,20 @@ void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePool *
         emit_particle(bomb_position, particle_pool);
     }
 }
+
+void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle_pool, Image *bomb_image, float delta_time, Bombs *bombs) {
+    for (size_t i = 0; i < BOMBS_CAPACITY; ++i) {
+        Bomb *bomb = &bombs->items[i];
+        if (bomb->lifetime > 0) {
+            push_sprite(sprite_pool, bomb_image, (Vector3){bomb->position.x, bomb->position.y, bomb->position_z}, BOMB_SCALE, (IVector2){0, 0}, (IVector2){bomb_image->width, bomb_image->height});
+
+            if (update_bomb(bomb, delta_time)) {
+                platform_play_sound(BOMB_RICOCHET, me.position.x, me.position.y, bomb->position.x, bomb->position.y);
+            }
+
+            if (platform_is_offline_mode() && bomb->lifetime <= 0) {
+                explode_bomb((Vector3){bomb->position.x, bomb->position.y, bomb->position_z}, me.position, particle_pool);
+            }
+        }
+    }
+}
