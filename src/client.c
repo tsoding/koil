@@ -438,3 +438,9 @@ void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, Pa
         }
     }
 }
+
+void kill_all_items(Item* items, size_t items_count) {
+    for (size_t i = 0; i < items_count; ++i) {
+        items[i].alive = false;
+    }
+}

@@ -134,12 +134,7 @@ extern fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 positi
 extern fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) @extern("render_sprites");
 extern fn void emit_particle(Vector3 source, ParticlePool *particle_pool) @extern("emit_particle");
 extern fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, ParticlePool *particle_pool) @extern("update_particles");
-
-fn void kill_all_items(Item* items, usz items_count) {
-    for (usz i = 0; i < items_count; ++i) {
-        items[i].alive = false;
-    }
-}
+extern fn void kill_all_items(Item* items, usz items_count) @extern("kill_all_items");
 
 fn bool apply_items_collected_batch_message(ItemsCollectedBatchMessage *message, Item* items, usz items_count) {
     usz count = (message.byte_length - ItemsCollectedBatchMessage.sizeof)/int.sizeof;
