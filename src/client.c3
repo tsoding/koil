@@ -176,20 +176,7 @@ fn bool apply_items_spawned_batch_message(ItemsSpawnedBatchMessage *message, Ite
     return true;
 }
 
-fn void render_items(SpritePool *sprite_pool, Item* items, usz items_count, float time, Image *key_image, Image *bomb_image) {
-    for (usz i = 0; i < items_count; ++i) {
-        Item *item = &items[i];
-        if (item.alive) {
-            float z = 0.25f + ITEM_AMP - ITEM_AMP*math::sin(ITEM_FREQ*(float)math::PI*time + item.position.x + item.position.y);
-            switch (item.kind) {
-                case KEY:
-                    push_sprite(sprite_pool, key_image, {item.position.x, item.position.y, z}, 0.25f, {0, 0}, {key_image.width, key_image.height});
-                case BOMB:
-                    push_sprite(sprite_pool, bomb_image, {item.position.x, item.position.y, z}, 0.25f, {0, 0}, {bomb_image.width, bomb_image.height});
-            }
-        }
-    }
-}
+extern fn void render_items(SpritePool *sprite_pool, Item* items, usz items_count, float time, Image *key_image, Image *bomb_image) @extern("render_items");
 
 fn void update_items_offline(Item *items, usz items_count) {
     for (usz item_index = 0; item_index < items_count; ++item_index) {

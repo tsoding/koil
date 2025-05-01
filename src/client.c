@@ -16,6 +16,8 @@
 #define PARTICLE_MAX_SPEED 8.0f
 #define PARTICLE_DAMP 0.8f
 #define PARTICLE_SCALE 0.05f
+#define ITEM_AMP 0.07f
+#define ITEM_FREQ 0.7f
 
 float platform_random(void);
 
@@ -442,5 +444,22 @@ void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, Pa
 void kill_all_items(Item* items, size_t items_count) {
     for (size_t i = 0; i < items_count; ++i) {
         items[i].alive = false;
+    }
+}
+
+void render_items(SpritePool *sprite_pool, Item* items, size_t items_count, float time, Image *key_image, Image *bomb_image) {
+    for (size_t i = 0; i < items_count; ++i) {
+        Item *item = &items[i];
+        if (item->alive) {
+            float z = 0.25f + ITEM_AMP - ITEM_AMP*__builtin_sinf(ITEM_FREQ*PI*time + item->position.x + item->position.y);
+            switch (item->kind) {
+                case ITEM_KEY:
+                    push_sprite(sprite_pool, key_image, (Vector3){item->position.x, item->position.y, z}, 0.25f, (IVector2){0, 0}, (IVector2){key_image->width, key_image->height});
+                    break;
+                case ITEM_BOMB:
+                    push_sprite(sprite_pool, bomb_image, (Vector3){item->position.x, item->position.y, z}, 0.25f, (IVector2){0, 0}, (IVector2){bomb_image->width, bomb_image->height});
+                    break;
+            }
+        }
     }
 }
