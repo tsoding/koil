@@ -18,6 +18,7 @@
 #define PARTICLE_SCALE 0.05f
 #define ITEM_AMP 0.07f
 #define ITEM_FREQ 0.7f
+#define BOMB_PARTICLE_COUNT 50
 
 // WARNING! Must be synchronized with AssetSound in client.mts
 typedef enum {
@@ -489,5 +490,12 @@ void update_items(SpritePool *sprite_pool, float time, Item *items, size_t items
     // Offline mode. Updating items state without asking the server.
     if (platform_is_offline_mode()) {
         update_items_offline(items, items_count);
+    }
+}
+
+void explode_bomb(Vector3 bomb_position, Vector2 player_position, ParticlePool *particle_pool) {
+    platform_play_sound(BOMB_BLAST, player_position.x, player_position.y, bomb_position.x, bomb_position.y);
+    for (int i = 0; i < BOMB_PARTICLE_COUNT; ++i) {
+        emit_particle(bomb_position, particle_pool);
     }
 }
