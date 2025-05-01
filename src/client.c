@@ -2,6 +2,10 @@
 #include "common.h"
 #include "sort.h"
 
+// TODO: It would be cool if we could use nob.h here.
+// Unfortunately nob depends on stdlib. We should make it so it's optional.
+#define ARRAY_LEN(array) (sizeof(array)/sizeof(array[0]))
+
 #define EPS 1e-6f
 #define FAR_CLIPPING_PLANE 10.0f
 #define NEAR_CLIPPING_PLANE 0.1f
@@ -31,6 +35,7 @@ typedef enum {
 float platform_random(void);
 void platform_play_sound(AssetSound sound, float player_position_x, float player_position_y, float object_position_x, float object_position_y);
 bool platform_is_offline_mode();
+bool platform_send_message(void *message);
 
 typedef struct {
     Vector2 position;
@@ -522,3 +527,81 @@ uint32_t sprite_angle_index(Vector2 camera_position, Player entity) {
     float TAU = 2*PI;
     return (uint32_t)__builtin_floorf(proper_fmodf(proper_fmodf(entity.direction, TAU) - proper_fmodf(vector2_angle(vector2_sub(entity.position, camera_position)), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
 }
+
+typedef struct {
+    uint32_t key_code;
+    Moving moving;
+} Control;
+
+// window.addEventListener('keydown', (e) => console.log(e))
+// > keydown { target: body , key: "ArrowDown", charCode: 0, keyCode: 40 }
+// > keydown { target: body , key: "ArrowUp", charCode: 0, keyCode: 38 }
+// > keydown { target: body , key: "ArrowRight", charCode: 0, keyCode: 39 }
+// > keydown { target: body , key: "ArrowLeft", charCode: 0, keyCode: 37 }
+// > keydown { target: body , key: "a", charCode: 0, keyCode: 65 }
+// > keydown { target: body , key: "s", charCode: 0, keyCode: 83 }
+// > keydown { target: body , key: "d", charCode: 0, keyCode: 68 }
+// > keydown { target: body , key: "w", charCode: 0, keyCode: 87 }
+static Control CONTROL_KEYS[] = {
+    {37, TURNING_LEFT},
+    {39, TURNING_RIGHT},
+    {38, MOVING_FORWARD},
+    {40, MOVING_BACKWARD},
+    {65, TURNING_LEFT},
+    {68, TURNING_RIGHT},
+    {87, MOVING_FORWARD},
+    {83, MOVING_BACKWARD},
+};
+
+void key_down(uint32_t key_code) {
+    for (size_t i = 0; i < ARRAY_LEN(CONTROL_KEYS); ++i) {
+        Control *control = &CONTROL_KEYS[i];
+        if (control->key_code == key_code) {
+            Moving direction = control->moving;
+
+            if (!platform_is_offline_mode()) {
+                AmmaMovingMessage *message = alloc_amma_moving_message();
+                message->payload.start = 1;
+                message->payload.direction = direction;
+                platform_send_message(message);
+            } else {
+                me.moving |= 1<<(uint32_t)direction;
+            }
+            return;
+        }
+    }
+
+    const uint32_t KEY_SPACE = 32;
+    if (key_code == KEY_SPACE) {
+        if (!platform_is_offline_mode()) {
+            platform_send_message(alloc_amma_throwing_message());
+        } else {
+            throw_bomb(me.position, me.direction, &bombs);
+        }
+    }
+}
+
+void key_up(uint32_t key_code) {
+    for (size_t i = 0; i < ARRAY_LEN(CONTROL_KEYS); ++i) {
+        Control *control = &CONTROL_KEYS[i];
+        if (control->key_code == key_code) {
+            Moving direction = control->moving;
+
+            if (!platform_is_offline_mode()) {
+                AmmaMovingMessage *message = alloc_amma_moving_message();
+                message->payload.start = 0;
+                message->payload.direction = direction;
+                platform_send_message(message);
+            } else {
+                me.moving &= ~(1<<(uint32_t)direction);
+            }
+            return;
+        }
+    }
+}
+
+// TODO: "magnet" items into the player
+// TODO: Blast particles should fade out as they age
+// TODO: Bomb collision should take into account the bomb's size
+// TODO: Try lighting with normal maps that come with some of the assets
+// TODO: Try cel shading the walls (using normals and stuff)

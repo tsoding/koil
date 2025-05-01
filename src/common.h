@@ -317,6 +317,7 @@ typedef struct {
 } __attribute__((packed)) AmmaMovingMessage;
 
 #define verify_amma_moving_message(message) batch_message_verify(MK_AMMA_MOVING, message, sizeof(AmmaMoving))
+#define alloc_amma_moving_message() (AmmaMovingMessage*)batch_message_alloc(MK_AMMA_MOVING, 1, sizeof(AmmaMoving))
 
 typedef struct {
     uint32_t byte_length;
@@ -332,5 +333,6 @@ typedef struct {
 } __attribute__((packed)) AmmaThrowingMessage;
 
 #define verify_amma_throwing_message(message) batch_message_verify_empty(MK_AMMA_THROWING, message)
+#define alloc_amma_throwing_message() (AmmaThrowingMessage*)batch_message_alloc(MK_AMMA_THROWING, 0, 0)
 
 #endif // COMMON_H_

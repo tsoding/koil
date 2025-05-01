@@ -80,6 +80,8 @@ async function buildClient() {
         "-z", "--export-table",
         "-z", "--allow-undefined",
         "-z", "--export=pixels_of_display",
+        "-z", "--export=key_up",
+        "-z", "--export=key_down",
         BUILD_FOLDER+"common.wasm.o",
         BUILD_FOLDER+"client.wasm.o",
         BUILD_FOLDER+"sort.wasm.o",

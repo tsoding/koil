@@ -216,31 +216,6 @@ fn bool apply_bombs_exploded_batch_message(BombsExplodedBatchMessage *message, B
     return true;
 }
 
-struct Control {
-    int key_code;
-    Moving moving;
-}
-
-// window.addEventListener('keydown', (e) => console.log(e))
-// > keydown { target: body , key: "ArrowDown", charCode: 0, keyCode: 40 }
-// > keydown { target: body , key: "ArrowUp", charCode: 0, keyCode: 38 }
-// > keydown { target: body , key: "ArrowRight", charCode: 0, keyCode: 39 }
-// > keydown { target: body , key: "ArrowLeft", charCode: 0, keyCode: 37 }
-// > keydown { target: body , key: "a", charCode: 0, keyCode: 65 }
-// > keydown { target: body , key: "s", charCode: 0, keyCode: 83 }
-// > keydown { target: body , key: "d", charCode: 0, keyCode: 68 }
-// > keydown { target: body , key: "w", charCode: 0, keyCode: 87 }
-const Control[*] CONTROL_KEYS = {
-    {37, TURNING_LEFT},
-    {39, TURNING_RIGHT},
-    {38, MOVING_FORWARD},
-    {40, MOVING_BACKWARD},
-    {65, TURNING_LEFT},
-    {68, TURNING_RIGHT},
-    {87, MOVING_FORWARD},
-    {83, MOVING_BACKWARD},
-};
-
 fn bool apply_hello_message_to_me(HelloPlayer hello_player, Item *items, usz items_count) {
     // TODO: maybe we should reset everything (bombs, etc) on hello message
     // So to let the server recreate the world properly
@@ -328,62 +303,6 @@ fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
         uint index = sprite_angle_index(me.position, entry.value);
         push_sprite(sprite_pool, player_image, {entry.value.position.x, entry.value.position.y, 1}, 1, {55*index, 0}, {55, 55});
     };
-}
-
-fn void key_down(uint key_code) @extern("key_down") @wasm {
-    foreach (control: CONTROL_KEYS) {
-        if (control.key_code == key_code) {
-            Moving direction = control.moving;
-
-            if (!platform::is_offline_mode()) {
-                platform::send_message(&&AmmaMovingMessage {
-                    .byte_length = AmmaMovingMessage.sizeof,
-                    .kind = AMMA_MOVING,
-                    .payload = {
-                        .start = 1,
-                        .direction = direction,
-                    },
-                });
-            } else {
-                me.moving |= 1<<(uint)direction;
-            }
-            return;
-        }
-    }
-
-    const uint KEY_SPACE = 32;
-    if (key_code == KEY_SPACE) {
-        if (!platform::is_offline_mode()) {
-            AmmaThrowingMessage *message = mem::tcalloc(AmmaThrowingMessage.sizeof);
-            message.byte_length = AmmaThrowingMessage.sizeof;
-            message.kind = AMMA_THROWING;
-            platform::send_message(message);
-        } else {
-            common::throw_bomb(me.position, me.direction, &common::bombs);
-        }
-    }
-}
-
-fn void key_up(uint key_code) @extern("key_up") @wasm {
-    foreach (control: CONTROL_KEYS) {
-        if (control.key_code == key_code) {
-            Moving direction = control.moving;
-
-            if (!platform::is_offline_mode()) {
-                platform::send_message(&&AmmaMovingMessage {
-                    .byte_length = AmmaMovingMessage.sizeof,
-                    .kind = AMMA_MOVING,
-                    .payload = {
-                        .start = 0,
-                        .direction = direction,
-                    }
-                });
-            } else {
-                me.moving &= ~(1<<(uint)direction);
-            }
-            return;
-        }
-    }
 }
 
 fn Asset *asset_by_filename(String filename) {
@@ -542,9 +461,3 @@ extern fn bool send_message(void *message) @extern("platform_send_message");
 extern fn uint now_msecs() @extern("platform_now_msecs");
 extern fn void write(void *buffer, usz buffer_sz) @extern("platform_write");
 extern fn float atan2f(float y, float x) @extern("platform_atan2f");
-
-// TODO: "magnet" items into the player
-// TODO: Blast particles should fade out as they age
-// TODO: Bomb collision should take into account the bomb's size
-// TODO: Try lighting with normal maps that come with some of the assets
-// TODO: Try cel shading the walls (using normals and stuff)
