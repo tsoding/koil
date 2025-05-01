@@ -11,6 +11,11 @@
 #define SCENE_CEILING1 (Color) {0x29, 0x17, 0x17, 0xff}
 #define SCENE_CEILING2 (Color) {0x41, 0x2f, 0x2f, 0xff}
 #define SPRITE_POOL_CAPACITY 1000
+#define PARTICLE_POOL_CAPACITY 1000
+#define PARTICLE_LIFETIME 1.0f
+#define PARTICLE_MAX_SPEED 8.0f
+
+float platform_random(void);
 
 typedef struct {
     Vector2 position;
@@ -352,6 +357,44 @@ void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) {
                     dest[destP].b = (char)(dest[destP].b*(1 - alpha) + src[srcP].b*alpha);
                 }
             }
+        }
+    }
+}
+
+typedef struct {
+    float lifetime;
+    // TODO: Use Vector3 instead
+    // We can't do it right now due to some alignment restriction stuff
+    Vector2 position;
+    float position_z;
+    Vector2 velocity;
+    float velocity_z;
+} Particle;
+
+typedef struct {
+    Particle items[PARTICLE_POOL_CAPACITY];
+} ParticlePool;
+
+ParticlePool particle_pool = {0};
+
+void emit_particle(Vector3 source, ParticlePool *particle_pool) {
+    for (size_t i = 0; i < PARTICLE_POOL_CAPACITY; ++i) {
+        Particle *particle = &particle_pool->items[i];
+        if (particle->lifetime <= 0) {
+            particle->lifetime = PARTICLE_LIFETIME;
+
+            particle->position = (Vector2) {source.x, source.y};
+            particle->position_z = source.z;
+
+            float angle = platform_random()*2.0f*PI;
+            particle->velocity.x = __builtin_cosf(angle);
+            particle->velocity.y = __builtin_sinf(angle);
+            particle->velocity_z = platform_random()*0.5f + 0.5f;
+
+            float velocity_mag = PARTICLE_MAX_SPEED*platform_random();
+            particle->velocity = vector2_mul(particle->velocity, vector2_xx(velocity_mag));
+            particle->velocity_z *= velocity_mag;
+            break;
         }
     }
 }

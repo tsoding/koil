@@ -98,9 +98,8 @@ struct Particle {
 
 struct ParticlePool {
     Particle[PARTICLE_POOL_CAPACITY] items;
-    int length;
 }
-ParticlePool particle_pool;
+extern ParticlePool particle_pool @extern("particle_pool");
 
 struct Camera {
     Vector2 position;
@@ -133,27 +132,7 @@ extern fn void render_walls(Image *display, float *zbuffer, Image *wall) @extern
 extern fn void cull_and_sort_sprites(SpritePool *sprite_pool) @extern("cull_and_sort_sprites");
 extern fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) @extern("push_sprite");
 extern fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) @extern("render_sprites");
-
-fn void emit_particle(Vector3 source, ParticlePool *particle_pool) {
-    foreach (&particle: particle_pool.items) {
-        if (particle.lifetime <= 0) {
-            particle.lifetime = PARTICLE_LIFETIME;
-
-            particle.position = {source.x, source.y};
-            particle.position_z = source.z;
-
-            float angle = platform::random()*2.0f*(float)math::PI;
-            particle.velocity.x = math::cos(angle);
-            particle.velocity.y = math::sin(angle);
-            particle.velocity_z = platform::random()*0.5f + 0.5f;
-
-            float velocity_mag = PARTICLE_MAX_SPEED*platform::random();
-            particle.velocity = vector2::mul(particle.velocity, vector2::xx(velocity_mag));
-            particle.velocity_z *= velocity_mag;
-            break;
-        }
-    }
-}
+extern fn void emit_particle(Vector3 source, ParticlePool *particle_pool) @extern("emit_particle");
 
 fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, ParticlePool *particle_pool) {
     foreach (&particle: particle_pool.items) {
