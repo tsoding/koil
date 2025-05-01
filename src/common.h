@@ -9,6 +9,8 @@
 #define PI 3.14159265358979323846f
 #endif // PI
 
+float proper_fmodf(float a, float b);
+
 float lerpf(float a, float b, float t);
 
 #define SERVER_PORT 6970  // WARNING! Has to be in sync with SERVER_PORT in client.mts
@@ -53,7 +55,7 @@ Vector2 vector2_normalize(Vector2 a);
 Vector2 vector2_lerp(Vector2 a, Vector2 b, float t);
 Vector2 vector2_copysign(Vector2 a, Vector2 b);
 float vector2_dot(Vector2 a, Vector2 b);
-
+float vector2_angle(Vector2 a);
 
 // IVector2 //////////////////////////////
 

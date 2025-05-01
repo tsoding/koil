@@ -1,5 +1,10 @@
 #include "common.h"
 
+float proper_fmodf(float a, float b)
+{
+    return __builtin_fmodf(__builtin_fmodf(a, b) + b, b);
+}
+
 float lerpf(float a, float b, float t) {
     return a + (b - a)*t;
 }
@@ -75,6 +80,10 @@ Vector2 vector2_copysign(Vector2 a, Vector2 b) {
 
 float vector2_dot(Vector2 a, Vector2 b) {
     return a.x*b.x + a.y*b.y;
+}
+
+float vector2_angle(Vector2 a) {
+    return __builtin_atan2f(a.y, a.x);
 }
 
 // IVector2 //////////////////////////////

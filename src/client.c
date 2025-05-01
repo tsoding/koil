@@ -19,6 +19,7 @@
 #define ITEM_AMP 0.07f
 #define ITEM_FREQ 0.7f
 #define BOMB_PARTICLE_COUNT 50
+#define SPRITE_ANGLES_COUNT 8
 
 // WARNING! Must be synchronized with AssetSound in client.mts
 typedef enum {
@@ -515,4 +516,9 @@ void update_bombs_on_client_side(SpritePool *sprite_pool, ParticlePool *particle
             }
         }
     }
+}
+
+uint32_t sprite_angle_index(Vector2 camera_position, Player entity) {
+    float TAU = 2*PI;
+    return (uint32_t)__builtin_floorf(proper_fmodf(proper_fmodf(entity.direction, TAU) - proper_fmodf(vector2_angle(vector2_sub(entity.position, camera_position)), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
 }

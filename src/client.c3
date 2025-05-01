@@ -47,11 +47,6 @@ struct Color {
     char a;
 }
 
-macro Vector2.angle_fixed(self) => platform::atan2f(self.y, self.x);
-// // TODO: math::atan2 is broken. Does not work with sprite_angle_index() properly.
-// // Investigate what's up and potentially report to C3.
-// macro Vector2.angle(self) => math::atan2(self.y, self.x);
-
 struct Image {
     usz width;
     usz height;
@@ -319,11 +314,7 @@ fn bool apply_players_moving_batch_message(PlayersMovingBatchMessage *message) {
     return true;
 }
 
-fn uint sprite_angle_index(Vector2 camera_position, Player entity) {
-    const float PI =  math::PI;
-    const float TAU = 2*math::PI;
-    return (uint)math::floor(common::proper_mod(common::proper_mod(entity.direction, TAU) - common::proper_mod(vector2::sub(entity.position, camera_position).angle_fixed(), TAU) - PI + PI/8, TAU)/TAU*SPRITE_ANGLES_COUNT);
-}
+extern fn uint sprite_angle_index(Vector2 camera_position, Player entity) @extern("sprite_angle_index");
 
 fn void update_all_players(float delta_time) {
     other_players.@each_entry(; OtherPlayersEntry *entry) {
