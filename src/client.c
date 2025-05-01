@@ -14,6 +14,8 @@
 #define PARTICLE_POOL_CAPACITY 1000
 #define PARTICLE_LIFETIME 1.0f
 #define PARTICLE_MAX_SPEED 8.0f
+#define PARTICLE_DAMP 0.8f
+#define PARTICLE_SCALE 0.05f
 
 float platform_random(void);
 
@@ -395,6 +397,44 @@ void emit_particle(Vector3 source, ParticlePool *particle_pool) {
             particle->velocity = vector2_mul(particle->velocity, vector2_xx(velocity_mag));
             particle->velocity_z *= velocity_mag;
             break;
+        }
+    }
+}
+
+void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, ParticlePool *particle_pool) {
+    for (size_t i = 0; i < PARTICLE_POOL_CAPACITY; ++i) {
+        Particle *particle = &particle_pool->items[i];
+        if (particle->lifetime > 0) {
+            particle->lifetime -= deltaTime;
+            particle->velocity_z -= BOMB_GRAVITY*deltaTime;
+
+            Vector2 new_position = vector2_add(particle->position, vector2_mul(particle->velocity, vector2_xx(deltaTime)));
+            if (scene_get_tile(new_position)) {
+                float dx = __builtin_fabsf(__builtin_floorf(particle->position.x) - __builtin_floorf(new_position.x));
+                float dy = __builtin_fabsf(__builtin_floorf(particle->position.y) - __builtin_floorf(new_position.y));
+
+                if (dx > 0) particle->velocity.x *= -1;
+                if (dy > 0) particle->velocity.y *= -1;
+                particle->velocity = vector2_mul(particle->velocity, vector2_xx(PARTICLE_DAMP));
+            } else {
+                particle->position = new_position;
+            }
+
+            float nz = particle->position_z + particle->velocity_z*deltaTime;
+            if (nz < PARTICLE_SCALE || nz > 1.0) {
+                particle->velocity_z *= -1;
+                particle->velocity = vector2_mul(particle->velocity, vector2_xx(PARTICLE_DAMP));
+            } else {
+                particle->position_z = nz;
+            }
+
+            if (particle->lifetime > 0) {
+                push_sprite(sprite_pool,
+                            image,
+                            (Vector3){particle->position.x, particle->position.y, particle->position_z},
+                            PARTICLE_SCALE,
+                            (IVector2){0, 0}, (IVector2){image->width, image->height});
+            }
         }
     }
 }

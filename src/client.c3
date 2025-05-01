@@ -133,43 +133,7 @@ extern fn void cull_and_sort_sprites(SpritePool *sprite_pool) @extern("cull_and_
 extern fn void push_sprite(SpritePool *sprite_pool, Image *image, Vector3 position, float scale, IVector2 crop_position, IVector2 crop_size) @extern("push_sprite");
 extern fn void render_sprites(Image *display, float *zbuffer, SpritePool *sprite_pool) @extern("render_sprites");
 extern fn void emit_particle(Vector3 source, ParticlePool *particle_pool) @extern("emit_particle");
-
-fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, ParticlePool *particle_pool) {
-    foreach (&particle: particle_pool.items) {
-        if (particle.lifetime > 0) {
-            particle.lifetime -= deltaTime;
-            particle.velocity_z -= common::BOMB_GRAVITY*deltaTime;
-
-            Vector2 new_position = vector2::add(particle.position, vector2::mul(particle.velocity, vector2::xx(deltaTime)));
-            if (common::scene_get_tile(new_position)) {
-                float dx = math::abs(math::floor(particle.position.x) - math::floor(new_position.x));
-                float dy = math::abs(math::floor(particle.position.y) - math::floor(new_position.y));
-
-                if (dx > 0) particle.velocity.x *= -1;
-                if (dy > 0) particle.velocity.y *= -1;
-                particle.velocity = vector2::mul(particle.velocity, vector2::xx(PARTICLE_DAMP));
-            } else {
-                particle.position = new_position;
-            }
-
-            float nz = particle.position_z + particle.velocity_z*deltaTime;
-            if (nz < PARTICLE_SCALE || nz > 1.0) {
-                particle.velocity_z *= -1;
-                particle.velocity = vector2::mul(particle.velocity, vector2::xx(PARTICLE_DAMP));
-            } else {
-                particle.position_z = nz;
-            }
-
-            if (particle.lifetime > 0) {
-                push_sprite(sprite_pool,
-                            image,
-                            {particle.position.x, particle.position.y, particle.position_z},
-                            PARTICLE_SCALE,
-                            {0, 0}, {image.width, image.height});
-            }
-        }
-    }
-}
+extern fn void update_particles(Image *image, SpritePool *sprite_pool, float deltaTime, ParticlePool *particle_pool) @extern("update_particles");
 
 fn void kill_all_items(Item* items, usz items_count) {
     for (usz i = 0; i < items_count; ++i) {
