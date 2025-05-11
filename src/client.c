@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include "common.h"
 #include "sort.h"
+#include "pack.h"
 
 // TODO: It would be cool if we could use nob.h here.
 // Unfortunately nob depends on stdlib. We should make it so it's optional.
@@ -598,6 +599,26 @@ void key_up(uint32_t key_code) {
             return;
         }
     }
+}
+
+static bool streq(const char *s1, const char *s2) {
+    while (*s1 && *s2) {
+        if (*s1++ != *s2++) return false;
+    }
+    return !(*s1 || *s2);
+}
+
+Asset *asset_by_filename(const char *filename) {
+    for (size_t i = 0; i < assets_count; ++i) {
+        if (streq(assets[i].filename, filename)) {
+            return &assets[i];
+        }
+    }
+    return NULL;
+}
+
+void *pack_ptr_by_offset(size_t offset) {
+    return &pack[offset];
 }
 
 // TODO: "magnet" items into the player

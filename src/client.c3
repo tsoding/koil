@@ -38,8 +38,6 @@ fn void* allocate_temporary_buffer(usz size) @extern("allocate_temporary_buffer"
     return mem::tcalloc(size);
 }
 
-$exec("build/packer");
-
 struct Color {
     char r;
     char g;
@@ -305,37 +303,32 @@ fn void render_other_players(SpritePool *sprite_pool, Image *player_image) {
     };
 }
 
-fn Asset *asset_by_filename(String filename) {
-    foreach (&asset: assets) {
-        if (asset.filename == filename) {
-            return asset;
-        }
-    }
-    return null;
-}
+
+extern fn void* pack_ptr_by_offset(usz offset) @extern("pack_ptr_by_offset");
+extern fn Asset *asset_by_filename(ZString filename) @extern("asset_by_filename");
 
 fn void render_game(float delta_time, float time) @extern("render_game") @wasm {
     Asset *asset = null;
 
     asset = asset_by_filename("assets/images/custom/key.png");
     assert(asset);
-    Image key_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+    Image key_image = {asset.width, asset.height, (Color*)pack_ptr_by_offset(asset.offset)};
 
     asset = asset_by_filename("assets/images/custom/bomb.png");
     assert(asset);
-    Image bomb_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+    Image bomb_image = {asset.width, asset.height, (Color*)pack_ptr_by_offset(asset.offset)};
 
     asset = asset_by_filename("assets/images/custom/particle.png");
     assert(asset);
-    Image particle_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+    Image particle_image = {asset.width, asset.height, (Color*)pack_ptr_by_offset(asset.offset)};
 
     asset = asset_by_filename("assets/images/custom/wall.png");
     assert(asset);
-    Image wall_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+    Image wall_image = {asset.width, asset.height, (Color*)pack_ptr_by_offset(asset.offset)};
 
     asset = asset_by_filename("assets/images/custom/player.png");
     assert(asset);
-    Image player_image = {asset.width, asset.height, (Color*)&pack[asset.offset]};
+    Image player_image = {asset.width, asset.height, (Color*)pack_ptr_by_offset(asset.offset)};
 
     update_all_players(delta_time);
     update_items(&sprite_pool, time, common::items_ptr(), common::items_len(), &key_image, &bomb_image);

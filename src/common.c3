@@ -9,7 +9,7 @@ import std::hash::fnv32a;
 
 // WARNING! struct Asset definition must be in sync with the one in common.h
 struct Asset {
-    String filename;
+    ZString filename;
     usz offset;
     usz width;
     usz height;

@@ -37,15 +37,20 @@ function buildJs() {
 }
 
 async function buildClient() {
+    await cmdAsync("clang", [
+        "-Wall", "-Wextra", "-ggdb",
+        "-I"+SRC_FOLDER,
+        "-I"+SRC_FOLDER+"cws/",
+        "-o", BUILD_FOLDER+"packer",
+        SRC_FOLDER+"packer.c",
+        "-lm",
+    ]);
+
+    await cmdAsync(BUILD_FOLDER+"packer", [
+        BUILD_FOLDER+"pack.h",
+    ]);
+
     await Promise.all([
-        cmdAsync("clang", [
-            "-Wall", "-Wextra", "-ggdb",
-            "-I"+SRC_FOLDER,
-            "-I"+SRC_FOLDER+"cws/",
-            "-o", BUILD_FOLDER+"packer",
-            SRC_FOLDER+"packer.c",
-            "-lm",
-        ]),
         cmdAsync("clang", [
             "-Wall", "-Wextra",
             "--target=wasm32",
@@ -57,6 +62,7 @@ async function buildClient() {
             "-Wall", "-Wextra",
             "--target=wasm32",
             "-I", SRC_FOLDER+"cws/",
+            "-I", BUILD_FOLDER,
             "-c", SRC_FOLDER+"client.c",
             "-o", BUILD_FOLDER+"client.wasm.o",
         ]),
@@ -68,6 +74,7 @@ async function buildClient() {
             "-o", BUILD_FOLDER+"sort.wasm.o",
         ]),
     ])
+
 
     return cmdAsync("c3c", [
         "compile",

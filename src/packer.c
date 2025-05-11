@@ -17,11 +17,21 @@ const char *IMAGE_FILES[] = {
     "assets/images/custom/wall.png",
 };
 
-String_Builder pack;
-Assets assets;
+String_Builder pack = {0};
+Assets assets = {0};
+String_Builder out = {0};
 
-int main()
+int main(int argc, char **argv)
 {
+    const char *program_name = shift(argv, argc);
+
+    if (argc <= 0) {
+        fprintf(stderr, "Usage: %s <output>\n", program_name);
+        fprintf(stderr, "ERROR: no output file path is provided\n");
+        return 1;
+    }
+    const char *output_path = shift(argv, argc);
+
     for (size_t i = 0; i < ARRAY_LEN(IMAGE_FILES); ++i) {
         const char *filename = IMAGE_FILES[i];
         int x, y;
@@ -37,19 +47,27 @@ int main()
         sb_append_buf(&pack, pixels, size);
     }
 
-    printf("Asset[] assets = {\n");
+    sb_appendf(&out, "Asset assets[] = {\n");
     for (size_t i = 0; i < assets.count; ++i) {
         Asset asset = assets.items[i];
-        printf("    {\"%s\", %zu, %zu, %zu},\n", asset.filename, asset.offset, asset.width, asset.height);
+        sb_appendf(&out, "    {\"%s\", %zu, %zu, %zu},\n", asset.filename, asset.offset, asset.width, asset.height);
     }
-    printf("};\n");
+    sb_appendf(&out, "};\n");
+    sb_appendf(&out, "#define assets_count %zu\n", assets.count);
 
-    printf("char[*] pack = {");
+    sb_appendf(&out, "unsigned char pack[] = {\n");
     String_View pack_view = sb_to_sv(pack);
-    for (size_t i = 0; i < pack_view.count; ++i) {
-        printf("%u,", (unsigned char)pack_view.data[i]);
+    size_t width = 15;
+    for (size_t i = 0; i < pack_view.count;) {
+        sb_appendf(&out, "    ");
+        for (size_t j = 0; j < width && i < pack_view.count; ++j, ++i) {
+            sb_appendf(&out, "0x%02X,", (unsigned char)pack_view.data[i]);
+        }
+        sb_appendf(&out, "\n");
     }
-    printf("};\n");
+    sb_appendf(&out, "};\n");
+    sb_appendf(&out, "#define pack_count %zu\n", pack_view.count);
 
+    if (!write_entire_file(output_path, out.items, out.count)) return 1;
     return 0;
 }
